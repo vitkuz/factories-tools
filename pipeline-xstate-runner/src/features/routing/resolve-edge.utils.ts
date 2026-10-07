@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/routing/resolve-edge.utils.ts
+// Learned from factories-tools/pipeline-state/src/features/routing/resolve-edge.utils.ts
 import type { Edge } from '../pipeline/pipeline.types.js';
 import { evaluateCondition } from './condition/index.js';
 import type { Lookup, Outcome } from './condition/index.js';

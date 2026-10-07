@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/pipeline/services/load-pipeline.service.ts
+// Learned from factories-tools/pipeline-state/src/features/pipeline/services/load-pipeline.service.ts
 import type { FileSystemClient } from '../../../clients/file-system/types.js';
 import type { Result } from '../../../shared/types/result.types.js';
 import { ok, refuse } from '../../../shared/utils/result.utils.js';

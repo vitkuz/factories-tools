@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/tests/{helpers,kit}.ts: a throwaway project the way a
+// Learned from factories-tools/pipeline-state/tests/{helpers,kit}.ts: a throwaway project the way a
 // consumer has it (`factories` links to the kit), fixed clocks and ids, in-memory fakes.
 import {
   cpSync,

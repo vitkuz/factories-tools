@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/rules/pipeline/steps-reachable.rule.ts
+// Learned from factories-tools/pipeline-validation/src/features/rules/pipeline/steps-reachable.rule.ts
 import type { Finding, PipelineContext, PipelineRule } from '../rules.types.js';
 import { defineRule } from '../rules.utils.js';
 import { declaredStarts, reachableFrom } from '../../pipeline.utils.js';

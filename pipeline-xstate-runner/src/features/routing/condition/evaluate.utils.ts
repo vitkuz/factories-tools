@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/routing/condition/evaluate.utils.ts
+// Learned from factories-tools/pipeline-state/src/features/routing/condition/evaluate.utils.ts
 import type { ConditionValue, Lookup, Outcome } from './condition.types.js';
 import { tokenize } from './tokenize.utils.js';
 

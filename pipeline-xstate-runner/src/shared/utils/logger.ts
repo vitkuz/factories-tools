@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/shared/utils/logger.ts
+// Learned from factories-tools/pipeline-state/src/shared/utils/logger.ts
 import { createLogger, format, transports, type Logger } from 'winston';
 import env from '../config/env.js';
 

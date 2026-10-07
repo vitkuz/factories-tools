@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/rules/index.ts
+// Learned from factories-tools/pipeline-validation/src/features/rules/index.ts
 /**
  * THE RULE REGISTRY — everything `validate` checks beyond the Zod shape, in output order. The same
  * rules, in the same order, as the kit's validator; tests/contract compares the two verdicts.

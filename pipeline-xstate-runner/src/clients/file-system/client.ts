@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/clients/file-system/client.ts
+// Learned from factories-tools/pipeline-state/src/clients/file-system/client.ts
 import fs from 'node:fs';
 import path from 'node:path';
 import fastGlob from 'fast-glob';

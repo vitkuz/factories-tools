@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/shared/config/paths.ts
+// Learned from factories-tools/pipeline-state/src/shared/config/paths.ts
 import { statSync } from 'node:fs';
 import path from 'node:path';
 

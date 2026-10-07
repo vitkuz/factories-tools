@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/pipeline/services/read-pipeline.service.ts
+// Learned from factories-tools/pipeline-validation/src/features/pipeline/services/read-pipeline.service.ts
 import type { FileSystemClient } from '../../../clients/file-system/types.js';
 import { errorMessage } from '../../../shared/utils/error.utils.js';
 

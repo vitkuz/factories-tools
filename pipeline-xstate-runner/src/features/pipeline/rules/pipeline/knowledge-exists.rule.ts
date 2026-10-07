@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/rules/pipeline/knowledge-exists.rule.ts
+// Learned from factories-tools/pipeline-validation/src/features/rules/pipeline/knowledge-exists.rule.ts
 import path from 'node:path';
 import type { FileSystemClient } from '../../../../clients/file-system/types.js';
 import type { Step } from '../../pipeline.types.js';

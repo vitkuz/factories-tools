@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/routing/lookup.utils.ts
+// Learned from factories-tools/pipeline-state/src/features/routing/lookup.utils.ts
 import path from 'node:path';
 import type { Pipeline } from '../pipeline/pipeline.types.js';
 import type { State } from '../state/state.types.js';

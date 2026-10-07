@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/rules/pipeline/loops-capped.rule.ts
+// Learned from factories-tools/pipeline-validation/src/features/rules/pipeline/loops-capped.rule.ts
 import type { EdgeEntry, Pipeline } from '../../pipeline.types.js';
 import type { Finding, PipelineContext, PipelineRule } from '../rules.types.js';
 import { defineRule } from '../rules.utils.js';

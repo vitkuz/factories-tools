@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/rules/setup/cwd-is-root.rule.ts
+// Learned from factories-tools/pipeline-validation/src/features/rules/setup/cwd-is-root.rule.ts
 import path from 'node:path';
 import type { SetupContext, SetupRule } from '../rules.types.js';
 import { defineRule } from '../rules.utils.js';

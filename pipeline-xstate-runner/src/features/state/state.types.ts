@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/state/state.types.ts
+// Learned from factories-tools/pipeline-state/src/features/state/state.types.ts
 import type { z } from 'zod';
 import type {
   historyEntrySchema,

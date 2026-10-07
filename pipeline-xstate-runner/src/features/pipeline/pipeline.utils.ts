@@ -1,5 +1,5 @@
-// Learned from factories-tools/validation/src/features/pipeline/pipeline.utils.ts and
-// factories-tools/run-state/src/features/pipeline/graph.utils.ts
+// Learned from factories-tools/pipeline-validation/src/features/pipeline/pipeline.utils.ts and
+// factories-tools/pipeline-state/src/features/pipeline/graph.utils.ts
 import path from 'node:path';
 import type { Edge, EdgeEntry, Pipeline, Scalar, Step, StringAt } from './pipeline.types.js';
 

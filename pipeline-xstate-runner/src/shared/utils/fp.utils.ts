@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/shared/utils/fp.utils.ts
+// Learned from factories-tools/pipeline-state/src/shared/utils/fp.utils.ts
 type Fn<A, B> = (value: A) => B;
 
 /** Left-to-right composition: `pipe(f, g, h)(x)` is `h(g(f(x)))`. */

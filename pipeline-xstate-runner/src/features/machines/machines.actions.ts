@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/commands/*.command.ts (the transitions a run
+// Learned from factories-tools/pipeline-state/src/features/commands/*.command.ts (the transitions a run
 // records) and factories-tools/pipeline-runner/src/features/run/run-state.utils.ts. Every function here is a
 // pure reducer: the context before in, the context after out. The machines wrap them in `assign`.
 import path from 'node:path';

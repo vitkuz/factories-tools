@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/shared/utils/path.utils.ts
+// Learned from factories-tools/pipeline-state/src/shared/utils/path.utils.ts
 import path from 'node:path';
 
 /**

@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/clients/clock/clock.utils.ts
+// Learned from factories-tools/pipeline-state/src/clients/clock/clock.utils.ts
 const NANOS_PER_MS = 1_000_000n;
 const NANOS_PER_SECOND = 1_000_000_000n;
 const RFC3339: RegExp = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})(?:\.(\d{1,9}))?Z$/;

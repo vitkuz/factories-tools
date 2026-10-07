@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/pipeline/services/parse-pipeline.service.ts
+// Learned from factories-tools/pipeline-validation/src/features/pipeline/services/parse-pipeline.service.ts
 import type { z } from 'zod';
 import { pipelineSchema } from '../pipeline.schema.js';
 import type { Pipeline } from '../pipeline.types.js';

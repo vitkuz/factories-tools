@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/rules/rules.utils.ts
+// Learned from factories-tools/pipeline-validation/src/features/rules/rules.utils.ts
 import type { Finding, Report, Rule, RuleMeta, Severity } from './rules.types.js';
 
 const findingOf =

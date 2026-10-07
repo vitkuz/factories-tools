@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/state/state.utils.ts
+// Learned from factories-tools/pipeline-state/src/features/state/state.utils.ts
 import path from 'node:path';
 import { sortKeys, unique } from '../../shared/utils/fp.utils.js';
 import type {

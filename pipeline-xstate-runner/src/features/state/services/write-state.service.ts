@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/state/services/write-state.service.ts
+// Learned from factories-tools/pipeline-state/src/features/state/services/write-state.service.ts
 import type { FileSystemClient } from '../../../clients/file-system/types.js';
 import type { State } from '../state.types.js';
 import { serializeState, statePathFor } from '../state.utils.js';

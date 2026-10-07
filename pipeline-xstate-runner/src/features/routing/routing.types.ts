@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/routing/routing.types.ts
+// Learned from factories-tools/pipeline-state/src/features/routing/routing.types.ts
 /** Where a returned event goes, once its condition, max and onMax are applied. */
 export interface EdgeDecision {
   /** `step:EVENT` of the edge taken — the key its count is kept under in state.edges. */

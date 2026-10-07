@@ -1,5 +1,5 @@
-// Learned from factories-tools/validation/src/features/report/report.utils.ts,
-// factories-tools/run-state/src/features/report/report.utils.ts (--list-guards) and
+// Learned from factories-tools/pipeline-validation/src/features/report/report.utils.ts,
+// factories-tools/pipeline-state/src/features/report/report.utils.ts (--list-guards) and
 // factories-tools/pipeline-runner/src/cli/cli.utils.ts (the run report, the cost line)
 import type { AgentUsage, HarnessClient } from '../../clients/harness/harness.types.js';
 import type { GuardMeta } from '../machines/machines.guards.js';

@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/shared/types/result.types.ts
+// Learned from factories-tools/pipeline-state/src/shared/types/result.types.ts
 /** Why the runner will not do something. `guard` names the check that said no. */
 export interface Refusal {
   guard: string;

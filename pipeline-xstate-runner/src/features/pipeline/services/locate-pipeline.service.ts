@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/pipeline/services/locate-pipeline.service.ts
+// Learned from factories-tools/pipeline-validation/src/features/pipeline/services/locate-pipeline.service.ts
 import path from 'node:path';
 import type { FileSystemClient } from '../../../clients/file-system/types.js';
 import type { Result } from '../../../shared/types/result.types.js';

@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/clients/clock/client.ts
+// Learned from factories-tools/pipeline-state/src/clients/clock/client.ts
 import { formatNanos, parseNanos } from './clock.utils.js';
 import type { Clock } from './types.js';
 

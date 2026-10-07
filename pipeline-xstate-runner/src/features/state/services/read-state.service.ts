@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/state/services/read-state.service.ts
+// Learned from factories-tools/pipeline-state/src/features/state/services/read-state.service.ts
 import type { z } from 'zod';
 import type { FileSystemClient } from '../../../clients/file-system/types.js';
 import type { Result } from '../../../shared/types/result.types.js';

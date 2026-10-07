@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/guards/ (defineGuard: one named, described,
+// Learned from factories-tools/pipeline-state/src/features/guards/ (defineGuard: one named, described,
 // pure check per refusal) — here the checks are XState guards, and --list-guards prints them.
 import type { AnyEventObject } from 'xstate';
 import { mapValues } from '../../shared/utils/fp.utils.js';

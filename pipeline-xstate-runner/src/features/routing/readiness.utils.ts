@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/routing/readiness.utils.ts
+// Learned from factories-tools/pipeline-state/src/features/routing/readiness.utils.ts
 import { forwardNeighbours, reachableVia } from '../pipeline/pipeline.utils.js';
 import type { Graph } from '../pipeline/pipeline.utils.js';
 import type { State } from '../state/state.types.js';

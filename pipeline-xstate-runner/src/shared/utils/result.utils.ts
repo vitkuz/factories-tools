@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/shared/utils/result.utils.ts
+// Learned from factories-tools/pipeline-state/src/shared/utils/result.utils.ts
 import type { Refusal, Result } from '../types/result.types.js';
 
 export const ok = <T>(value: T): Result<T> => ({ ok: true, value });

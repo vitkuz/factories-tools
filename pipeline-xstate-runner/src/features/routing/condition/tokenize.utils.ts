@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/routing/condition/tokenize.utils.ts
+// Learned from factories-tools/pipeline-state/src/features/routing/condition/tokenize.utils.ts
 import type { Outcome } from './condition.types.js';
 
 /**

@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/state/state.schema.ts
+// Learned from factories-tools/pipeline-state/src/features/state/state.schema.ts
 import { z } from 'zod';
 
 /**

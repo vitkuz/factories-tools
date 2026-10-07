@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/pipeline/pipeline.types.ts and
+// Learned from factories-tools/pipeline-validation/src/features/pipeline/pipeline.types.ts and
 // factories-tools/pipeline-runner/src/features/pipeline/pipeline.types.ts (the resolved shapes)
 import type { z } from 'zod';
 import type { edgeSchema, modelSchema, pipelineSchema, stepSchema } from './pipeline.schema.js';

@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/routing/condition/condition.types.ts
+// Learned from factories-tools/pipeline-state/src/features/routing/condition/condition.types.ts
 /** What a name in a condition resolves to: a param, a constant, a built-in or a reported value. */
 export type ConditionValue = unknown;
 

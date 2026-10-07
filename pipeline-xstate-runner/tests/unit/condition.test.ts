@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/tests/condition.test.ts
+// Learned from factories-tools/pipeline-state/tests/condition.test.ts
 import { describe, expect, it } from 'vitest';
 import { evaluateCondition, lookupIn, tokenize } from '../../src/features/routing/index.js';
 import type { ConditionScopes } from '../../src/features/routing/index.js';

@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/tests/routing.test.ts
+// Learned from factories-tools/pipeline-state/tests/routing.test.ts
 import { describe, expect, it } from 'vitest';
 import type { Pipeline } from '../../src/features/pipeline/pipeline.types.js';
 import { layersOf } from '../../src/features/pipeline/pipeline.utils.js';

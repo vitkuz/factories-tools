@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/rules/rules.types.ts
+// Learned from factories-tools/pipeline-validation/src/features/rules/rules.types.ts
 import type { FileSystemClient } from '../../../clients/file-system/types.js';
 import type { Pipeline } from '../pipeline.types.js';
 

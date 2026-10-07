@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/shared/config/env.ts and factories-tools/pipeline-runner/src/shared/config/env.ts
+// Learned from factories-tools/pipeline-state/src/shared/config/env.ts and factories-tools/pipeline-runner/src/shared/config/env.ts
 import { z } from 'zod';
 import { config } from 'dotenv';
 

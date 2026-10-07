@@ -8,7 +8,7 @@ imports nothing from the other tools.
 
 ```text
 factories/<id>/pipeline.json            ← contract in  (factories/pipeline.schema.json)
-        ↓  validate   own Zod twin + the graph rules       (learned from tools/validation)
+        ↓  validate   own Zod twin + the graph rules       (learned from factories-tools/pipeline-validation)
         ↓  resolve    params, constants, anchors, {{names}} (rules from skills/any-factory/runner.md)
    Run machine (XState v5)              ← one per run, the same shape for every pipeline
         │  context: the state.json twin — frontier, edge counts, reported values, step records
@@ -94,7 +94,7 @@ Rules the machines keep:
 - **Actions only assign.** `machines.actions.ts` holds pure reducers (`context → context`); the
   machines wrap them in `assign`. The one composite action, `spawnReadySteps`, enqueues an assign
   and the `spawnChild` calls; `cancelRunningSteps` enqueues `sendTo` the running children.
-- **Guards are named, pure and described.** `machines.guards.ts`, `defineGuard` as in run-state;
+- **Guards are named, pure and described.** `machines.guards.ts`, `defineGuard` as in pipeline-state;
   `--list-guards` prints them.
 - **Every event carries `at`.** The clock is read where the event is born (a client, an actor's
   `stamping` state), never inside a machine, so `replay` re-feeds `events.jsonl` into a machine
@@ -146,7 +146,7 @@ src/
 │  └─ clock/ ids/ file-system/ process/ shell/
 ├─ features/
 │  ├─ pipeline/                  Zod twin, graph utils, the 13 + 2 copied rules, locate/load/validate/resolve services
-│  ├─ routing/                   condition language, resolve-edge, readiness, stranded steps (copied from run-state)
+│  ├─ routing/                   condition language, resolve-edge, readiness, stranded steps (copied from pipeline-state)
 │  ├─ state/                     state.json twin, serializer, transitions, read/write services
 │  ├─ prompt/                    the task message (runner.md order), materials, outputs, the decision file
 │  ├─ machines/                  run.machine, step.machine, human-step.machine, guards (named), actions (pure), types
@@ -167,12 +167,12 @@ No import, no build dependency; every copy carries a `// Learned from <path>` he
 | Topic | Source | How it entered |
 |---|---|---|
 | Field meanings, substitution, anchors, task-message order, human steps, report | `factories-skills/any-factory/runner.md` | re-implemented |
-| Zod shape of `pipeline.json`; the graph rules; `--list-rules` text | `factories-tools/validation/src/` | copied (`pipeline.schema.ts`, `rules/`) |
-| Condition language; `max`/`onMax`/`EDGE_CAPPED`; forward-edge fan-in; stranded steps | `factories-tools/run-state/src/features/routing/` | copied |
-| Named guards that refuse with a reason; `defineGuard`; `--list-guards` | `factories-tools/run-state/src/features/guards/` | pattern re-used as XState named guards |
-| The state transitions a run records, in the recorder's words | `factories-tools/run-state/src/features/commands/` | re-implemented as pure reducers |
-| `state.json` serializer: key order, sorted maps, nanosecond monotonic clock, atomic write | `factories-tools/run-state/src/features/state/`, `clients/clock`, `clients/file-system` | copied |
-| Parity testing: normalise timestamps, ids, runner-only fields | run-state's tests | re-used as contract tests |
+| Zod shape of `pipeline.json`; the graph rules; `--list-rules` text | `factories-tools/pipeline-validation/src/` | copied (`pipeline.schema.ts`, `rules/`) |
+| Condition language; `max`/`onMax`/`EDGE_CAPPED`; forward-edge fan-in; stranded steps | `factories-tools/pipeline-state/src/features/routing/` | copied |
+| Named guards that refuse with a reason; `defineGuard`; `--list-guards` | `factories-tools/pipeline-state/src/features/guards/` | pattern re-used as XState named guards |
+| The state transitions a run records, in the recorder's words | `factories-tools/pipeline-state/src/features/commands/` | re-implemented as pure reducers |
+| `state.json` serializer: key order, sorted maps, nanosecond monotonic clock, atomic write | `factories-tools/pipeline-state/src/features/state/`, `clients/clock`, `clients/file-system` | copied |
+| Parity testing: normalise timestamps, ids, runner-only fields | pipeline-state's tests | re-used as contract tests |
 | The Claude adapter: flags, stdin prompt, structured answer, retry in the same session, `## Role` bridge | `factories-tools/pipeline-runner/src/adapters/{claude,agent-shared}` | copied |
 | The task message builder, materials, outputs, the decision file, the run report | `factories-tools/pipeline-runner/src/features/run/services/` | copied |
 | Permission modes, the hook runner, the process runner, the terminal | `factories-tools/pipeline-runner/src/{features/harness,adapters/shell,adapters/terminal,shared/utils/process.utils}` | copied |

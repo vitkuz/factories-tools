@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/routing/skip-stranded.utils.ts
+// Learned from factories-tools/pipeline-state/src/features/routing/skip-stranded.utils.ts
 import { allNeighbours, reachableVia } from '../pipeline/pipeline.utils.js';
 import type { Graph } from '../pipeline/pipeline.utils.js';
 import type { State, StepRecord, Transition } from '../state/state.types.js';

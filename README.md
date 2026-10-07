@@ -10,8 +10,8 @@ factories-tools/                 this repository, as a project sees it
 ├── bin/validate.mjs             the gate:     node factories-tools/bin/validate.mjs <id>
 ├── bin/state.mjs                the recorder: node factories-tools/bin/state.mjs <command> <runDir> …
 ├── bin/xstate-runner.mjs        the headless runner on XState: node factories-tools/bin/xstate-runner.mjs run <id> …
-├── validation/                  the validator's TypeScript sources and tests (bundled into bin/)
-├── run-state/                   the recorder's sources and tests (bundled into bin/)
+├── pipeline-validation/         the validator's TypeScript sources and tests (bundled into bin/)
+├── pipeline-state/              the recorder's sources and tests (bundled into bin/)
 ├── pipeline-xstate-runner/      the XState runner's sources and tests (bundled into bin/)
 ├── pipeline-runner/             the first headless runner: Claude, Codex, Copilot and Antigravity harnesses (npm install + build)
 ├── factory-diagram/             the SVG diagram CLI behind /draw-factory (npm install + build)
@@ -65,10 +65,10 @@ then commit the three pointers.
 
 ## Develop
 
-The bundled tools (`validation`, `run-state`, `pipeline-xstate-runner`):
+The bundled tools (`pipeline-validation`, `pipeline-state`, `pipeline-xstate-runner`):
 
 ```sh
-cd validation            # or run-state, pipeline-xstate-runner
+cd pipeline-validation   # or pipeline-state, pipeline-xstate-runner
 npm install
 npm run check            # typecheck, prettier, tests (incl. the bundle test: the committed bin/ is current)
 npm run bundle           # rewrites ../bin/<name>.mjs — commit it with the sources
@@ -77,8 +77,8 @@ npm run bundle           # rewrites ../bin/<name>.mjs — commit it with the sou
 `bash scripts/check-bundles.sh` runs the staleness check of all three. The other tools:
 `npm run typecheck && npm test` (`npm run format` first), and `npm run build` for a runnable `bin/`.
 
-The tests that walk **every real factory** (`validation/tests/factories.test.ts`,
-`run-state/tests/factories.test.ts`, the runner's contract tests, the schema-twin tests) need this
+The tests that walk **every real factory** (`pipeline-validation/tests/factories.test.ts`,
+`pipeline-state/tests/factories.test.ts`, the runner's contract tests, the schema-twin tests) need this
 repository mounted in a project beside `factories/` and `factories-skills/`; run alone they are
 skipped with a note. `factory-diagram` and `factory-studio` tests likewise read the real kit at
 `../../factories`.
@@ -88,7 +88,7 @@ keys, tokens, account ids, emails, home paths and the owner's private project na
 is public: fixtures and docs name no project, no account, no person.
 
 Each tool's README says how it is organised and used:
-[validation](validation/README.md), [run-state](run-state/README.md),
+[pipeline-validation](pipeline-validation/README.md), [pipeline-state](pipeline-state/README.md),
 [pipeline-xstate-runner](pipeline-xstate-runner/README.md), [pipeline-runner](pipeline-runner/README.md),
 [factory-diagram](factory-diagram/README.md), [factory-studio](factory-studio/README.md),
 [ai-usage](ai-usage/README.md).

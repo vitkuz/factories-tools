@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/validate/usecases/validate-pipeline.usecase.ts
+// Learned from factories-tools/pipeline-validation/src/features/validate/usecases/validate-pipeline.usecase.ts
 import type { FileSystemClient } from '../../../clients/file-system/types.js';
 import { PIPELINE_RULES, SETUP_RULES, reportFor, runRules } from '../rules/index.js';
 import type { Finding, SetupContext, Severity } from '../rules/index.js';

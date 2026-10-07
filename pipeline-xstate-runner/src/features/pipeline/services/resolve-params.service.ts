@@ -1,4 +1,4 @@
-// Learned from factories-tools/run-state/src/features/commands/params.utils.ts
+// Learned from factories-tools/pipeline-state/src/features/commands/params.utils.ts
 import type { Result } from '../../../shared/types/result.types.js';
 import { ok, refuse } from '../../../shared/utils/result.utils.js';
 import type { ParamValues, Pipeline, Scalar } from '../pipeline.types.js';

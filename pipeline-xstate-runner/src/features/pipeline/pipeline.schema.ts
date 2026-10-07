@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/pipeline/pipeline.schema.ts
+// Learned from factories-tools/pipeline-validation/src/features/pipeline/pipeline.schema.ts
 import { z } from 'zod';
 
 /**

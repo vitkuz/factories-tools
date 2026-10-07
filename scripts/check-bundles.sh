@@ -5,7 +5,7 @@
 set -u
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 status=0
-for tool in validation run-state pipeline-xstate-runner; do
+for tool in pipeline-validation pipeline-state pipeline-xstate-runner; do
   dir="${ROOT}/${tool}"
   [ -d "${dir}/node_modules" ] || { echo "check-bundles: ${tool}: run 'npm --prefix ${dir} install' first" >&2; status=2; continue; }
   if ! (cd "${dir}" && npx vitest run bundle >/dev/null 2>&1); then

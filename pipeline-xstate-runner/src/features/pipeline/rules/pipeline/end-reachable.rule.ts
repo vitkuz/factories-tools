@@ -1,4 +1,4 @@
-// Learned from factories-tools/validation/src/features/rules/pipeline/end-reachable.rule.ts
+// Learned from factories-tools/pipeline-validation/src/features/rules/pipeline/end-reachable.rule.ts
 import type { PipelineContext, PipelineRule } from '../rules.types.js';
 import { defineRule } from '../rules.utils.js';
 import { END, declaredStarts, reachableFrom } from '../../pipeline.utils.js';
