@@ -1,0 +1,86 @@
+{
+  "id": "human-loop",
+  "description": "Two steps that test human in the loop: an agent looks up the weather for a town, then a person reads it and either asks for another town (the loop goes round again) or aborts (END). The person names the next town in the note of their answer.",
+  "constants": {
+    "rootPath": "cwd",
+    "skillPath": ".",
+    "homePath": "~"
+  },
+  "params": {
+    "town": "Tbilisi"
+  },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "hooks": {
+    "after": [
+      "bash {{rootPath}}/scripts/ai-usage-ingest.sh {{outputDir}}"
+    ]
+  },
+  "START": [
+    "weather"
+  ],
+  "steps": {
+    "weather": {
+      "agent": "general-purpose",
+      "prompt": [
+        "Find the current weather for one town and write it down.",
+        "",
+        "Which town: if the input file `decision.md` is present, a person has asked for another town \u2014 the town is named in its `## Note` section; use that one.",
+        "If it is not present, the town is {{town}}.",
+        "",
+        "Get the weather by running `curl -s \"https://wttr.in/<town>?format=%l:+%C,+%t,+feels+like+%f,+wind+%w,+humidity+%h\"` (URL-encode the town name).",
+        "If that fails, use any other source you have.",
+        "",
+        "Overwrite your output file with exactly three lines: the town name as a `#` heading, one line with the weather, and one line saying where the data came from and the time you fetched it.",
+        "Return DONE, or FAILED if you could not get any weather for that town (still write the file, saying what went wrong)."
+      ],
+      "input": [
+        "2-review/decision.md"
+      ],
+      "output": [
+        "1-weather/weather.md"
+      ],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "review"
+          ]
+        },
+        "FAILED": {
+          "target": [
+            "review"
+          ]
+        }
+      }
+    },
+    "review": {
+      "agent": "human",
+      "prompt": [
+        "The weather report is in the file below.",
+        "Answer ANOTHER to get the weather for a different town \u2014 type the town's name as the note.",
+        "Answer ABORT to stop."
+      ],
+      "input": [
+        "1-weather/weather.md"
+      ],
+      "output": [
+        "2-review/decision.md"
+      ],
+      "transitions": {
+        "ANOTHER": {
+          "target": [
+            "weather"
+          ],
+          "max": 5,
+          "onMax": [
+            "END"
+          ]
+        },
+        "ABORT": {
+          "target": [
+            "END"
+          ]
+        }
+      }
+    }
+  }
+}

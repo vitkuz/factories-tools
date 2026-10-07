@@ -1,0 +1,3285 @@
+/* ------------------------------------------------------------------ */
+/* Tokens. Graphite-blue ground with real tonal steps; chroma = status. */
+/* ------------------------------------------------------------------ */
+
+:root {
+  --ground: #151b26;
+  --panel: #1c2432;
+  --raised: #242f40;
+  --line: #334154;
+  --ink: #e9edf2;
+  --ink-2: #9aa6b8;
+  --mask: rgb(21 27 38 / 0.3);
+
+  --st-completed: #5cc489;
+  --st-running: #5aa9ff;
+  --st-waiting: #f0b35b;
+  --st-skipped: #b497e8;
+  --st-failed: #f07178;
+  --st-pending: #7c8a9e;
+  --st-none: #4b5666;
+  /* The agent name on cards and in the inspector: the one non-status use of chroma, same hue as completed. */
+  --agent: var(--st-completed);
+
+  --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  color-scheme: dark;
+  font-family: var(--sans);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  background: var(--ground);
+  color: var(--ink);
+  font-size: 14px;
+  line-height: 1.45;
+  -webkit-font-smoothing: antialiased;
+}
+
+button,
+select {
+  font: inherit;
+}
+
+.muted {
+  color: var(--ink-2);
+}
+
+.mono {
+  font-family: var(--mono);
+  font-size: 0.93em;
+}
+
+.app {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* ------------------------------------------------------------------ */
+/* Top bar: title, run picker, live indicator. Nothing else.            */
+/* ------------------------------------------------------------------ */
+
+.topbar {
+  position: relative;
+  z-index: 2; /* the open run picker floats over the canvas and the inspector */
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  height: 52px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  flex: 0 0 auto;
+}
+
+/* The wordmark: the favicon mark, the house name in the ink, and the tool's own word in a white tile. */
+.brand {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  line-height: 20px;
+  white-space: nowrap;
+}
+
+.brand-mark {
+  flex: 0 0 auto;
+  display: block;
+}
+
+/* The tool's own word, set off the way a wordmark sets off its second half:
+   a white tile with black type. It is the one place the palette goes to pure
+   white — that is what makes the word carry the mark. */
+.brand-lead {
+  color: var(--ink);
+}
+
+.brand-tag {
+  /* the right pad is a shade tighter than the left: tracking already leaves a
+     trailing gap after the last letter, and the tile reads off-centre without it */
+  padding: 1px 5px 2px 6px;
+  border-radius: 3px;
+  background: #fff;
+  color: #000;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+/* The quiet part of a row: status (dot and word) and day — no parentheses, no dots between. */
+.run-meta {
+  display: inline-grid;
+  grid-template-columns: max-content max-content max-content;
+  align-items: center;
+  column-gap: 12px;
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.run-meta-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.run-meta-day {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+/* the run's total from cost.json; an empty cell keeps the grid aligned in the list */
+.run-meta-cost {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.live-status {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+
+.live-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--st-none);
+  flex: 0 0 auto;
+}
+
+.live-dot--live {
+  background: var(--st-completed);
+}
+
+.live-dot--live.is-active {
+  background: var(--st-running);
+}
+
+.live-dot--snapshot {
+  background: var(--st-pending);
+}
+
+.live-dot--unreachable {
+  background: var(--st-waiting);
+}
+
+/* ------------------------------------------------------------------ */
+/* Main split                                                            */
+/* ------------------------------------------------------------------ */
+
+.main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* the graph and, under it, the plain view: one column that scrolls; the inspector stays put */
+.run-column {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: auto;
+}
+
+.graph-wrap {
+  flex: 0 0 auto;
+  height: clamp(360px, 60vh, 760px);
+  min-width: 0;
+  position: relative;
+  z-index: 0;
+}
+
+.inspector {
+  width: clamp(300px, 24vw, 352px);
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-left: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.inspector-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 0 20px;
+}
+
+.pane {
+  padding: 18px 0;
+  border-bottom: 1px solid var(--line);
+}
+
+.pane:last-child {
+  border-bottom: 0;
+}
+
+.run-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.run-head h2 {
+  margin: 0;
+  min-width: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  overflow-wrap: anywhere;
+}
+
+.run-head .status-badge {
+  margin-top: 1px;
+}
+
+.run-head h2 {
+  margin-right: auto;
+}
+
+/* the run's total cost, a quiet pill next to the status; amber edge when older than the state */
+.run-cost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 1px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.run-cost.is-stale {
+  border-color: color-mix(in srgb, var(--st-waiting) 45%, transparent);
+}
+
+.run-cost-stale {
+  font-size: 11px;
+  font-weight: 400;
+  color: var(--st-waiting);
+}
+
+.run-description {
+  margin: 12px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink-2);
+}
+
+.pane-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.sub-title {
+  margin: 16px 0 0;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: var(--ink-2);
+}
+
+.step-sub {
+  margin: 2px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.kv {
+  display: grid;
+  grid-template-columns: 7.5rem minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 6px;
+  margin: 16px 0 0;
+  font-size: 13px;
+  line-height: 1.45;
+}
+
+.kv dt {
+  color: var(--ink-2);
+}
+
+.kv dd {
+  margin: 0;
+  min-width: 0;
+}
+
+/* a quiet qualifier under a value (why working time can exceed the wall clock) */
+.kv-note {
+  display: block;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-2);
+}
+
+/* plain strings keep whole words; paths and URLs are mono and break after `/` */
+.param-text {
+  overflow-wrap: normal;
+  word-break: break-word;
+}
+
+/* a long value folds to a few lines; "more" unfolds it */
+.param-text.is-clamped {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.param-more {
+  display: block;
+  margin-top: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  font-size: 12px;
+  color: var(--ink-2);
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 2px;
+  cursor: pointer;
+}
+
+.param-more:hover {
+  color: var(--ink);
+}
+
+.param-more:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+  border-radius: 2px;
+}
+
+.param-path {
+  overflow-wrap: anywhere;
+}
+
+.kv time {
+  cursor: help;
+}
+
+.hint {
+  margin: 12px 0 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* a stale link: the run it named is not on disk, so another one is shown */
+.run-missing {
+  margin: 0 0 14px;
+  padding: 8px 10px;
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--ink-2);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow-wrap: anywhere;
+}
+
+.run-missing code {
+  font-family: var(--mono);
+  font-size: 0.93em;
+  color: var(--ink);
+}
+
+.prompt {
+  margin: 6px 0 0;
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.doc-chip {
+  width: auto;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 18px;
+  color: var(--ink);
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 6px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.doc-chip:hover {
+  border-color: var(--ink-2);
+}
+
+.doc-list.is-expected .doc-chip {
+  color: var(--ink-2);
+  background: transparent;
+  border-style: dashed;
+}
+
+.agent-name {
+  color: var(--agent);
+}
+
+/* ---- attempts of a looped step: #, result, duration, start → finish ---- */
+/* four columns on one line at the inspector's width: 12 px tabular numerals, tight gutters */
+.attempt-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: max-content max-content max-content minmax(0, 1fr);
+  column-gap: 8px;
+  row-gap: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.attempt-row {
+  display: contents;
+}
+
+.attempt-n {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.attempt-result {
+  font-size: 12px;
+}
+
+.attempt-duration {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.attempt-row.is-open .attempt-duration,
+.attempt-row.is-open .attempt-result {
+  color: var(--st-running);
+}
+
+/* one line at the inspector's width; a narrower pane wraps at the arrow rather than clipping */
+.attempt-span {
+  color: var(--ink-2);
+}
+
+.attempt-arrow {
+  margin: 0 3px;
+}
+
+.waiting-text {
+  color: var(--st-waiting);
+}
+
+/* ---- cost: by model on the run, one row per agent run on a step ---- */
+.cost-list {
+  list-style: none;
+  margin: 10px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr) max-content max-content;
+  column-gap: 10px;
+  row-gap: 6px;
+  font-size: 12px;
+  line-height: 1.5;
+  font-variant-numeric: tabular-nums;
+}
+
+.cost-list.is-models {
+  grid-template-columns: minmax(0, 1fr) max-content;
+}
+
+.cost-row {
+  display: contents;
+}
+
+.cost-row.is-muted > * {
+  color: var(--ink-2);
+}
+
+.cost-n {
+  color: var(--ink-2);
+}
+
+.cost-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cost-tokens {
+  display: block;
+  font-size: 11px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cost-tokens:empty {
+  display: none;
+}
+
+.cost-duration {
+  white-space: nowrap;
+  color: var(--ink-2);
+}
+
+.cost-usd {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.cost-row.is-total > * {
+  border-top: 1px solid var(--line);
+  padding-top: 4px;
+  font-weight: 500;
+}
+
+.cost-warning {
+  margin-top: 8px;
+}
+
+/* ---- log ---- */
+.log-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0;
+  background: none;
+  border: 0;
+  color: var(--ink);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+}
+
+.log-toggle:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 3px;
+}
+
+.chevron {
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--ink-2);
+  border-bottom: 1.5px solid var(--ink-2);
+  transform: rotate(-45deg);
+  margin-left: 2px;
+}
+
+.chevron.is-open {
+  transform: rotate(45deg);
+  margin-top: -3px;
+}
+
+.log {
+  list-style: none;
+  margin: 12px 0 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  column-gap: 12px;
+  row-gap: 6px;
+}
+
+.log-row {
+  display: contents;
+}
+
+.log-at {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--ink-2);
+  line-height: 20px;
+  cursor: help;
+}
+
+.log-msg {
+  font-size: 13px;
+  line-height: 20px;
+  overflow-wrap: anywhere;
+}
+
+.log-step {
+  padding: 0 6px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 18px;
+  cursor: pointer;
+}
+
+.log-step:hover {
+  border-color: var(--ink-2);
+}
+
+.log-step:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.log-result {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.log-step-plain {
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+/* ---- footer strip: updated N s ago + Refresh ---- */
+.feed-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 20px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  color: var(--ink-2);
+  flex: 0 0 auto;
+}
+
+.feed-detail {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.feed-refresh {
+  flex: 0 0 auto;
+  padding: 4px 10px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.feed-refresh:hover:not(:disabled) {
+  border-color: var(--ink-2);
+}
+
+.feed-refresh:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.feed-refresh:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* ------------------------------------------------------------------ */
+/* Status badge and dots                                                 */
+/* ------------------------------------------------------------------ */
+
+.status-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+  flex: 0 0 auto;
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px 8px 1px 7px;
+  border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--badge) 45%, transparent);
+  color: var(--badge);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 18px;
+  white-space: nowrap;
+}
+
+.status-badge .status-dot {
+  background: var(--badge);
+}
+
+/* ------------------------------------------------------------------ */
+/* Canvas: React Flow theming + panels                                    */
+/* ------------------------------------------------------------------ */
+
+/* `colorMode="dark"` gives the canvas `.react-flow.dark`, and the library declares its own
+   dark defaults for these properties on that selector — a bare `.react-flow` block loses on
+   specificity. Scoping to the wrapper wins whatever order the two stylesheets load in. */
+.graph-wrap .react-flow,
+.graph-wrap .react-flow.dark {
+  --xy-background-color-default: var(--ground);
+  --xy-background-pattern-dots-color-default: var(--line);
+  --xy-edge-stroke-default: var(--line);
+  --xy-controls-button-background-color-default: var(--raised);
+  --xy-controls-button-background-color-hover-default: var(--line);
+  --xy-controls-button-color-default: var(--ink);
+  --xy-controls-button-color-hover-default: var(--ink);
+  --xy-controls-button-border-color-default: var(--line);
+  --xy-controls-box-shadow-default: none;
+  --xy-minimap-background-color-default: var(--panel);
+  --xy-minimap-mask-background-color-default: var(--mask);
+  --xy-attribution-background-color-default: transparent;
+  background: var(--ground);
+}
+
+.react-flow__controls {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.react-flow__controls-button {
+  width: 28px;
+  height: 28px;
+}
+
+.react-flow__minimap {
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow: hidden;
+}
+
+.react-flow__minimap-node {
+  stroke: none;
+}
+
+.mm-terminal {
+  fill: var(--line);
+}
+.mm-pending {
+  fill: var(--st-pending);
+}
+.mm-running {
+  fill: var(--st-running);
+}
+.mm-completed {
+  fill: var(--st-completed);
+}
+.mm-waiting {
+  fill: var(--st-waiting);
+}
+.mm-skipped {
+  fill: var(--st-skipped);
+}
+.mm-none {
+  fill: var(--st-none);
+}
+
+.react-flow__attribution {
+  padding: 2px 6px;
+  font-size: 10px;
+  background: var(--ground);
+}
+
+.react-flow__attribution a {
+  color: var(--ink-2);
+  text-decoration: none;
+}
+
+.canvas-strip {
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
+}
+
+/* The legend and the Details button share one box: same height, padding, border, radius,
+   background, type — the button differs only in its pressed state and hover. */
+.legend,
+.details-toggle {
+  box-sizing: border-box;
+  min-height: 30px;
+  margin: 0;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1;
+  color: var(--ink-2);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+.details-toggle {
+  cursor: pointer;
+}
+
+.details-toggle:hover {
+  border-color: var(--ink-2);
+  color: var(--ink);
+}
+
+.details-toggle[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--raised);
+  border-color: var(--ink-2);
+}
+
+.details-toggle:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.legend {
+  list-style: none;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.canvas-note {
+  margin: 12px;
+  padding: 6px 10px;
+  font-size: 13px;
+  color: var(--ink-2);
+  background: color-mix(in srgb, var(--panel) 88%, transparent);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Nodes                                                                 */
+/* ------------------------------------------------------------------ */
+
+.rf-handle {
+  width: 6px;
+  height: 6px;
+  min-width: 0;
+  min-height: 0;
+  border: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.step-node {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px;
+  background: var(--raised);
+  border: 2px solid var(--line);
+  border-radius: 6px;
+  color: var(--ink);
+}
+
+.step-node[data-status='pending'] {
+  border-color: var(--st-pending);
+}
+.step-node[data-status='running'] {
+  border-color: var(--st-running);
+}
+.step-node[data-status='completed'] {
+  border-color: var(--st-completed);
+}
+.step-node[data-status='waiting'] {
+  border-color: var(--st-waiting);
+}
+.step-node[data-status='skipped'] {
+  border-color: var(--st-skipped);
+  border-style: dashed;
+  color: var(--ink-2);
+}
+
+/* a gate for a person: a quiet inner line in the waiting tone */
+.step-node.is-human {
+  outline: 1px solid color-mix(in srgb, var(--st-waiting) 40%, transparent);
+  outline-offset: -5px;
+}
+
+.step-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  line-height: 20px;
+}
+
+.step-slug {
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-agent,
+.step-model {
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-agent {
+  margin-top: 4px;
+  color: var(--agent);
+}
+
+/* a muted card stays muted all the way through */
+.step-node[data-status='skipped'] .step-agent,
+.step-node[data-status='skipped'] .step-doc-label {
+  color: inherit;
+}
+
+.step-attempt-count {
+  color: var(--ink-2);
+}
+
+.step-duration {
+  margin-top: 4px;
+  font-size: 12px;
+  line-height: 16px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.step-duration.is-live {
+  color: var(--st-running);
+  font-variant-numeric: tabular-nums;
+}
+
+.step-docs {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.step-doc-label {
+  font-size: 11px;
+  line-height: 14px;
+  font-weight: 600;
+  color: var(--ink);
+}
+
+.step-doc-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.step-doc-path {
+  display: flow-root; /* the link's negative margins must not collapse through the item */
+  font-family: var(--mono);
+  font-size: 11px;
+  line-height: 14px;
+  color: var(--ink);
+}
+
+/* A path on a card is a link: the button keeps the text's own layout and grows its tap target 2 px each way. */
+.doc-link {
+  display: block;
+  width: 100%;
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 2px;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.step-doc-path .doc-link {
+  padding: 2px 0;
+  margin: -2px 0;
+}
+
+.doc-link:hover .step-doc-line {
+  text-decoration: underline;
+  text-decoration-color: var(--ink-2);
+  text-underline-offset: 2px;
+}
+
+.doc-link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+/* in the inspector the link is the chip itself (this rule outranks the .doc-link reset) */
+.doc-link.doc-chip {
+  display: inline-block;
+  width: auto;
+  padding: 1px 6px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+}
+
+.doc-link.doc-chip:hover {
+  border-color: var(--ink-2);
+}
+
+/* The file name is the thing you read; its directory is context. */
+.step-doc-dir {
+  color: var(--ink-2);
+}
+
+.step-doc-list.is-expected .step-doc-path,
+.step-doc-list.is-expected .step-doc-dir {
+  color: var(--ink-2);
+}
+
+.step-doc-line {
+  display: block;
+  overflow-wrap: anywhere;
+}
+
+/* Continuation lines of a wrapped path hang 1 ch in (wrapPath reserves the column). */
+.step-doc-line + .step-doc-line {
+  padding-left: 1ch;
+}
+
+.step-foot {
+  margin-top: auto;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding-top: 6px;
+  border-top: 1px solid var(--line);
+  font-size: 12px;
+  line-height: 16px;
+  min-height: 23px;
+}
+
+.step-node.is-detailed .step-foot {
+  margin-top: 8px;
+}
+
+.step-foot.is-empty {
+  border-top-color: transparent;
+}
+
+.step-result {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+  color: var(--ink);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.step-result--running {
+  font-family: var(--sans);
+  font-weight: 500;
+  color: var(--st-running);
+}
+
+.step-result--skipped {
+  font-family: var(--sans);
+  font-weight: 500;
+  color: var(--st-skipped);
+}
+
+.step-attempts {
+  flex: 0 0 auto;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+/* the step's cost from cost.json, between result and attempts */
+.step-cost {
+  flex: 0 0 auto;
+  margin-left: auto;
+  color: var(--ink-2);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.step-cost + .step-attempts {
+  margin-left: 8px;
+}
+
+.terminal-node {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--raised);
+  border: 1.5px solid var(--line);
+  border-radius: 999px;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+/* ---- selection + keyboard focus: an instant 2 px ring in --ink ---- */
+.react-flow__node.selected .step-node,
+.react-flow__node.selected .terminal-node,
+.react-flow__node:focus-visible .step-node,
+.react-flow__node:focus-visible .terminal-node {
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.react-flow__node:focus-visible {
+  outline: none;
+}
+
+/* ---- hover focus: neighbours stay, everything else steps back ---- */
+.react-flow__node.dimmed,
+.react-flow__edge.dimmed {
+  opacity: 0.4;
+}
+
+/* ------------------------------------------------------------------ */
+/* Edges                                                                 */
+/* ------------------------------------------------------------------ */
+
+.react-flow__edge .react-flow__edge-path {
+  stroke: var(--line);
+  stroke-width: 1.5;
+}
+
+.react-flow__edge.edge-loop .react-flow__edge-path,
+.react-flow__edge.edge-max .react-flow__edge-path,
+.react-flow__edge.edge-jump .react-flow__edge-path,
+.react-flow__edge.edge-skip .react-flow__edge-path {
+  stroke-dasharray: 5 5;
+}
+
+.react-flow__edge.edge-taken .react-flow__edge-path {
+  stroke: var(--st-completed);
+  stroke-width: 3;
+}
+
+.react-flow__edge.edge-loop.edge-taken .react-flow__edge-path,
+.react-flow__edge.edge-max.edge-taken .react-flow__edge-path,
+.react-flow__edge.edge-jump.edge-taken .react-flow__edge-path,
+.react-flow__edge.edge-skip.edge-taken .react-flow__edge-path {
+  stroke-width: 2;
+}
+
+/* a SKIP route that was taken lights up in the skipped tone, not the completed green */
+.react-flow__edge.edge-taken--skipped .react-flow__edge-path {
+  stroke: var(--st-skipped);
+}
+
+.react-flow__edge.edge-bypassed {
+  opacity: 0.4;
+}
+
+.edge-arrow {
+  fill: var(--line);
+}
+
+.react-flow__edge.edge-taken .edge-arrow {
+  fill: var(--st-completed);
+}
+
+.react-flow__edge.edge-taken--skipped .edge-arrow {
+  fill: var(--st-skipped);
+}
+
+/* the comet: only on the edge into the step that is running right now */
+.edge-flow-overlay {
+  stroke: var(--st-running);
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke-dasharray: 10 22; /* period 32 */
+  pointer-events: none;
+}
+
+.edge-label {
+  position: absolute;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--ink-2);
+  font-size: 12px;
+  font-weight: 500;
+  line-height: 15px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* one pill per result, side by side; the canvas colour behind each pill cuts the line */
+.edge-pill {
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: var(--ground);
+}
+
+.edge-label--taken .edge-pill.is-lit {
+  color: var(--st-completed);
+}
+
+.edge-label--skipped .edge-pill.is-lit {
+  color: var(--st-skipped);
+}
+
+.edge-pill.is-muted {
+  opacity: 0.6;
+}
+
+.edge-label--dimmed {
+  opacity: 0.4;
+}
+
+.edge-count {
+  font-weight: 600;
+}
+
+/* ------------------------------------------------------------------ */
+/* Motion: only where something is happening, only if the user allows.  */
+/* ------------------------------------------------------------------ */
+
+@media (prefers-reduced-motion: no-preference) {
+  .react-flow__node,
+  .react-flow__edge,
+  .edge-label {
+    transition: opacity 120ms ease;
+  }
+
+  .step-node[data-status='running'] {
+    animation: pulse 1.6s ease-in-out infinite;
+  }
+
+  .edge-flow-overlay {
+    animation: edge-flow 1s linear infinite;
+  }
+
+  .live-dot--live.is-active {
+    animation: live-pulse 1.6s ease-in-out infinite;
+  }
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--st-running) 45%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--st-running) 0%, transparent);
+  }
+}
+
+@keyframes live-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--st-running) 50%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 5px color-mix(in srgb, var(--st-running) 0%, transparent);
+  }
+}
+
+@keyframes edge-flow {
+  to {
+    stroke-dashoffset: -32;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Run without a pipeline definition / no runs at all                    */
+/* ------------------------------------------------------------------ */
+
+.no-pipeline {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  max-width: 60ch;
+}
+
+.no-pipeline h2 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.no-pipeline p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.no-pipeline code {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.error-screen {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  max-width: 64ch;
+}
+
+.error-screen h1 {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.error-screen p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+}
+
+.error-issues {
+  margin: 0;
+  padding-left: 20px;
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+.error-screen code,
+.error-issues code {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+.error-screen .feed-refresh {
+  align-self: flex-start;
+}
+
+/* first-time screen: no runs anywhere under the harness root */
+.no-runs {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 12px;
+  margin: 0 auto;
+  padding: 32px 24px;
+  max-width: 62ch;
+}
+
+.no-runs h2 {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.no-runs p {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.no-runs code {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 6px;
+  font-size: 0.9em;
+  white-space: nowrap;
+}
+
+.no-runs-actions {
+  margin-top: 4px;
+}
+
+.empty {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 24px;
+  text-align: center;
+}
+
+.empty code {
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 1px 6px;
+}
+
+/* ------------------------------------------------------------------ */
+/* Document modal: a native <dialog> in the panel tones                  */
+/* ------------------------------------------------------------------ */
+
+/* <dialog> does not lock the page behind it */
+.has-modal {
+  overflow: hidden;
+}
+
+/* one measure: the panel is as wide as its content column (≈680 px, 80 ch at 14 px) plus margins */
+.doc-dialog {
+  width: min(760px, calc(100vw - 40px));
+  height: min(86vh, 960px);
+  max-width: none;
+  max-height: none;
+  margin: auto;
+  padding: 0;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
+  overflow: hidden;
+}
+
+.doc-dialog::backdrop {
+  background: rgb(21 27 38 / 0.7);
+}
+
+/* a one-paragraph state hugs its sentence, and an image hugs the picture, instead of inheriting
+   a document's frame (a modal dialog is inset: 0, so `auto` would fill the viewport; fit-content
+   is what the UA uses); a picture taller than the maximum scrolls inside the body */
+.doc-dialog.is-notice,
+.doc-dialog.is-image {
+  height: fit-content;
+  max-height: min(86vh, 960px);
+}
+
+.doc-dialog.is-notice .doc-modal,
+.doc-dialog.is-image .doc-modal {
+  height: auto;
+}
+
+.doc-modal {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.doc-modal-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px 10px 16px;
+  border-bottom: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+
+/* the path reads like the cards: directory dimmed, file name bright */
+.doc-modal-path {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 20px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.doc-modal-dir {
+  color: var(--ink-2);
+}
+
+/* The header's word for where the document comes from: knowledge, run document, artifact. */
+.doc-modal-scope {
+  flex: 0 0 auto;
+  padding: 1px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 18px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.doc-modal-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.doc-mode {
+  display: inline-flex;
+}
+
+.doc-mode .doc-modal-btn {
+  border-radius: 0;
+}
+
+.doc-mode .doc-modal-btn:first-child {
+  border-radius: 6px 0 0 6px;
+}
+
+.doc-mode .doc-modal-btn:last-child {
+  border-radius: 0 6px 6px 0;
+  margin-left: -1px;
+}
+
+.doc-modal-btn {
+  box-sizing: border-box;
+  min-height: 30px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  font: inherit;
+  font-size: 12px;
+  line-height: 1;
+  color: var(--ink-2);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  cursor: pointer;
+}
+
+.doc-modal-btn:hover {
+  border-color: var(--ink-2);
+  color: var(--ink);
+  position: relative;
+}
+
+.doc-modal-btn[aria-pressed='true'] {
+  color: var(--ink);
+  background: var(--raised);
+  border-color: var(--ink-2);
+  position: relative;
+}
+
+.doc-modal-btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+  position: relative;
+  z-index: 1;
+}
+
+.doc-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  padding: 24px 40px 32px;
+  outline: none;
+}
+
+.doc-state {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.doc-state code {
+  font-family: var(--mono);
+  font-size: 0.93em;
+  color: var(--ink);
+}
+
+/* ---- the file's type, before its path ---- */
+.doc-modal-ext {
+  flex: 0 0 auto;
+  padding: 2px 5px;
+  font-family: var(--mono);
+  font-size: 9.5px;
+  line-height: 1;
+  letter-spacing: 0.06em;
+  color: var(--st-running);
+  background: rgb(90 169 255 / 0.12);
+  border: 1px solid rgb(90 169 255 / 0.4);
+  border-radius: 3px;
+}
+
+.doc-modal-btn.is-copied {
+  color: var(--st-completed);
+  border-color: var(--st-completed);
+}
+
+/* ---- the file's size, under it ---- */
+.doc-modal-foot {
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 7px 16px;
+  border-top: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 10.5px;
+  color: var(--ink-2);
+  min-width: 0;
+}
+
+.doc-modal-foot span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ---- code view: numbered lines, long lines scroll inside the box ---- */
+.doc-modal-body:has(.doc-code) {
+  padding: 16px 20px 20px;
+}
+
+.doc-code {
+  margin: 0;
+  padding: 12px 0;
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
+  overflow: auto;
+  tab-size: 2;
+}
+
+.doc-code code {
+  display: block;
+  min-width: max-content;
+}
+
+.doc-code-line {
+  display: flex;
+}
+
+.doc-code-ln {
+  flex: 0 0 auto;
+  width: 3.6em;
+  padding-right: 1em;
+  text-align: right;
+  color: var(--ink-2);
+  opacity: 0.6;
+  user-select: none;
+}
+
+.doc-code-text {
+  flex: 0 0 auto;
+  padding-right: 16px;
+}
+
+.tok-comment {
+  color: var(--ink-2);
+  font-style: italic;
+}
+
+.tok-string {
+  color: var(--st-completed);
+}
+
+.tok-key,
+.tok-type {
+  color: var(--st-running);
+}
+
+.tok-number,
+.tok-variable,
+.tok-decorator {
+  color: var(--st-waiting);
+}
+
+.tok-keyword {
+  color: var(--st-skipped);
+}
+
+.tok-punct {
+  color: var(--ink-2);
+}
+
+/* ---- raw view ---- */
+.doc-raw {
+  margin: 0;
+  padding: 14px 16px;
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+/* ---- editor (human-step input docs) ---- */
+.doc-edit {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  flex: 1 1 auto;
+  min-height: 240px;
+  margin: 0;
+  padding: 14px 16px;
+  color: var(--ink);
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.55;
+  resize: none;
+  tab-size: 2;
+}
+
+.doc-edit:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+  border-color: var(--ink-2);
+}
+
+/* the body is the editor's frame when editing: the textarea fills it, nothing scrolls twice */
+.doc-modal-body:has(.doc-edit) {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  padding: 16px 24px 24px;
+}
+
+.doc-save-state {
+  font-size: 12px;
+  line-height: 1;
+  color: var(--ink-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 42ch;
+}
+
+.doc-save-state.is-saved {
+  color: var(--st-completed);
+}
+
+.doc-save-state.is-failed {
+  color: var(--st-failed);
+}
+
+.doc-modal-btn.is-primary {
+  color: var(--ground);
+  background: var(--ink);
+  border-color: var(--ink);
+}
+
+.doc-modal-btn.is-primary:hover {
+  color: var(--ground);
+}
+
+.doc-modal-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.doc-modal-btn.is-primary:disabled:hover {
+  border-color: var(--ink);
+}
+
+/* ---- rendered markdown: quiet Plex Sans prose, chroma stays status-only ---- */
+.doc-prose {
+  font-size: 14px;
+  line-height: 1.55;
+  overflow-wrap: anywhere;
+}
+
+.doc-prose > :first-child {
+  margin-top: 0;
+}
+
+.doc-prose h1,
+.doc-prose h2,
+.doc-prose h3,
+.doc-prose h4,
+.doc-prose h5,
+.doc-prose h6 {
+  margin: 1.5em 0 0.5em;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.doc-prose h1 {
+  font-size: 20px;
+}
+
+.doc-prose h2 {
+  font-size: 17px;
+}
+
+.doc-prose h3,
+.doc-prose h4,
+.doc-prose h5,
+.doc-prose h6 {
+  font-size: 15px;
+}
+
+.doc-prose p,
+.doc-prose ul,
+.doc-prose ol,
+.doc-prose blockquote,
+.doc-prose table,
+.doc-prose pre {
+  margin: 0 0 0.9em;
+}
+
+.doc-prose ul,
+.doc-prose ol {
+  padding-left: 1.4em;
+}
+
+.doc-prose li + li {
+  margin-top: 0.25em;
+}
+
+.doc-prose a {
+  color: var(--ink);
+  text-decoration: underline;
+  text-decoration-color: var(--ink-2);
+  text-underline-offset: 2px;
+}
+
+.doc-prose a:hover {
+  text-decoration-color: var(--ink);
+}
+
+/* inline code wraps like text (a long token must never widen the sheet); block code scrolls in its box */
+.doc-prose code {
+  font-family: var(--mono);
+  font-size: 12.5px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 0 4px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.doc-prose pre {
+  padding: 12px 14px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  overflow-x: auto;
+  line-height: 1.5;
+}
+
+.doc-prose pre code {
+  padding: 0;
+  background: none;
+  border: 0;
+  white-space: pre;
+}
+
+.doc-prose blockquote {
+  padding: 0 0 0 14px;
+  border-left: 2px solid var(--line);
+  color: var(--ink-2);
+}
+
+.doc-prose hr {
+  margin: 1.5em 0;
+  border: 0;
+  border-top: 1px solid var(--line);
+}
+
+.doc-prose table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.doc-prose th,
+.doc-prose td {
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  text-align: left;
+  vertical-align: top;
+}
+
+.doc-prose th {
+  background: var(--raised);
+  font-weight: 600;
+}
+
+.doc-prose img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.5em 0 1em;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--ground);
+}
+
+.doc-prose input[type='checkbox'] {
+  margin: 0 6px 0 0;
+}
+
+/* ---- an image on its own: the column's width, its own height ---- */
+.doc-image {
+  margin: 0;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+}
+
+.doc-image img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--ground);
+}
+
+/* ---- a folder: a count, then rows on hairlines spanning the column, sizes at its right edge ---- */
+.doc-dir-summary {
+  margin: 0 0 6px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.doc-dir {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--line);
+}
+
+.doc-dir li {
+  border-bottom: 1px solid var(--line);
+}
+
+.doc-dir-entry {
+  width: 100%;
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0;
+  padding: 6px 8px;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 13px;
+  line-height: 20px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.doc-dir-entry:hover {
+  background: var(--raised);
+}
+
+.doc-dir-entry:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+}
+
+.doc-dir-name {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.doc-dir-size {
+  flex: 0 0 auto;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+/* ------------------------------------------------------------------ */
+/* Plain view: the graph as a list under the canvas                      */
+/* ------------------------------------------------------------------ */
+
+.plain-view {
+  flex: 0 0 auto;
+  max-width: 980px;
+  padding: 20px 24px 28px;
+  border-top: 1px solid var(--line);
+}
+
+.pv-head {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  flex-wrap: wrap;
+  padding-bottom: 12px;
+  min-width: 0;
+}
+
+.pv-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+}
+
+.pv-meta {
+  min-width: 0;
+  font-size: 11px;
+  color: var(--ink-2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pv-files {
+  margin-left: auto;
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.pv-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.pv-step {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr);
+  gap: 14px;
+  padding: 14px 0;
+  border-top: 1px solid var(--line);
+}
+
+.pv-step.is-terminal {
+  background: linear-gradient(90deg, rgb(90 169 255 / 0.06), transparent 60%);
+}
+
+.pv-num {
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.pv-step.is-selected .pv-num {
+  border-color: var(--ink);
+  color: var(--ink);
+}
+
+.pv-step.is-terminal .pv-num {
+  border-color: rgb(90 169 255 / 0.5);
+  color: var(--st-running);
+  background: rgb(90 169 255 / 0.1);
+}
+
+.pv-body {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  min-width: 0;
+}
+
+.pv-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  min-height: 26px;
+  min-width: 0;
+}
+
+.pv-row .status-dot {
+  width: 7px;
+  height: 7px;
+}
+
+.pv-name {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 2px;
+  font-weight: 600;
+  font-size: 14px;
+  color: var(--ink);
+  cursor: pointer;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pv-name:hover {
+  text-decoration: underline;
+  text-decoration-color: var(--ink-2);
+  text-underline-offset: 3px;
+}
+
+.pv-name:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.pv-name.is-terminal {
+  letter-spacing: 0.08em;
+  color: var(--st-running);
+}
+
+.pv-agent {
+  font-size: 11px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.pv-agent-name {
+  color: var(--agent);
+}
+
+.pv-sep {
+  color: var(--line);
+}
+
+.pv-time {
+  margin-left: auto;
+  font-size: 11px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.pv-badge {
+  padding: 1px 8px;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--st-waiting);
+  border: 1px solid rgb(240 179 91 / 0.5);
+  border-radius: 10px;
+}
+
+.pv-summary {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--ink);
+}
+
+.pv-facts {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  row-gap: 6px;
+  column-gap: 12px;
+  margin: 0;
+}
+
+.pv-facts dt {
+  padding-top: 3px;
+  font-size: 12.5px;
+  color: var(--ink-2);
+}
+
+.pv-facts dd {
+  margin: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* a file chip: its type in a small badge, then the path (the DocLink reset is outranked here) */
+.pv-chip,
+.doc-link.pv-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  max-width: 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 2px 8px 2px 6px;
+  background: var(--raised);
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  color: var(--ink);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  line-height: 1.4;
+  text-align: left;
+  cursor: pointer;
+}
+
+.pv-chip:hover,
+.doc-link.pv-chip:hover {
+  border-color: var(--ink-2);
+}
+
+.pv-chip:focus-visible,
+.doc-link.pv-chip:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.pv-chip-ext {
+  flex: 0 0 auto;
+  padding: 1px 4px;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  color: var(--ink-2);
+  background: var(--ground);
+  border-radius: 3px;
+}
+
+.pv-chip-text {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pv-chip.is-expected {
+  color: var(--ink-2);
+  border-style: dashed;
+}
+
+.pv-chip.is-knowledge .pv-chip-ext,
+.pv-chip.is-run .pv-chip-ext {
+  color: var(--st-running);
+}
+
+.pv-chip.is-output .pv-chip-ext {
+  color: var(--st-completed);
+}
+
+.pv-chip.is-script .pv-chip-ext {
+  color: var(--st-skipped);
+}
+
+.pv-transitions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11.5px;
+  color: var(--ink);
+}
+
+.pv-route {
+  overflow-wrap: anywhere;
+}
+
+.pv-event {
+  font-weight: 500;
+}
+
+.pv-target {
+  color: var(--st-running);
+}
+
+.pv-route.is-taken,
+.pv-route.is-taken .pv-target {
+  color: var(--st-completed);
+}
+
+.pv-end {
+  color: var(--st-waiting);
+}
+
+.pv-max {
+  color: var(--ink-2);
+}
+
+.pv-tick {
+  color: var(--st-completed);
+}
+
+.pv-targets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.pv-target-chip {
+  padding: 2px 8px;
+  background: rgb(90 169 255 / 0.12);
+  border: 1px solid rgb(90 169 255 / 0.4);
+  border-radius: 4px;
+  color: var(--st-running);
+  font: inherit;
+  font-family: var(--mono);
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+.pv-target-chip:hover {
+  border-color: var(--st-running);
+}
+
+.pv-target-chip:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.pv-prompts {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.pv-link {
+  margin: 0;
+  padding: 2px 0;
+  background: none;
+  border: 0;
+  border-radius: 2px;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 12.5px;
+  cursor: pointer;
+  text-decoration: underline;
+  text-decoration-color: var(--line);
+  text-underline-offset: 3px;
+}
+
+.pv-link:hover {
+  color: var(--ink);
+  text-decoration-color: var(--ink-2);
+}
+
+.pv-link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.pv-hooks {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+}
+
+.pv-subtitle {
+  margin: 0 0 8px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.pv-cmds {
+  flex-direction: column;
+  align-items: flex-start;
+}
+
+.pv-cmd {
+  display: block;
+  font-size: 11.5px;
+  line-height: 1.8;
+  color: var(--ink);
+  overflow-wrap: anywhere;
+}
+
+.pv-cmd .pv-chip {
+  vertical-align: middle;
+  margin: 0 2px;
+}
+
+@media (max-width: 640px) {
+  .plain-view {
+    padding: 16px 16px 24px;
+  }
+
+  .pv-step {
+    gap: 10px;
+  }
+
+  .pv-facts {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .pv-facts dt {
+    padding-top: 0;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Responsive                                                            */
+/* ------------------------------------------------------------------ */
+
+@media (max-width: 1100px) {
+  .react-flow__minimap {
+    display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  .app {
+    height: auto;
+    min-height: 100%;
+  }
+
+  .topbar {
+    flex-wrap: wrap;
+    height: auto;
+    padding: 10px 16px;
+    gap: 10px 16px;
+  }
+
+  .main {
+    flex-direction: column;
+  }
+
+  .graph-wrap {
+    flex: none;
+    height: clamp(260px, 42vh, 420px);
+  }
+
+  .graph-wrap.is-detailed {
+    height: clamp(320px, 55vh, 460px);
+  }
+
+  .inspector {
+    width: 100%;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+  }
+
+  .inspector-scroll {
+    overflow: visible;
+    padding: 0 16px;
+  }
+
+  .feed-footer {
+    padding: 10px 16px;
+  }
+}
+
+@media (max-width: 600px) {
+  .doc-dialog {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+
+  .doc-modal-head {
+    flex-wrap: wrap;
+    padding: 8px 12px;
+    gap: 8px;
+  }
+
+  .doc-modal-path {
+    flex-basis: 100%;
+    order: -1;
+  }
+
+  .doc-modal-body {
+    padding: 16px 16px 24px;
+  }
+
+  .doc-dialog.is-notice,
+  .doc-dialog.is-image {
+    height: fit-content;
+    max-height: 100dvh;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Factory Studio shell: the one navigation, the screens, the sub-bars  */
+/* each screen puts under it, the Runs index and the Sessions screen.   */
+/* ------------------------------------------------------------------ */
+
+.topbar .nav {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+}
+
+.nav a {
+  padding: 3px 9px;
+  border-radius: 4px;
+  color: var(--ink-2);
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  text-decoration: none;
+  line-height: 20px;
+}
+
+.nav a:hover {
+  color: var(--ink);
+  background: var(--raised);
+}
+
+/* The current screen wears the wordmark's tag style: a white tile, black type. */
+.nav a[aria-current='page'] {
+  background: #fff;
+  color: #000;
+  font-weight: 600;
+}
+
+.screen {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* A screen's own header row: a title or a picker on the left, the live indicator on the right. */
+.subbar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-height: 44px;
+  padding: 0 20px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+  flex: 0 0 auto;
+  position: relative;
+  z-index: 1;
+}
+
+.subbar-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.subbar-note {
+  font-size: 12px;
+}
+
+.subbar .live-status {
+  margin-left: auto;
+}
+
+.subbar .feed-refresh {
+  margin-left: 0;
+}
+
+.subbar-back {
+  padding: 4px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--raised);
+  color: var(--ink);
+  font-size: 12px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.subbar-back:hover {
+  border-color: var(--ink-2);
+}
+
+/* ---------------------------------------------------------- runs index */
+
+.runs-index {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.runs-section {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.screen-runs .panel-title,
+.screen-sessions .panel-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+/* Run status words in the run table, coloured as the cards are. */
+.screen-runs .status {
+  color: var(--ink-2);
+  text-transform: lowercase;
+}
+.screen-runs .status--completed {
+  color: var(--st-completed);
+}
+.screen-runs .status--running,
+.screen-runs .status--paused {
+  color: var(--st-running);
+}
+.screen-runs .status--waiting {
+  color: var(--st-waiting);
+}
+.screen-runs .status--failed {
+  color: var(--st-failed);
+}
+.screen-runs .status--no-state {
+  color: var(--st-none);
+}
+
+/* The grouped list: one section per pipeline, one row per run, as the picker prints them. */
+.run-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.run-list-label {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--ink-2);
+}
+
+.run-list-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.run-list-row {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--panel);
+  color: var(--ink);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.run-list-row:hover {
+  background: var(--raised);
+}
+
+.run-list-id {
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+/* ------------------------------------------------------------ sessions */
+
+.sessions {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px;
+  display: grid;
+  grid-template-columns: minmax(280px, 420px) 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+.sessions-pane {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.sessions-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.sessions-form .field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.sessions-form .field-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.sessions-form .field-hint {
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.sessions-form .input {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--ground);
+  color: var(--ink);
+  font: inherit;
+}
+
+.sessions-form .input:focus {
+  outline: none;
+  border-color: var(--st-running);
+}
+
+.sessions-prompt {
+  resize: vertical;
+  min-height: 140px;
+  font-family: var(--mono);
+  font-size: 12px;
+}
+
+.sessions-actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.sessions .primary-button,
+.sessions .danger-button {
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.sessions .primary-button {
+  background: var(--st-running);
+  color: #000;
+}
+
+.sessions .primary-button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.sessions .danger-button {
+  padding: 3px 10px;
+  background: transparent;
+  border-color: var(--st-failed);
+  color: var(--st-failed);
+}
+
+.sessions .danger-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--st-failed) 18%, transparent);
+}
+
+.sessions .danger-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.sessions-table {
+  min-width: 520px;
+}
+
+.sessions-empty {
+  margin: 0;
+  font-size: 13px;
+}
+
+.sessions-notice {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 13px;
+}
+
+.sessions-notice.is-ok {
+  border-left-color: var(--st-completed);
+}
+
+.sessions-notice.is-refusal {
+  border-left-color: var(--st-failed);
+}
+
+.sessions-notice-body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.sessions-notice ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.sessions-notice .icon-button {
+  padding: 0 6px;
+  border: 0;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* -------------------------------------------------------------- editor */
+
+/* The pipeline picker, in the editor's toolbar where its brand used to be. */
+.screen-editor .picker {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.screen-editor .picker-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.screen-editor .picker-select {
+  font-family: var(--mono);
+  min-width: 160px;
+}
+
+/* A refused save: the API's message and issues, under the toolbar; the edits stay on screen. */
+.screen-editor .save-notice {
+  flex: 0 0 auto;
+  padding: 8px 20px;
+  border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--st-failed) 14%, var(--panel));
+  font-size: 13px;
+}
+
+.screen-editor .save-notice-issues {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.screen-editor .editor-empty {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 40px;
+  text-align: center;
+  font-size: 14px;
+}
+
+.screen-editor .editor-empty p {
+  margin: 0;
+  max-width: 520px;
+}
+
+/* The Blocks library's "From API…" list. */
+.screen-editor .library-api {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--line);
+}
+
+@media (max-width: 900px) {
+  .sessions {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Runs sidebar and run header: the run is chosen on the left, named   */
+/* above the graph. Same tokens as the rest; chroma still means status. */
+/* ------------------------------------------------------------------ */
+
+.runs-layout {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.run-main {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.runs-sidebar {
+  width: 300px;
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.runs-sidebar-head {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px 12px 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.runs-sidebar-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.runs-sidebar-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.runs-sidebar-count {
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.runs-sidebar-toggle {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.runs-sidebar-toggle:hover {
+  color: var(--ink);
+  border-color: var(--ink-2);
+}
+
+.runs-sidebar-toggle:focus-visible,
+.runs-filter:focus-visible,
+.run-row:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.runs-search {
+  width: 100%;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 5px;
+  background: var(--ground);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+}
+
+.runs-search::placeholder {
+  color: var(--ink-2);
+}
+
+.runs-search:focus {
+  outline: none;
+  border-color: var(--st-running);
+}
+
+.runs-filters {
+  display: flex;
+  gap: 4px;
+}
+
+/* a chip: quiet until pressed, then the nav's own white tile */
+.runs-filter {
+  flex: 1;
+  padding: 4px 0;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: none;
+  color: var(--ink-2);
+  font: inherit;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.runs-filter:hover {
+  color: var(--ink);
+}
+
+.runs-filter[aria-pressed='true'] {
+  background: #fff;
+  border-color: #fff;
+  color: #000;
+  font-weight: 600;
+}
+
+.runs-sidebar-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 4px 0 12px;
+}
+
+.runs-day-label {
+  margin: 0;
+  padding: 12px 14px 4px;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.runs-day-rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* a row is a link: two lines, the id above its pipeline, status and cost */
+.run-row {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 1px 6px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: inherit;
+  text-decoration: none;
+}
+
+.run-row:hover {
+  background: var(--raised);
+}
+
+.run-row[aria-current='page'] {
+  background: var(--raised);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.run-row-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.run-row-line .status-dot {
+  width: 7px;
+  height: 7px;
+}
+
+/* up to two lines of the id (the long ones all begin alike), then an ellipsis */
+.run-row-id {
+  min-width: 0;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  overflow: hidden;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+  font-weight: 500;
+}
+
+.run-row[aria-current='page'] .run-row-id {
+  color: #fff;
+}
+
+.run-row-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding-left: 15px;
+  font-size: 10.5px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.run-row-pipeline {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.run-row-cost {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
+
+.runs-empty {
+  margin: 0;
+  padding: 24px 14px;
+  font-size: 12px;
+}
+
+/* the folded sidebar: a rail holding the button that brings it back */
+.runs-rail {
+  width: 36px;
+  flex: 0 0 auto;
+  display: flex;
+  justify-content: center;
+  padding-top: 10px;
+  border-right: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.runs-rail .runs-sidebar-toggle {
+  margin-left: 0;
+}
+
+/* ---- the run header: back, pipeline / id, status, day · duration · cost, live ---- */
+.run-header {
+  gap: 12px;
+}
+
+.run-header-pipeline {
+  flex: 0 0 auto;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.run-header-id {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.run-header-status {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+}
+
+.run-header-status .status-dot {
+  width: 7px;
+  height: 7px;
+}
+
+.run-header-facts {
+  flex: 0 0 auto;
+  display: inline-flex;
+  gap: 16px;
+  font-size: 11px;
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.run-header-facts:empty {
+  display: none;
+}
+
+@media (max-width: 900px) {
+  .runs-layout {
+    flex-direction: column;
+  }
+
+  .runs-sidebar {
+    width: 100%;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .runs-sidebar-list {
+    max-height: 38vh;
+  }
+
+  .runs-rail {
+    width: 100%;
+    justify-content: flex-start;
+    padding: 6px 10px;
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  /* the inspector carries day, duration and cost; the header keeps the id */
+  .run-header-facts {
+    display: none;
+  }
+}

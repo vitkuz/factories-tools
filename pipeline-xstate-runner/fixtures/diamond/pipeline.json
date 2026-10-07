@@ -1,0 +1,35 @@
+{
+  "id": "diamond",
+  "description": "split → left + right (fan-out) → join (fan-in) → END; split may also take LEFT only, stranding right",
+  "constants": { "rootPath": "cwd", "skillPath": ".", "homePath": "~" },
+  "params": { "topic": "demo" },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["split"],
+  "steps": {
+    "split": {
+      "agent": "general-purpose",
+      "prompt": ["Split {{topic}}."],
+      "output": ["1-split/out.md"],
+      "transitions": { "BOTH": { "target": ["left", "right"] }, "LEFT": { "target": ["left"] } }
+    },
+    "left": {
+      "agent": "general-purpose",
+      "prompt": ["Left."],
+      "output": ["2-left/out.md"],
+      "transitions": { "DONE": { "target": ["join"] } }
+    },
+    "right": {
+      "agent": "general-purpose",
+      "prompt": ["Right."],
+      "output": ["2-right/out.md"],
+      "transitions": { "DONE": { "target": ["join"] } }
+    },
+    "join": {
+      "agent": "general-purpose",
+      "prompt": ["Join."],
+      "input": ["2-left/out.md", "2-right/out.md"],
+      "output": ["3-join/out.md"],
+      "transitions": { "DONE": { "target": ["END"] } }
+    }
+  }
+}

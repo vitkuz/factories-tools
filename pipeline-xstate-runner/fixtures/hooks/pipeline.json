@@ -1,0 +1,21 @@
+{
+  "id": "hooks",
+  "description": "one step, hooks before and after; the hook commands come from params so a test can make either fail",
+  "constants": { "rootPath": "cwd", "skillPath": ".", "homePath": "~" },
+  "params": {
+    "topic": "demo",
+    "before": "echo before > {{outputDir}}/hook-before.txt",
+    "after": "echo after > {{outputDir}}/hook-after.txt"
+  },
+  "hooks": { "before": ["{{before}}"], "after": ["{{after}}"] },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["only"],
+  "steps": {
+    "only": {
+      "agent": "general-purpose",
+      "prompt": ["Do {{topic}}."],
+      "output": ["1-only/out.md"],
+      "transitions": { "DONE": { "target": ["END"] } }
+    }
+  }
+}

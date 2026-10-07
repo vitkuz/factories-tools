@@ -1,0 +1,38 @@
+{
+  "id": "hello-sequential",
+  "description": "step-1 writes 1, step-2 writes 2, step-3 reads both and writes their sum: a linear pipeline for a real harness.",
+  "constants": { "rootPath": "cwd", "skillPath": ".", "homePath": "~" },
+  "params": { "label": "hello" },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["step-1"],
+  "steps": {
+    "step-1": {
+      "agent": "general-purpose",
+      "system": ["You are terse. You do exactly what is asked and nothing else."],
+      "prompt": [
+        "Write the single character 1, and nothing else, into your output file. Return DONE."
+      ],
+      "output": ["1-step-1/out.txt"],
+      "transitions": { "DONE": { "target": ["step-2"] } }
+    },
+    "step-2": {
+      "agent": "general-purpose",
+      "system": ["You are terse. You do exactly what is asked and nothing else."],
+      "prompt": [
+        "Write the single character 2, and nothing else, into your output file. Return DONE."
+      ],
+      "output": ["2-step-2/out.txt"],
+      "transitions": { "DONE": { "target": ["step-3"] } }
+    },
+    "step-3": {
+      "agent": "general-purpose",
+      "system": ["You are terse. You do exactly what is asked and nothing else."],
+      "prompt": [
+        "Read both input files; each holds one number. Write their sum, as a single number and nothing else, into your output file. Return DONE."
+      ],
+      "input": ["1-step-1/out.txt", "2-step-2/out.txt"],
+      "output": ["3-step-3/out.txt"],
+      "transitions": { "DONE": { "target": ["END"] } }
+    }
+  }
+}

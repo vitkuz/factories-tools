@@ -1,0 +1,25 @@
+{
+  "id": "cap-no-onmax",
+  "description": "draft → review; REVISE loops back once (max 1) and has no onMax: a second REVISE stops the run",
+  "constants": { "rootPath": "cwd", "skillPath": ".", "homePath": "~" },
+  "params": { "topic": "demo" },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["draft"],
+  "steps": {
+    "draft": {
+      "agent": "general-purpose",
+      "prompt": ["Draft {{topic}}."],
+      "output": ["1-draft/draft.md"],
+      "transitions": { "DONE": { "target": ["review"] } }
+    },
+    "review": {
+      "agent": "general-purpose",
+      "prompt": ["Review."],
+      "output": ["2-review/review.md"],
+      "transitions": {
+        "APPROVE": { "target": ["END"] },
+        "REVISE": { "target": ["draft"], "max": 1 }
+      }
+    }
+  }
+}

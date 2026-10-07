@@ -1,0 +1,16 @@
+{
+  "id": "condition-unknown",
+  "description": "the condition names `score`, which nothing reports or declares: the route is refused at the first event",
+  "constants": { "rootPath": "cwd", "skillPath": ".", "homePath": "~" },
+  "params": { "topic": "demo" },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["judge"],
+  "steps": {
+    "judge": {
+      "agent": "general-purpose",
+      "prompt": ["Judge {{topic}}."],
+      "output": ["1-judge/out.md"],
+      "transitions": { "DONE": { "target": ["END"], "condition": "score >= 8" } }
+    }
+  }
+}

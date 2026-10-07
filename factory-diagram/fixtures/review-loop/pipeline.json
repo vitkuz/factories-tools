@@ -1,0 +1,61 @@
+{
+  "$schema": "../../../../factories/pipeline.schema.json",
+  "id": "review-loop",
+  "name": "Review loop",
+  "author": "fixtures",
+  "description": "Fixture 3: review loops back to write at most twice, then escapes to finalize.",
+  "constants": {
+    "rootPath": "cwd",
+    "skillPath": ".",
+    "homePath": "~",
+    "factoryPath": "{{rootPath}}/factories/{{id}}"
+  },
+  "params": {
+    "topic": "",
+    "depth": 2
+  },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["write"],
+  "steps": {
+    "write": {
+      "agent": "general-purpose",
+      "model": "opus",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["1-write/draft.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["review"]
+        }
+      }
+    },
+    "review": {
+      "agent": "general-purpose",
+      "model": "opus",
+      "prompt": ["Review the draft.", "Return APPROVE or REVISE (at most 2 times)."],
+      "input": ["1-write/draft.md"],
+      "output": ["2-review/review.md"],
+      "transitions": {
+        "APPROVE": {
+          "target": ["finalize"]
+        },
+        "REVISE": {
+          "target": ["write"],
+          "max": 2,
+          "onMax": ["finalize"]
+        }
+      }
+    },
+    "finalize": {
+      "agent": "general-purpose",
+      "model": "haiku",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "input": ["1-write/draft.md"],
+      "output": ["3-finalize/final.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["END"]
+        }
+      }
+    }
+  }
+}

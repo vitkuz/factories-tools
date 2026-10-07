@@ -1,0 +1,545 @@
+[
+ {
+  "id": "bdea7edd-fb3f-4d3b-9502-9d5f838ba135",
+  "workspace": "/home/you/my-project",
+  "parentId": null,
+  "agentName": null,
+  "startedAt": "2026-09-02T22:55:27.527700Z",
+  "updatedAt": "2026-09-02T22:59:30.587232Z",
+  "firstPrompt": "",
+  "generations": [
+   {
+    "idx": 0,
+    "genId": "YKmYasi6Jo6nnsEPo6KWoQ8",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 21029,
+    "cacheReadTokens": 0,
+    "outputTokens": 156,
+    "thinkingTokens": 96,
+    "timestamp": "2026-09-02T22:55:27.608026Z"
+   },
+   {
+    "idx": 1,
+    "genId": "YqmYaty1JbK8vdIP08XSsAc",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5060,
+    "cacheReadTokens": 16297,
+    "outputTokens": 105,
+    "thinkingTokens": 39,
+    "timestamp": "2026-09-02T22:55:29.937756Z"
+   },
+   {
+    "idx": 2,
+    "genId": "ZKmYaon9E4TlnsEPkueO-A8",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 2246,
+    "cacheReadTokens": 20368,
+    "outputTokens": 83,
+    "thinkingTokens": 20,
+    "timestamp": "2026-09-02T22:55:31.649354Z"
+   },
+   {
+    "idx": 3,
+    "genId": "ZamYav-QKObCvdIPppLIgAs",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3850,
+    "cacheReadTokens": 20367,
+    "outputTokens": 104,
+    "thinkingTokens": 42,
+    "timestamp": "2026-09-02T22:55:33.191864Z"
+   },
+   {
+    "idx": 4,
+    "genId": "Z6mYaonIF8ndvdIP8an-wAc",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 4117,
+    "cacheReadTokens": 20360,
+    "outputTokens": 121,
+    "thinkingTokens": 42,
+    "timestamp": "2026-09-02T22:55:34.527679Z"
+   },
+   {
+    "idx": 5,
+    "genId": "aamYatu1CqScxN8PpJuvqA8",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3297,
+    "cacheReadTokens": 24440,
+    "outputTokens": 130,
+    "thinkingTokens": 47,
+    "timestamp": "2026-09-02T22:55:36.387351Z"
+   },
+   {
+    "idx": 6,
+    "genId": "aqmYao2RMKTrsgLWgO_hDg",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 6754,
+    "cacheReadTokens": 24447,
+    "outputTokens": 105,
+    "thinkingTokens": 22,
+    "timestamp": "2026-09-02T22:55:38.283542Z"
+   },
+   {
+    "idx": 7,
+    "genId": "bKmYaquDKuCc28oPi82noQs",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 7037,
+    "cacheReadTokens": 28532,
+    "outputTokens": 405,
+    "thinkingTokens": 265,
+    "timestamp": "2026-09-02T22:55:39.844658Z"
+   },
+   {
+    "idx": 8,
+    "genId": "famYavz9AYO_vdIP_tCkyQk",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3944,
+    "cacheReadTokens": 32603,
+    "outputTokens": 1107,
+    "thinkingTokens": 1015,
+    "timestamp": "2026-09-02T22:55:56.468782Z"
+   },
+   {
+    "idx": 9,
+    "genId": "iamYatLFLM6d28oPqLiB8Ac",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5141,
+    "cacheReadTokens": 32600,
+    "outputTokens": 269,
+    "thinkingTokens": 178,
+    "timestamp": "2026-09-02T22:56:09.029215Z"
+   },
+   {
+    "idx": 10,
+    "genId": "kqmYaropoLK90g_Ok4X5Cg",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5521,
+    "cacheReadTokens": 32593,
+    "outputTokens": 500,
+    "thinkingTokens": 436,
+    "timestamp": "2026-09-02T22:56:17.244149Z"
+   },
+   {
+    "idx": 11,
+    "genId": "lKmYaoufCqOskdUPs-zXqQQ",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3958,
+    "cacheReadTokens": 36670,
+    "outputTokens": 284,
+    "thinkingTokens": 196,
+    "timestamp": "2026-09-02T22:56:19.684088Z"
+   },
+   {
+    "idx": 12,
+    "genId": "m6mYauaQGIqrxN8PvNePoAk",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 4498,
+    "cacheReadTokens": 36664,
+    "outputTokens": 252,
+    "thinkingTokens": 170,
+    "timestamp": "2026-09-02T22:56:26.798291Z"
+   },
+   {
+    "idx": 13,
+    "genId": "namYar-JJayW28oPxbjN8Ao",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3306,
+    "cacheReadTokens": 40743,
+    "outputTokens": 117,
+    "thinkingTokens": 37,
+    "timestamp": "2026-09-02T22:56:28.707064Z"
+   },
+   {
+    "idx": 14,
+    "genId": "n6mYao7ZA8qFkdUP4I_1UA",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5581,
+    "cacheReadTokens": 40745,
+    "outputTokens": 112,
+    "thinkingTokens": 27,
+    "timestamp": "2026-09-02T22:56:30.651045Z"
+   },
+   {
+    "idx": 15,
+    "genId": "oKmYarKpNIezxN8P75OJ6Qc",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 2777,
+    "cacheReadTokens": 44816,
+    "outputTokens": 361,
+    "thinkingTokens": 294,
+    "timestamp": "2026-09-02T22:56:32.173846Z"
+   },
+   {
+    "idx": 16,
+    "genId": "oqmYavLWPJL7xs0PsIq2wAo",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 4603,
+    "cacheReadTokens": 44816,
+    "outputTokens": 459,
+    "thinkingTokens": 392,
+    "timestamp": "2026-09-02T22:56:34.493838Z"
+   },
+   {
+    "idx": 17,
+    "genId": "pamYaonDDoqc28oPi4zesQk",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 6033,
+    "cacheReadTokens": 44814,
+    "outputTokens": 95,
+    "thinkingTokens": 28,
+    "timestamp": "2026-09-02T22:56:36.655863Z"
+   },
+   {
+    "idx": 18,
+    "genId": "p6mYauj6FpKIvdIPpPaTwAo",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3161,
+    "cacheReadTokens": 48885,
+    "outputTokens": 83,
+    "thinkingTokens": 16,
+    "timestamp": "2026-09-02T22:56:38.366338Z"
+   },
+   {
+    "idx": 19,
+    "genId": "qamYatbnB_H6xN8PlsWGuQw",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 4458,
+    "cacheReadTokens": 48882,
+    "outputTokens": 533,
+    "thinkingTokens": 398,
+    "timestamp": "2026-09-02T22:56:40.266127Z"
+   },
+   {
+    "idx": 20,
+    "genId": "wamYarCRNYO_vdIP_tCkyQk",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5087,
+    "cacheReadTokens": 48876,
+    "outputTokens": 361,
+    "thinkingTokens": 190,
+    "timestamp": "2026-09-02T22:57:04.925875Z"
+   },
+   {
+    "idx": 21,
+    "genId": "y6mYatq9M6ScxN8PpJuvqA8",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5634,
+    "cacheReadTokens": 48870,
+    "outputTokens": 224,
+    "thinkingTokens": 90,
+    "timestamp": "2026-09-02T22:57:15.399279Z"
+   },
+   {
+    "idx": 22,
+    "genId": "0KmYas3XAoqc28oPi4zesQk",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5992,
+    "cacheReadTokens": 48863,
+    "outputTokens": 1625,
+    "thinkingTokens": 1480,
+    "timestamp": "2026-09-02T22:57:19.553747Z"
+   },
+   {
+    "idx": 23,
+    "genId": "1qmYarmKMMndvdIP8an-wAc",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3660,
+    "cacheReadTokens": 52935,
+    "outputTokens": 2098,
+    "thinkingTokens": 1199,
+    "timestamp": "2026-09-02T22:57:26.310529Z"
+   },
+   {
+    "idx": 24,
+    "genId": "3KmYaq3gN86d28oPs7iB8Ac",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 6018,
+    "cacheReadTokens": 52939,
+    "outputTokens": 126,
+    "thinkingTokens": 104,
+    "timestamp": "2026-09-02T22:57:32.212014Z"
+   },
+   {
+    "idx": 25,
+    "genId": "CaqYapCaB-qhnsEPmYfCmQ8",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 2283,
+    "cacheReadTokens": 57001,
+    "outputTokens": 334,
+    "thinkingTokens": 233,
+    "timestamp": "2026-09-02T22:58:16.548111Z"
+   },
+   {
+    "idx": 26,
+    "genId": "C6qYaqHmGbrgnsEP7Jqt-A8",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3630,
+    "cacheReadTokens": 56999,
+    "outputTokens": 426,
+    "thinkingTokens": 263,
+    "timestamp": "2026-09-02T22:58:18.723768Z"
+   },
+   {
+    "idx": 27,
+    "genId": "RaqYaum9KYzxnsEPg-yAaA",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 4169,
+    "cacheReadTokens": 56993,
+    "outputTokens": 604,
+    "thinkingTokens": 465,
+    "timestamp": "2026-09-02T22:59:16.596376Z"
+   },
+   {
+    "idx": 28,
+    "genId": "SqqYao_TGIvqkdUP-vvq6Qw",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 4889,
+    "cacheReadTokens": 56988,
+    "outputTokens": 2644,
+    "thinkingTokens": 1405,
+    "timestamp": "2026-09-02T22:59:21.613529Z"
+   },
+   {
+    "idx": 29,
+    "genId": "U6qYaoiqCcPlnsEP-4vS-QE",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3715,
+    "cacheReadTokens": 61066,
+    "outputTokens": 76,
+    "thinkingTokens": 56,
+    "timestamp": "2026-09-02T22:59:30.587232Z"
+   }
+  ]
+ },
+ {
+  "id": "f02b985d-e394-4238-a7f0-6469a8425d45",
+  "workspace": "/home/you/my-project",
+  "parentId": "bdea7edd-fb3f-4d3b-9502-9d5f838ba135",
+  "agentName": "Research Lead",
+  "startedAt": "2026-09-02T22:57:32.042327Z",
+  "updatedAt": "2026-09-02T22:58:16.429930Z",
+  "firstPrompt": "1-plan-research/plan.md run/research-factory/ai-graph-loops-example-how-to-do-it-for-ai-2026-09-03",
+  "generations": [
+   {
+    "idx": 0,
+    "genId": "3KmYavilMYWKvdIPktub8AM",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 21210,
+    "cacheReadTokens": 0,
+    "outputTokens": 4438,
+    "thinkingTokens": 3651,
+    "timestamp": "2026-09-02T22:57:32.332136Z"
+   },
+   {
+    "idx": 1,
+    "genId": "8qmYaqJcp-aewQ_7j-mIDQ",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5497,
+    "cacheReadTokens": 20390,
+    "outputTokens": 1168,
+    "thinkingTokens": 420,
+    "timestamp": "2026-09-02T22:57:53.281070Z"
+   },
+   {
+    "idx": 2,
+    "genId": "AqqYaorQHcH9xN8Pwqi5wAk",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 2755,
+    "cacheReadTokens": 24464,
+    "outputTokens": 172,
+    "thinkingTokens": 79,
+    "timestamp": "2026-09-02T22:58:10.101239Z"
+   },
+   {
+    "idx": 3,
+    "genId": "BKqYavORHI6Axs0PkvmewQo",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3942,
+    "cacheReadTokens": 24460,
+    "outputTokens": 473,
+    "thinkingTokens": 319,
+    "timestamp": "2026-09-02T22:58:12.008124Z"
+   },
+   {
+    "idx": 4,
+    "genId": "CKqYauPBNffQ28oPpJq20Ao",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 4529,
+    "cacheReadTokens": 24454,
+    "outputTokens": 222,
+    "thinkingTokens": 139,
+    "timestamp": "2026-09-02T22:58:16.429930Z"
+   }
+  ]
+ },
+ {
+  "id": "298b1c01-0af3-41f4-b8bf-b50153d92279",
+  "workspace": "/home/you/my-project",
+  "parentId": "bdea7edd-fb3f-4d3b-9502-9d5f838ba135",
+  "agentName": "Researcher",
+  "startedAt": "2026-09-02T22:59:30.549145Z",
+  "updatedAt": "2026-09-02T23:00:50.989447Z",
+  "firstPrompt": "1-plan-research/plan.md 2-research/ run/research-factory/ai-graph-loops-example-how-to-do-it-for-ai-2026-09-03",
+  "generations": [
+   {
+    "idx": 0,
+    "genId": "U6qYatSUDtHyxs0P2-jesQc",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 21552,
+    "cacheReadTokens": 0,
+    "outputTokens": 811,
+    "thinkingTokens": 719,
+    "timestamp": "2026-09-02T22:59:30.666488Z"
+   },
+   {
+    "idx": 1,
+    "genId": "VqqYaq2qKYjjkdUPhJveiQE",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 2994,
+    "cacheReadTokens": 20380,
+    "outputTokens": 849,
+    "thinkingTokens": 767,
+    "timestamp": "2026-09-02T22:59:34.280108Z"
+   },
+   {
+    "idx": 2,
+    "genId": "WqqYar7YBYiznsEP1-zHCQ",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3967,
+    "cacheReadTokens": 20376,
+    "outputTokens": 333,
+    "thinkingTokens": 272,
+    "timestamp": "2026-09-02T22:59:37.444966Z"
+   },
+   {
+    "idx": 3,
+    "genId": "YKqYaqCoBvTrkdUPprmJ0Aw",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5023,
+    "cacheReadTokens": 20372,
+    "outputTokens": 103,
+    "thinkingTokens": 42,
+    "timestamp": "2026-09-02T22:59:43.775011Z"
+   },
+   {
+    "idx": 4,
+    "genId": "Z6qYauDSK7qcnsEP9YHOgQE",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3211,
+    "cacheReadTokens": 24448,
+    "outputTokens": 156,
+    "thinkingTokens": 74,
+    "timestamp": "2026-09-02T22:59:51.120021Z"
+   },
+   {
+    "idx": 5,
+    "genId": "bqqYaszvF4yVkdUP1PKJuA4",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5101,
+    "cacheReadTokens": 24448,
+    "outputTokens": 121,
+    "thinkingTokens": 61,
+    "timestamp": "2026-09-02T22:59:57.999973Z"
+   },
+   {
+    "idx": 6,
+    "genId": "dKqYaundLeuQnsEP49umYA",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5429,
+    "cacheReadTokens": 24441,
+    "outputTokens": 189,
+    "thinkingTokens": 74,
+    "timestamp": "2026-09-02T23:00:04.133852Z"
+   },
+   {
+    "idx": 7,
+    "genId": "eaqYaq28GqevxN8PrYqD-Ao",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 6050,
+    "cacheReadTokens": 24436,
+    "outputTokens": 194,
+    "thinkingTokens": 137,
+    "timestamp": "2026-09-02T23:00:08.875759Z"
+   },
+   {
+    "idx": 8,
+    "genId": "gKqYasHMGOaUnsEPoLiV-Q0",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 2378,
+    "cacheReadTokens": 28502,
+    "outputTokens": 188,
+    "thinkingTokens": 74,
+    "timestamp": "2026-09-02T23:00:16.030704Z"
+   },
+   {
+    "idx": 9,
+    "genId": "g6qYavXfD4vAxN8PgtLu2Ac",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 21089,
+    "cacheReadTokens": 28560,
+    "outputTokens": 168,
+    "thinkingTokens": 108,
+    "timestamp": "2026-09-02T23:00:18.768617Z"
+   },
+   {
+    "idx": 10,
+    "genId": "iaqYasbsKu-ExN8PgbHt0AY",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5147,
+    "cacheReadTokens": 44872,
+    "outputTokens": 191,
+    "thinkingTokens": 76,
+    "timestamp": "2026-09-02T23:00:24.958522Z"
+   },
+   {
+    "idx": 11,
+    "genId": "i6qYavT0JeaUnsEPoLiV-Q0",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 5999,
+    "cacheReadTokens": 48961,
+    "outputTokens": 236,
+    "thinkingTokens": 113,
+    "timestamp": "2026-09-02T23:00:27.222292Z"
+   },
+   {
+    "idx": 12,
+    "genId": "j6qYap2gDLGDxs0PqMXpiAs",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 6395,
+    "cacheReadTokens": 53048,
+    "outputTokens": 176,
+    "thinkingTokens": 53,
+    "timestamp": "2026-09-02T23:00:30.735861Z"
+   },
+   {
+    "idx": 13,
+    "genId": "kaqYao7yMIjjkdUPhJveiQE",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 8948,
+    "cacheReadTokens": 57141,
+    "outputTokens": 154,
+    "thinkingTokens": 31,
+    "timestamp": "2026-09-02T23:00:33.321613Z"
+   },
+   {
+    "idx": 14,
+    "genId": "k6qYasS-MYXGnsEP69C-iA0",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 6465,
+    "cacheReadTokens": 65313,
+    "outputTokens": 410,
+    "thinkingTokens": 351,
+    "timestamp": "2026-09-02T23:00:35.209508Z"
+   },
+   {
+    "idx": 15,
+    "genId": "m6qYavyOIrikkdUP74Wm2Qw",
+    "model": "gemini-3.8-flash",
+    "inputTokens": 3668,
+    "cacheReadTokens": 69390,
+    "outputTokens": 151,
+    "thinkingTokens": 94,
+    "timestamp": "2026-09-02T23:00:42.846655Z"
+   }
+  ]
+ }
+]

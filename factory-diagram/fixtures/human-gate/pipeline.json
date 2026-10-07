@@ -1,0 +1,60 @@
+{
+  "$schema": "../../../../factories/pipeline.schema.json",
+  "id": "human-gate",
+  "name": "Human gate",
+  "author": "fixtures",
+  "description": "Fixture 5: a person decides in the middle; a rejection loops once, then the run ends.",
+  "constants": {
+    "rootPath": "cwd",
+    "skillPath": ".",
+    "homePath": "~",
+    "factoryPath": "{{rootPath}}/factories/{{id}}"
+  },
+  "params": {
+    "topic": "",
+    "depth": 2
+  },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["draft"],
+  "steps": {
+    "draft": {
+      "agent": "general-purpose",
+      "model": "opus",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["1-draft/draft.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["approve"]
+        }
+      }
+    },
+    "approve": {
+      "agent": "human",
+      "prompt": ["Read the draft.", "Answer APPROVE to publish or REJECT to redraft (once)."],
+      "input": ["1-draft/draft.md"],
+      "output": ["2-approve/decision.md"],
+      "transitions": {
+        "APPROVE": {
+          "target": ["publish"]
+        },
+        "REJECT": {
+          "target": ["draft"],
+          "max": 1,
+          "onMax": ["END"]
+        }
+      }
+    },
+    "publish": {
+      "agent": "general-purpose",
+      "model": "haiku",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "input": ["1-draft/draft.md"],
+      "output": ["3-publish/done.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["END"]
+        }
+      }
+    }
+  }
+}

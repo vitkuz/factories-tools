@@ -1,0 +1,40 @@
+{
+  "name": "ai-harness-usage",
+  "version": "1.0.0",
+  "main": "index.js",
+  "scripts": {
+    "test": "vitest run",
+    "build": "tsc -p tsconfig.json && cp src/adapters/antigravity/decode-conversations.py dist/adapters/antigravity/",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\"",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "dev": "tsx src/cli/index.ts",
+    "ingest": "tsx src/cli/index.ts ingest",
+    "report": "tsx src/cli/index.ts report",
+    "watch": "tsx src/cli/index.ts watch",
+    "fixtures": "tsx scripts/build-fixtures.ts",
+    "setup": "node scripts/setup.mjs"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "description": "",
+  "type": "module",
+  "dependencies": {
+    "commander": "^14.0.3",
+    "dotenv": "^17.4.2",
+    "uuid": "^14.0.2",
+    "winston": "^3.19.0",
+    "zod": "^4.5.4"
+  },
+  "devDependencies": {
+    "@types/node": "^26.4.1",
+    "@types/uuid": "^10.0.0",
+    "prettier": "^3.9.6",
+    "tsx": "^4.23.13",
+    "typescript": "^7.0.2",
+    "vitest": "^4.1.11"
+  },
+  "bin": {
+    "ai-usage": "./bin/ai-usage.js"
+  }
+}

@@ -1,0 +1,85 @@
+{
+  "id": "harness-smoke",
+  "description": "Three trivial steps that prove a harness adapter end to end: one and two fan out from START and run in parallel, three fans in, reads what they wrote and must wait for both. No step names a model, so each harness uses its own default.",
+  "constants": {
+    "rootPath": "cwd",
+    "skillPath": ".",
+    "homePath": "~"
+  },
+  "params": {
+    "label": "smoke"
+  },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "hooks": {
+    "before": [
+      "echo before > {{outputDir}}/hook-before.txt"
+    ],
+    "after": [
+      "echo after > {{outputDir}}/hook-after.txt",
+      "bash {{rootPath}}/scripts/ai-usage-ingest.sh {{outputDir}}"
+    ]
+  },
+  "START": [
+    "one",
+    "two"
+  ],
+  "steps": {
+    "one": {
+      "agent": "general-purpose",
+      "system": [
+        "You are terse. You do exactly what is asked and nothing else."
+      ],
+      "prompt": [
+        "Print 1: write the single character 1, and nothing else, into your output file. Return DONE."
+      ],
+      "output": [
+        "1-one/out.txt"
+      ],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "three"
+          ]
+        }
+      }
+    },
+    "two": {
+      "agent": "general-purpose",
+      "prompt": [
+        "Print 2: write the single character 2, and nothing else, into your output file. Return DONE."
+      ],
+      "output": [
+        "2-two/out.txt"
+      ],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "three"
+          ]
+        }
+      }
+    },
+    "three": {
+      "agent": "general-purpose",
+      "prompt": [
+        "Print 3: read your input files, then write one line into your output file: the content of the first input, a space, the content of the second input, a space, and 3.",
+        "Return DONE and report `inputs` as the number of input files that were present."
+      ],
+      "input": [
+        "1-one/out.txt",
+        "2-two/out.txt"
+      ],
+      "output": [
+        "3-three/out.txt"
+      ],
+      "transitions": {
+        "DONE": {
+          "condition": "inputs == 2",
+          "target": [
+            "END"
+          ]
+        }
+      }
+    }
+  }
+}

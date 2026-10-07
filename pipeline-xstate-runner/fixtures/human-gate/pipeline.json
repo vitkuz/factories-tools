@@ -1,0 +1,26 @@
+{
+  "id": "human-gate",
+  "description": "draft → approve (a person); APPROVE → END, REJECT → draft (max 1, onMax END)",
+  "constants": { "rootPath": "cwd", "skillPath": ".", "homePath": "~" },
+  "params": { "topic": "demo" },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["draft"],
+  "steps": {
+    "draft": {
+      "agent": "general-purpose",
+      "prompt": ["Draft {{topic}}."],
+      "output": ["1-draft/draft.md"],
+      "transitions": { "DONE": { "target": ["approve"] } }
+    },
+    "approve": {
+      "agent": "human",
+      "prompt": ["Approve the draft?"],
+      "input": ["1-draft/draft.md"],
+      "output": ["2-approve/decision.md"],
+      "transitions": {
+        "APPROVE": { "target": ["END"] },
+        "REJECT": { "target": ["draft"], "max": 1, "onMax": ["END"] }
+      }
+    }
+  }
+}

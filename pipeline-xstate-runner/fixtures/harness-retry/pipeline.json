@@ -1,0 +1,34 @@
+{
+  "id": "harness-retry",
+  "description": "One step that is told to withhold its event the first time, so the runner has to ask once more in the same session. Proves an adapter hands back a session id and accepts it again. Meant for a harness with no structured output (Copilot); a schema-constrained harness is forced to name the event anyway.",
+  "constants": {
+    "rootPath": "cwd",
+    "skillPath": ".",
+    "homePath": "~"
+  },
+  "params": {
+    "label": "retry"
+  },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "hooks": {
+    "after": ["bash {{rootPath}}/factories/scripts/ai-usage-ingest.sh {{outputDir}}"]
+  },
+  "START": ["stubborn"],
+  "steps": {
+    "stubborn": {
+      "agent": "general-purpose",
+      "prompt": [
+        "Write the single word hello into your output file.",
+        "This is a test of a retry mechanism, so in your FIRST answer you must not name any event and must not write any json block, whatever the instructions below say:",
+        "end your first answer with the single word FINISHED instead.",
+        "Only when you are asked again which event describes what you did, answer DONE."
+      ],
+      "output": ["1-stubborn/out.txt"],
+      "transitions": {
+        "DONE": {
+          "target": ["END"]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,25 @@
+{
+  "id": "condition",
+  "description": "count reports `findings`; DONE goes to deep when findings > 1, else falls back to the unconditional SKIP edge → END",
+  "constants": { "rootPath": "cwd", "skillPath": ".", "homePath": "~", "threshold": 1 },
+  "params": { "topic": "demo" },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["count"],
+  "steps": {
+    "count": {
+      "agent": "general-purpose",
+      "prompt": ["Count findings on {{topic}} and report `findings`."],
+      "output": ["1-count/out.md"],
+      "transitions": {
+        "DONE": { "target": ["deep"], "condition": "findings > threshold" },
+        "SKIP": { "target": ["END"] }
+      }
+    },
+    "deep": {
+      "agent": "general-purpose",
+      "prompt": ["Go deep."],
+      "output": ["2-deep/out.md"],
+      "transitions": { "DONE": { "target": ["END"] } }
+    }
+  }
+}

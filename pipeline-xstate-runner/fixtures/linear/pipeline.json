@@ -1,0 +1,30 @@
+{
+  "id": "linear",
+  "description": "a → b → c → END",
+  "constants": { "rootPath": "cwd", "skillPath": ".", "homePath": "~" },
+  "params": { "topic": "demo" },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["a"],
+  "steps": {
+    "a": {
+      "agent": "general-purpose",
+      "prompt": ["Do a about {{topic}}."],
+      "output": ["1-a/out.md"],
+      "transitions": { "DONE": { "target": ["b"] } }
+    },
+    "b": {
+      "agent": "general-purpose",
+      "prompt": ["Do b."],
+      "input": ["1-a/out.md"],
+      "output": ["2-b/out.md"],
+      "transitions": { "DONE": { "target": ["c"] } }
+    },
+    "c": {
+      "agent": "general-purpose",
+      "prompt": ["Do c."],
+      "input": ["2-b/out.md"],
+      "output": ["3-c/out.md"],
+      "transitions": { "DONE": { "target": ["END"] } }
+    }
+  }
+}

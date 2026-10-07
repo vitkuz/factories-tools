@@ -1,0 +1,68 @@
+{
+  "$schema": "../../../../factories/pipeline.schema.json",
+  "id": "shortcut-jump",
+  "name": "Shortcut jump",
+  "author": "fixtures",
+  "description": "Fixture 4: SKIP jumps two ranks ahead.",
+  "constants": {
+    "rootPath": "cwd",
+    "skillPath": ".",
+    "homePath": "~",
+    "factoryPath": "{{rootPath}}/factories/{{id}}"
+  },
+  "params": {
+    "topic": "",
+    "depth": 2
+  },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["triage"],
+  "steps": {
+    "triage": {
+      "agent": "general-purpose",
+      "model": "haiku",
+      "prompt": ["Triage.", "Return DONE to go on, SKIP to jump straight to publish."],
+      "output": ["1-triage/triage.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["research"]
+        },
+        "SKIP": {
+          "target": ["publish"]
+        }
+      }
+    },
+    "research": {
+      "agent": "general-purpose",
+      "model": "sonnet",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["2-research/notes.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["write"]
+        }
+      }
+    },
+    "write": {
+      "agent": "general-purpose",
+      "model": "opus",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["3-write/post.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["publish"]
+        }
+      }
+    },
+    "publish": {
+      "agent": "general-purpose",
+      "model": "haiku",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["4-publish/done.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["END"]
+        }
+      }
+    }
+  }
+}

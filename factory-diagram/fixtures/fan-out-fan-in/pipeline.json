@@ -1,0 +1,88 @@
+{
+  "$schema": "../../../../factories/pipeline.schema.json",
+  "id": "fan-out-fan-in",
+  "name": "Fan-out, fan-in",
+  "author": "fixtures",
+  "description": "Fixture 2: START fans out to two scouts, they fan in to merge, merge fans out to two tests, which fan in before END.",
+  "constants": {
+    "rootPath": "cwd",
+    "skillPath": ".",
+    "homePath": "~",
+    "factoryPath": "{{rootPath}}/factories/{{id}}"
+  },
+  "params": {
+    "topic": "",
+    "depth": 2
+  },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["scout-back", "scout-front"],
+  "steps": {
+    "scout-back": {
+      "agent": "general-purpose",
+      "model": "sonnet",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["1-scout-back/back.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["merge"]
+        }
+      }
+    },
+    "scout-front": {
+      "agent": "general-purpose",
+      "model": "sonnet",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["1-scout-front/front.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["merge"]
+        }
+      }
+    },
+    "merge": {
+      "agent": "general-purpose",
+      "model": "opus",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "input": ["1-scout-back/back.md", "1-scout-front/front.md"],
+      "output": ["2-merge/plan.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["test-a", "test-b"]
+        }
+      }
+    },
+    "test-a": {
+      "agent": "general-purpose",
+      "model": "haiku",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["3-test-a/a.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["report"]
+        }
+      }
+    },
+    "test-b": {
+      "agent": "general-purpose",
+      "model": "haiku",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["3-test-b/b.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["report"]
+        }
+      }
+    },
+    "report": {
+      "agent": "general-purpose",
+      "model": "sonnet",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["4-report/report.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["END"]
+        }
+      }
+    }
+  }
+}

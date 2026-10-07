@@ -1,0 +1,56 @@
+{
+  "$schema": "../../../../factories/pipeline.schema.json",
+  "id": "linear",
+  "name": "Linear",
+  "author": "fixtures",
+  "description": "Fixture 1: three steps in a row.",
+  "constants": {
+    "rootPath": "cwd",
+    "skillPath": ".",
+    "homePath": "~",
+    "factoryPath": "{{rootPath}}/factories/{{id}}"
+  },
+  "params": {
+    "topic": "",
+    "depth": 2
+  },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["plan"],
+  "steps": {
+    "plan": {
+      "agent": "general-purpose",
+      "model": "opus",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["1-plan/plan.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["build"]
+        }
+      }
+    },
+    "build": {
+      "agent": "general-purpose",
+      "model": "sonnet",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "input": ["1-plan/plan.md"],
+      "output": ["2-build/app.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["ship"]
+        }
+      }
+    },
+    "ship": {
+      "agent": "general-purpose",
+      "model": "haiku",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "input": ["2-build/app.md"],
+      "output": ["3-ship/notes.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["END"]
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "id": "hello-human",
+  "description": "one and two write 1 and 2 in parallel; sum writes 3; a person approves (APPROVE → END) or rejects (REJECT → sum again, once; then END).",
+  "constants": { "rootPath": "cwd", "skillPath": ".", "homePath": "~" },
+  "params": { "label": "hello" },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["one", "two"],
+  "steps": {
+    "one": {
+      "agent": "general-purpose",
+      "system": ["You are terse. You do exactly what is asked and nothing else."],
+      "prompt": [
+        "Write the single character 1, and nothing else, into your output file. Return DONE."
+      ],
+      "output": ["1-one/out.txt"],
+      "transitions": { "DONE": { "target": ["sum"] } }
+    },
+    "two": {
+      "agent": "general-purpose",
+      "system": ["You are terse. You do exactly what is asked and nothing else."],
+      "prompt": [
+        "Write the single character 2, and nothing else, into your output file. Return DONE."
+      ],
+      "output": ["1-two/out.txt"],
+      "transitions": { "DONE": { "target": ["sum"] } }
+    },
+    "sum": {
+      "agent": "general-purpose",
+      "system": ["You are terse. You do exactly what is asked and nothing else."],
+      "prompt": [
+        "Read the two input files; each holds one number. Write their sum, as a single number and nothing else, into your output file. If a decision file is among your inputs, a person asked for a recount: recount and write the sum again. Return DONE."
+      ],
+      "input": ["1-one/out.txt", "1-two/out.txt", "3-approve/decision.md"],
+      "output": ["2-sum/out.txt"],
+      "transitions": { "DONE": { "target": ["approve"] } }
+    },
+    "approve": {
+      "agent": "human",
+      "prompt": ["Sum is 3 — approve?"],
+      "input": ["2-sum/out.txt"],
+      "output": ["3-approve/decision.md"],
+      "transitions": {
+        "APPROVE": { "target": ["END"] },
+        "REJECT": { "target": ["sum"], "max": 1, "onMax": ["END"] }
+      }
+    }
+  }
+}

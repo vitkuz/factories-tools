@@ -1,0 +1,57 @@
+{
+  "$schema": "../../../../factories/pipeline.schema.json",
+  "id": "dangling-unreachable",
+  "name": "Dangling and unreachable",
+  "author": "fixtures",
+  "description": "Fixture 8: FAIL points at a step that does not exist; orphan is reachable from nowhere.",
+  "constants": {
+    "rootPath": "cwd",
+    "skillPath": ".",
+    "homePath": "~",
+    "factoryPath": "{{rootPath}}/factories/{{id}}"
+  },
+  "params": {
+    "topic": "",
+    "depth": 2
+  },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["fetch"],
+  "steps": {
+    "fetch": {
+      "agent": "general-purpose",
+      "model": "haiku",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["1-fetch/raw.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["summarise"]
+        },
+        "FAIL": {
+          "target": ["ghost"]
+        }
+      }
+    },
+    "summarise": {
+      "agent": "general-purpose",
+      "model": "sonnet",
+      "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
+      "output": ["2-summarise/summary.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["END"]
+        }
+      }
+    },
+    "orphan": {
+      "agent": "general-purpose",
+      "model": "haiku",
+      "prompt": ["Nobody routes here."],
+      "output": ["3-orphan/x.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["END"]
+        }
+      }
+    }
+  }
+}

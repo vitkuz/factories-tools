@@ -1,0 +1,45 @@
+{
+  "$schema": "../../../../factories/pipeline.schema.json",
+  "id": "legacy-prompts",
+  "name": "Legacy prompts",
+  "author": "fixtures",
+  "description": "Fixture 7: string prompt and systemPrompt, as runs recorded before the line-array format.",
+  "constants": {
+    "rootPath": "cwd",
+    "skillPath": ".",
+    "homePath": "~",
+    "factoryPath": "{{rootPath}}/factories/{{id}}"
+  },
+  "params": {
+    "topic": "",
+    "depth": 2
+  },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["plan"],
+  "steps": {
+    "plan": {
+      "agent": "general-purpose",
+      "model": "opus",
+      "systemPrompt": "You plan.\nYou never build.",
+      "prompt": "Plan {{topic}}.\nReturn DONE when the plan is written.",
+      "output": ["1-plan/plan.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["build"]
+        }
+      }
+    },
+    "build": {
+      "agent": "general-purpose",
+      "model": "sonnet",
+      "prompt": "Build from the plan. Return DONE.",
+      "input": ["1-plan/plan.md"],
+      "output": ["2-build/app.md"],
+      "transitions": {
+        "DONE": {
+          "target": ["END"]
+        }
+      }
+    }
+  }
+}

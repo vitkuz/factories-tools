@@ -1,0 +1,194 @@
+/* ------------------------------------------------------------------ */
+/* The tables: tools/artifact-collector/front/src/styles.css, the totals  */
+/* banner and the grid rules, scoped under .screen-runs (and the sessions */
+/* list, which is the same table).                                        */
+/* ------------------------------------------------------------------ */
+
+/* ---------------------------------------------------------------- totals */
+
+/* The four numbers the tool exists to answer, before anything else on the page. */
+.screen-runs .totals,
+.screen-sessions .totals {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.screen-runs .figure,
+.screen-sessions .figure {
+  flex: 1 1 120px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 14px 16px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+}
+
+.screen-runs .figure-value,
+.screen-sessions .figure-value {
+  font-size: 24px;
+  font-weight: 600;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.screen-runs .figure-value.is-accent,
+.screen-sessions .figure-value.is-accent {
+  color: var(--st-completed);
+}
+
+.screen-runs .figure-label,
+.screen-sessions .figure-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.screen-runs .figure-note,
+.screen-sessions .figure-note {
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+/* ----------------------------------------------------------------- grids */
+
+.screen-runs .panel-title,
+.screen-sessions .panel-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.screen-runs .panel-note,
+.screen-sessions .panel-note {
+  font-weight: 400;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-2);
+}
+
+/* The tables keep their columns; the overflow is the panel's, not the page's. */
+.screen-runs .grid-scroll,
+.screen-sessions .grid-scroll {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.screen-runs .grid,
+.screen-sessions .grid {
+  width: 100%;
+  min-width: 620px;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+.screen-runs .grid th,
+.screen-sessions .grid th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+  padding: 0 8px 6px;
+  border-bottom: 1px solid var(--line);
+  white-space: nowrap;
+}
+
+.screen-runs .grid td,
+.screen-sessions .grid td {
+  padding: 7px 8px;
+  border-bottom: 1px solid var(--line);
+  vertical-align: middle;
+}
+
+.screen-runs .grid .numeric,
+.screen-sessions .grid .numeric {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.screen-runs .grid .nowrap,
+.screen-sessions .grid .nowrap {
+  white-space: nowrap;
+}
+
+.screen-runs .grid .money,
+.screen-sessions .grid .money {
+  font-variant-numeric: tabular-nums;
+  color: var(--st-completed);
+}
+
+/* An incomplete figure states its own incompleteness, under the figure. */
+.screen-runs .cell-note,
+.screen-sessions .cell-note {
+  display: block;
+  font-weight: 400;
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.screen-runs .grid .muted,
+.screen-sessions .grid .muted {
+  color: var(--ink-2);
+}
+
+.screen-runs .grid tr.is-clickable,
+.screen-sessions .grid tr.is-clickable {
+  cursor: pointer;
+}
+
+/* The real control inside the row, so the drill-down has a tab stop. */
+.screen-runs .row-button,
+.screen-sessions .row-button {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  width: 100%;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.screen-runs .grid tr.is-clickable:hover td,
+.screen-sessions .grid tr.is-clickable:hover td {
+  background: var(--raised);
+}
+
+.screen-runs .grid tr[aria-current='true'] td,
+.screen-sessions .grid tr[aria-current='true'] td {
+  background: var(--raised);
+}
+
+.screen-runs .chip,
+.screen-sessions .chip {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 0 6px;
+  font-size: 11px;
+  line-height: 1.5;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+.screen-runs .chip--skipped,
+.screen-sessions .chip--skipped {
+  color: var(--st-skipped);
+  border: 1px solid color-mix(in srgb, var(--st-skipped) 45%, transparent);
+}
+
+.screen-runs .chevron,
+.screen-sessions .chevron {
+  display: inline-block;
+  width: 14px;
+  color: var(--ink-2);
+}

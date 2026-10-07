@@ -1,0 +1,5 @@
+{
+  "rateCards": [
+    { "id": "github/ai-credit/2026-01-01", "provider": "github-copilot", "model": "*", "aliases": [], "effectiveFrom": "2026-01-01", "billingMode": "provider-credits", "currency": "USD", "providerCreditConversion": { "unit": "github_ai_credit", "usdPerUnit": 0.01 }, "source": "GitHub Copilot billing: 1 AI credit = $0.01 USD; per-call credit amounts come from the CLI's own usage records (total_nano_aiu / 1e9)", "notes": "Token rates are not needed: the Copilot CLI records the credit cost of every model call locally." }
+  ]
+}

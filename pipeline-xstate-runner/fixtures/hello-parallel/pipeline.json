@@ -1,0 +1,47 @@
+{
+  "id": "hello-parallel",
+  "description": "one, two and three start together and write 1, 2 and 3; sum fans in, runs once, and writes 6.",
+  "constants": { "rootPath": "cwd", "skillPath": ".", "homePath": "~" },
+  "params": { "label": "hello" },
+  "outputDir": "{{rootPath}}/run/{{id}}/{{slug}}-{{date}}",
+  "START": ["one", "two", "three"],
+  "steps": {
+    "one": {
+      "agent": "general-purpose",
+      "system": ["You are terse. You do exactly what is asked and nothing else."],
+      "prompt": [
+        "Write the single character 1, and nothing else, into your output file. Return DONE."
+      ],
+      "output": ["1-one/out.txt"],
+      "transitions": { "DONE": { "target": ["sum"] } }
+    },
+    "two": {
+      "agent": "general-purpose",
+      "system": ["You are terse. You do exactly what is asked and nothing else."],
+      "prompt": [
+        "Write the single character 2, and nothing else, into your output file. Return DONE."
+      ],
+      "output": ["1-two/out.txt"],
+      "transitions": { "DONE": { "target": ["sum"] } }
+    },
+    "three": {
+      "agent": "general-purpose",
+      "system": ["You are terse. You do exactly what is asked and nothing else."],
+      "prompt": [
+        "Write the single character 3, and nothing else, into your output file. Return DONE."
+      ],
+      "output": ["1-three/out.txt"],
+      "transitions": { "DONE": { "target": ["sum"] } }
+    },
+    "sum": {
+      "agent": "general-purpose",
+      "system": ["You are terse. You do exactly what is asked and nothing else."],
+      "prompt": [
+        "Read the three input files; each holds one number. Write their total, as a single number and nothing else, into your output file. Return DONE."
+      ],
+      "input": ["1-one/out.txt", "1-two/out.txt", "1-three/out.txt"],
+      "output": ["2-sum/out.txt"],
+      "transitions": { "DONE": { "target": ["END"] } }
+    }
+  }
+}

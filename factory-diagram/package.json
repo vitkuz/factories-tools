@@ -1,0 +1,36 @@
+{
+  "name": "factory-diagram",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Draws a factory pipeline.json as an SVG diagram, headless: load, validate, resolve, build the graph model, lay it out like Factory Studio and write the file.",
+  "type": "module",
+  "main": "dist/cli/index.js",
+  "bin": {
+    "factory-diagram": "./bin/factory-diagram.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "dev": "tsx src/cli/index.ts",
+    "start": "node dist/cli/index.js",
+    "test": "vitest run",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"*.json\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"*.json\""
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "commander": "14.0.3",
+    "dotenv": "18.0.6",
+    "winston": "3.19.0",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "prettier": "3.9.9",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}

@@ -1,0 +1,42 @@
+{
+  "name": "pipeline-xstate-runner",
+  "private": true,
+  "version": "0.1.0",
+  "description": "Runs a factory pipeline.json as an XState v5 actor system: one run machine, one spawned step actor per step pass, every routing decision a named pure guard. Writes <runDir>/state.json (factories/state.schema.json), events.jsonl and snapshot.json. Bundled to <factories-tools>/bin/xstate-runner.mjs.",
+  "type": "module",
+  "main": "dist/cli/index.js",
+  "bin": {
+    "xstate-runner": "./bin/xstate-runner.mjs"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json",
+    "bundle": "node scripts/bundle.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit && tsc -p tsconfig.test.json --noEmit",
+    "dev": "tsx src/cli/index.ts",
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:contract": "vitest run tests/contract",
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"fixtures/**/*.json\" \"*.json\" \"*.mjs\" \"scripts/*.mjs\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"fixtures/**/*.json\" \"*.json\" \"*.mjs\" \"scripts/*.mjs\"",
+    "check": "npm run typecheck && npm run format:check && npm test"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "commander": "14.0.3",
+    "dotenv": "18.0.6",
+    "fast-glob": "3.3.3",
+    "winston": "3.19.0",
+    "xstate": "5.33.2",
+    "zod": "4.6.5"
+  },
+  "devDependencies": {
+    "@types/node": "20.19.43",
+    "esbuild": "0.28.2",
+    "prettier": "3.9.9",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3",
+    "vitest": "4.1.11"
+  }
+}
