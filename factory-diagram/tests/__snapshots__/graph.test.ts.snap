@@ -4255,7 +4255,7 @@ exports[`the graph model of every factory in factories/ > consulting-research-fa
 exports[`the graph model of every factory in factories/ > feature-factory builds without warnings and matches its snapshot 1`] = `
 {
   "author": "vitkuz",
-  "description": "Builds any feature the user asks for in an AWS project laid out as repos/back, repos/front, repos/tools and repos/docs with its spec in docs/context, back first: brief, parallel scouting, questions, an approved plan, spec first, then implement, deploy (dev, automatic, stops on danger) and test the back until it works, recording the API as built; then build the front locally against it, test it in a browser (fixing front or back), deploy the front, smoke-test, update docs, report and keep lessons.",
+  "description": "Builds any feature the user asks for in an AWS project laid out as repos/back, repos/front, repos/tools and repos/docs with its spec in docs/context, back first: brief, parallel scouting, questions, an approved plan, spec first, then implement, deploy (dev, automatic, stops on danger) and test the back until it works, recording the API as built; then build the front locally against it, test it in a browser (fixing front or back), deploy the front, smoke-test, update docs, report, keep lessons, then commit and push the feature's changes repo by repo and the project with the new pointers.",
   "edges": [
     {
       "event": null,
@@ -4739,7 +4739,7 @@ exports[`the graph model of every factory in factories/ > feature-factory builds
     {
       "event": null,
       "happy": true,
-      "id": "e:lessons->END",
+      "id": "e:lessons->commit",
       "kind": "forward",
       "lane": "row",
       "max": null,
@@ -4747,6 +4747,20 @@ exports[`the graph model of every factory in factories/ > feature-factory builds
         "DONE",
       ],
       "source": "lessons",
+      "target": "commit",
+    },
+    {
+      "event": null,
+      "happy": true,
+      "id": "e:commit->END",
+      "kind": "forward",
+      "lane": "row",
+      "max": null,
+      "results": [
+        "DONE",
+        "FAILED",
+      ],
+      "source": "commit",
       "target": "END",
     },
   ],
@@ -5219,6 +5233,35 @@ exports[`the graph model of every factory in factories/ > feature-factory builds
     },
     {
       "agent": "general-purpose",
+      "id": "commit",
+      "inputs": [
+        "1-feature-brief/brief.md",
+        "9-update-context-docs/changes.md",
+        "10-implement-back/changes.md",
+        "12-fix-back/*.md",
+        "15-implement-front/*.md",
+        "17-fix-front/*.md",
+        "21-update-docs/*.md",
+        "22-report/report.md",
+        "23-lessons/lessons.md",
+      ],
+      "kind": "step",
+      "knowledge": [
+        "{{projectMap}}",
+        "knowledge/pipeline/commit-and-push.md",
+      ],
+      "max": null,
+      "model": "sonnet",
+      "outputs": [
+        "24-commit/commit.md",
+      ],
+      "prompt": "Commit and push the changes of the feature {{feature}}: first each repo under repos/ that is a git submodule and holds changes from this feature, then the project with the new submodule pointers, this feature's docs/context files, its features/ folder, this run's folder and <root>/factories-data/feature-factory.",
+      "rank": 20,
+      "stackIndex": 0,
+      "unreachable": false,
+    },
+    {
+      "agent": "general-purpose",
       "id": "fix-front",
       "inputs": [
         "14-test-back/api-contract.md",
@@ -5320,19 +5363,20 @@ exports[`the graph model of every factory in factories/ > feature-factory builds
       "model": null,
       "outputs": [],
       "prompt": null,
-      "rank": 20,
+      "rank": 21,
       "stackIndex": 0,
       "unreachable": false,
     },
   ],
   "outputDir": "<root>/run/feature-factory/feature-factory-{{date}}",
   "ranks": {
-    "END": 20,
+    "END": 21,
     "START": 0,
     "answer-questions": 4,
     "approve-plan": 6,
     "build-front-local": 13,
     "collect-questions": 3,
+    "commit": 20,
     "deploy-back": 10,
     "deploy-front": 15,
     "feature-brief": 1,
@@ -5353,7 +5397,7 @@ exports[`the graph model of every factory in factories/ > feature-factory builds
     "update-docs": 17,
     "verify-back": 9,
   },
-  "stepCount": 23,
+  "stepCount": 24,
   "variables": {
     "awsProfile": "default",
     "awsRegion": "us-east-1",
