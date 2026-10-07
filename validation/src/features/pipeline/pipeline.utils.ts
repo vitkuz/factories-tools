@@ -10,7 +10,7 @@ export const LOCAL_FACTORIES_DIR = 'factories.local';
 /** Where an id is looked up, in order. */
 export const FACTORY_DIRS: readonly string[] = [LOCAL_FACTORIES_DIR, FACTORIES_DIR];
 /** What a run writes and reads back across runs (insight stores, lessons): never inside the kit. */
-export const FACTORY_DATA_DIR = 'factory-data';
+export const FACTORY_DATA_DIR = 'factories-data';
 export const SKILLS_DIR: string = path.join('.claude', 'skills');
 export const SHARED_SCHEMA: string = path.join(FACTORIES_DIR, 'pipeline.schema.json');
 
@@ -47,7 +47,7 @@ const isUnder =
 export const factoriesDirOf = (rootPath: string, file: string): string | undefined =>
   FACTORY_DIRS.find((dir: string): boolean => isUnder(path.join(rootPath, dir))(file));
 
-/** True for a path under <root>/factory-data/: the project's own run data. */
+/** True for a path under <root>/factories-data/: the project's own run data. */
 export const isProjectData =
   (rootPath: string) =>
   (file: string): boolean =>

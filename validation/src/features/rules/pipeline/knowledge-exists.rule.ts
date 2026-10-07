@@ -46,7 +46,7 @@ const verdict =
         : [report.error(`${where}: "${written}" matches no file (${candidates[0]})`)];
     }
     if (candidates.some(fileSystem.exists)) return [];
-    // a file under factory-data/ is the project's own, written by runs: a first run has none yet
+    // a file under factories-data/ is the project's own, written by runs: a first run has none yet
     return projectData(candidates[0] ?? resolved)
       ? [
           report.warning(

@@ -141,13 +141,13 @@ describe('names and paths', () => {
     ).toEqual([]);
   });
 
-  it('knowledge-exists: a missing file under factory-data/ is project data, a warning', () => {
+  it('knowledge-exists: a missing file under factories-data/ is project data, a warning', () => {
     expect(
       check(knowledgeExists)(
-        (p) => (p.steps['draft']!.knowledge = ['{{rootPath}}/factory-data/{{id}}/lessons.md']),
+        (p) => (p.steps['draft']!.knowledge = ['{{rootPath}}/factories-data/{{id}}/lessons.md']),
       ),
     ).toEqual([
-      'warning: steps.draft.knowledge: "{{rootPath}}/factory-data/{{id}}/lessons.md" is project data not created yet (/repo/factory-data/demo-factory/lessons.md); the run reads it as empty',
+      'warning: steps.draft.knowledge: "{{rootPath}}/factories-data/{{id}}/lessons.md" is project data not created yet (/repo/factories-data/demo-factory/lessons.md); the run reads it as empty',
     ]);
     const findings = knowledgeExists.check(
       contextFor(
@@ -157,11 +157,11 @@ describe('names and paths', () => {
             ...basePipeline().steps,
             draft: {
               ...basePipeline().steps['draft']!,
-              knowledge: ['{{rootPath}}/factory-data/{{id}}/lessons.md'],
+              knowledge: ['{{rootPath}}/factories-data/{{id}}/lessons.md'],
             },
           },
         },
-        { fileSystem: memoryFileSystem([`${ROOT}/factory-data/demo-factory/lessons.md`]) },
+        { fileSystem: memoryFileSystem([`${ROOT}/factories-data/demo-factory/lessons.md`]) },
       ),
     );
     expect(findings).toEqual([]);

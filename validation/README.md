@@ -46,7 +46,7 @@ and severity.
 | graph | `loops-capped`: every loop passes an edge with `max` | warning |
 | graph | `human-step`: needs an `output` (error), a `model` is ignored (warning) | both |
 | names | `placeholders-declared`, `output-dir-not-recursive` | error |
-| paths | `knowledge-exists`: missing → error (under `factory-data/`: warning, it is project data), run-time variable or glob Node can't expand → warning | both |
+| paths | `knowledge-exists`: missing → error (under `factories-data/`: warning, it is project data), run-time variable or glob Node can't expand → warning | both |
 | conventions | `anchors-first`, `schema-ref`, `id-matches-folder`, `wrapper-skill-exists` | warning |
 | setup | `root-has-claude`, `cwd-is-root` | warning |
 
