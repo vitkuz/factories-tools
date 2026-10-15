@@ -54,8 +54,7 @@ setsid nohup npm start > <logfile> 2>&1 < /dev/null &
 ```
 
 Development without a rebuild: `npm run dev:api` (`tsx watch`) plus `npm run dev:web` (Vite on
-port 5185, proxying `/api` to 3150). The ports keep clear of the other local apps (Vite 5175–5178,
-APIs 3100–3103 and 3200).
+`EDITOR_WEB_PORT`, proxying `/api` to `PORT`; see [Ports](#ports)).
 
 Checks that must pass before a change lands (from this folder):
 
@@ -70,6 +69,31 @@ npm run build
 `web/dist` is served without restarting the API (reload the browser); a rebuilt `api/dist` needs a
 restart.
 
+### Ports
+
+Every project that carries this submodule can run its own editor at the same time, so the ports
+are per project and live in the project's git-ignored `api/.env`, never in the source. The
+numbers in this README are the defaults.
+
+```
+cp api/.env.example api/.env   # then set PORT and EDITOR_WEB_PORT to ports no other project uses
+```
+
+| Variable | Default | Read by | What it is |
+| --- | --- | --- | --- |
+| `PORT` | `3150` | the API, and the Vite dev server for its `/api` proxy | the API port |
+| `EDITOR_WEB_PORT` | `5185` | the Vite dev server only | the dev server's own port (`strictPort`) |
+
+With no `api/.env` both defaults apply; a value in the shell wins over the file. The Vite dev
+server reads the same `api/.env` (it has no env file of its own) and refuses to start on a busy
+port instead of moving to the next one. Factory Studio (`../factory-studio`) uses its own `PORT` and `STUDIO_WEB_PORT`. To see which ports this checkout uses and
+whether it is up:
+
+```
+grep -E '^(PORT|EDITOR_WEB_PORT)=' api/.env   # nothing printed: 3150 and 5185
+ss -ltnp | grep ':<PORT> '
+```
+
 ### Environment
 
 Every variable has a default; nothing has to be set. Values come from `api/.env` (copy
@@ -80,6 +104,7 @@ startup: an invalid value stops the server before it listens with one line
 | Variable | Default | What it does |
 | --- | --- | --- |
 | `PORT` | `3150` | TCP port |
+| `EDITOR_WEB_PORT` | `5185` | Vite dev server port, read only by the dev server; see [Ports](#ports) |
 | `HOST` | `127.0.0.1` | bind address; loopback unless set on purpose, because the API writes pipeline files and skills |
 | `WORK_DIR` | the repository root (two levels above `factories-tools/factory-editor`) | where `factories/` (the kit), `factories.local/`, `.claude/skills/`, `knowledge/` and `scripts/` live |
 | `LOG_LEVEL` | `info` | winston level: `error`, `warn`, `info`, `debug` |
