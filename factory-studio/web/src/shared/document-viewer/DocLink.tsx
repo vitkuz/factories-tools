@@ -13,8 +13,7 @@ export interface OpenDocOptions {
 }
 
 /**
- * Opens a document: of the run on screen (`run`), of its factory (`knowledge`), or an
- * input/output path of a pipeline definition (`artifact`, which the editor answers with a notice).
+ * Opens a document: of the run on screen (`run`) or of its factory (`knowledge`).
  */
 export type OpenDoc = (scope: DocScope, path: string, options?: OpenDocOptions) => void;
 

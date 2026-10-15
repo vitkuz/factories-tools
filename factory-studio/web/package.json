@@ -3,7 +3,7 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Factory Studio app: the pipeline editor, the runs dashboard and the sessions screen in one static React app, served by the Factory Studio API.",
+  "description": "Factory Studio app: the runs dashboard and the sessions screen in one static React app, served by the Factory Studio API.",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",

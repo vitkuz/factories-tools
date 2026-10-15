@@ -2,7 +2,7 @@
   "name": "@factory-studio/api",
   "private": true,
   "version": "0.1.0",
-  "description": "Factory Studio API: pipelines, runs, run documents and tmux harness sessions over one local origin.",
+  "description": "Factory Studio API: runs, run documents, read-only pipeline listing and knowledge, and tmux harness sessions over one local origin.",
   "type": "module",
   "main": "dist/server.js",
   "scripts": {

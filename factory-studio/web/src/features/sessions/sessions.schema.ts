@@ -1,5 +1,16 @@
 import { z } from 'zod';
 
+/** One entry of `GET /api/v1/pipelines` (E2): the skill id, its file and the parsed file. */
+export const pipelineListEntrySchema = z.object({
+  id: z.string(),
+  path: z.string(),
+  pipeline: z.looseObject({ id: z.string(), description: z.string().optional() }),
+});
+
+export const pipelineListSchema = z.object({
+  pipelines: z.array(pipelineListEntrySchema),
+});
+
 export const harnessSchema = z.enum(['claude', 'copilot', 'agy', 'codex']);
 
 /** One running tmux session as E10 / E11 report it. */

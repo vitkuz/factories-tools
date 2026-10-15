@@ -10,16 +10,10 @@ import type { FsClient } from '../src/clients/fs/fs.types.js';
 import type { TmuxClient } from '../src/clients/tmux/tmux.types.js';
 import { readDocumentFactory, writeDocumentFactory } from '../src/features/documents/index.js';
 import {
-  createFactoryFactory,
-  createPipelineFactory,
   listPipelineSkillsFactory,
   listStartableFactoriesFactory,
   listPipelinesFactory,
   readKnowledgeDocumentFactory,
-  readPipelineFactory,
-  readPipelineFileFactory,
-  savePipelineFactory,
-  writePipelineFileFactory,
 } from '../src/features/pipelines/index.js';
 import type { PipelineServices } from '../src/features/pipelines/pipelines.types.js';
 import {
@@ -195,9 +189,6 @@ export const buildTestApp = (
 
   const pipelineServices: PipelineServices = {
     listPipelineSkills: listPipelineSkillsFactory({ fs, workDir, logger: quiet }),
-    readPipelineFile: readPipelineFileFactory({ fs, workDir }),
-    writePipelineFile: writePipelineFileFactory({ fs, workDir }),
-    createFactory: createFactoryFactory({ fs, workDir }),
   };
   const runServices: RunServices = {
     collectRunRecords: collectRunRecordsFactory({ fs, workDir, logger: quiet }),
@@ -214,9 +205,6 @@ export const buildTestApp = (
     logger: quiet,
     pipelines: {
       listPipelines: listPipelinesFactory(pipelineServices),
-      readPipeline: readPipelineFactory(pipelineServices),
-      savePipeline: savePipelineFactory({ ...pipelineServices, logger: quiet }),
-      createPipeline: createPipelineFactory({ ...pipelineServices, logger: quiet }),
       readKnowledgeDocument: readKnowledgeDocumentFactory({
         ...pipelineServices,
         readDocument,

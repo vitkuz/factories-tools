@@ -19,5 +19,11 @@ export const missingNoticeSchema = z.object({
   path: z.string(),
 });
 
+/** The answer of a run document write (E8). */
+export const savedSchema = z.object({
+  kind: z.literal('saved'),
+  bytes: z.number(),
+});
+
 export type DirEntry = z.infer<typeof dirEntrySchema>;
 export type DirectoryListing = z.infer<typeof directoryListingSchema>;

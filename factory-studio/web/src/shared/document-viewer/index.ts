@@ -16,7 +16,6 @@ export {
   isMarkdownPath,
 } from './docs';
 export type {
-  ArtifactDocRef,
   DocContent,
   DocRef,
   DocScope,

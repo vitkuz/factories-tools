@@ -2,12 +2,20 @@ import type { z } from 'zod';
 import type {
   factorySessionSchema,
   harnessSchema,
+  pipelineListEntrySchema,
+  pipelineListSchema,
   sessionListSchema,
   startSessionPayloadSchema,
   startedSessionSchema,
   stopSessionPayloadSchema,
   stoppedSchema,
 } from './sessions.schema';
+
+export type PipelineListEntry = z.infer<typeof pipelineListEntrySchema>;
+export type PipelineList = z.infer<typeof pipelineListSchema>;
+
+/** The load of the pipeline list the start form picks from. */
+export type ListState = 'loading' | 'ready' | 'failed';
 
 export type Harness = z.infer<typeof harnessSchema>;
 export type FactorySession = z.infer<typeof factorySessionSchema>;

@@ -3,7 +3,7 @@ import { describeApiError, isApiError } from '../../adapters/http/api-error.util
 import { listPipelines } from '../../adapters/http/studio-api.adapter';
 import { useNow } from '../../shared/lib/polling';
 import { formatRelative } from '../runs/lib/format';
-import type { ListState, PipelineList, PipelineListEntry } from '../editor/editor.types';
+import type { ListState, PipelineList, PipelineListEntry } from './sessions.types';
 import { useSessions, type Sessions } from './hooks/use-sessions';
 import { StartForm } from './components/StartForm';
 import { SessionList } from './components/SessionList';

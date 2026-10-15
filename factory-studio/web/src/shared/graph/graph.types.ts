@@ -1,9 +1,8 @@
 import type { Edge, Node } from '@xyflow/react';
 
 /**
- * The pipeline graph as both screens draw it. These are the structural parts of a
- * `pipeline.json` the layout reads — the Runs screen's Zod-parsed pipeline and the
- * editor's own model both satisfy them, so one layout serves both.
+ * The pipeline graph as the Runs screen draws it. These are the structural parts of a
+ * `pipeline.json` the layout reads; the Runs screen's Zod-parsed pipeline satisfies them.
  */
 
 export interface GraphRoute {

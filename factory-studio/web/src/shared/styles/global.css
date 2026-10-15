@@ -212,6 +212,13 @@ select {
   z-index: 0;
 }
 
+/* on the runs screen the graph fills the visible column; the plain view is reached by scrolling */
+.run-column > .graph-wrap {
+  flex: 0 0 100%;
+  height: auto;
+  min-height: 360px;
+}
+
 .inspector {
   width: clamp(300px, 24vw, 352px);
   flex: 0 0 auto;
@@ -2487,12 +2494,15 @@ select {
     flex-direction: column;
   }
 
-  .graph-wrap {
+  .graph-wrap,
+  .run-column > .graph-wrap {
     flex: none;
     height: clamp(260px, 42vh, 420px);
+    min-height: 0;
   }
 
-  .graph-wrap.is-detailed {
+  .graph-wrap.is-detailed,
+  .run-column > .graph-wrap.is-detailed {
     height: clamp(320px, 55vh, 460px);
   }
 
@@ -2893,70 +2903,6 @@ select {
   font-size: 16px;
   line-height: 1;
   cursor: pointer;
-}
-
-/* -------------------------------------------------------------- editor */
-
-/* The pipeline picker, in the editor's toolbar where its brand used to be. */
-.screen-editor .picker {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
-}
-
-.screen-editor .picker-label {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-}
-
-.screen-editor .picker-select {
-  font-family: var(--mono);
-  min-width: 160px;
-}
-
-/* A refused save: the API's message and issues, under the toolbar; the edits stay on screen. */
-.screen-editor .save-notice {
-  flex: 0 0 auto;
-  padding: 8px 20px;
-  border-bottom: 1px solid var(--line);
-  background: color-mix(in srgb, var(--st-failed) 14%, var(--panel));
-  font-size: 13px;
-}
-
-.screen-editor .save-notice-issues {
-  margin: 4px 0 0;
-  padding-left: 18px;
-  font-size: 12px;
-  color: var(--ink-2);
-}
-
-.screen-editor .editor-empty {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  padding: 40px;
-  text-align: center;
-  font-size: 14px;
-}
-
-.screen-editor .editor-empty p {
-  margin: 0;
-  max-width: 520px;
-}
-
-/* The Blocks library's "From API…" list. */
-.screen-editor .library-api {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--line);
 }
 
 @media (max-width: 900px) {

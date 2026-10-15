@@ -5,7 +5,7 @@ interface NoticeProps {
   children: ReactNode;
 }
 
-/** A short message over the content — the editor's flash and the sessions' notice share one look. */
+/** A short message over the content, in the sessions' notice look. */
 export const Notice = ({ tone, children }: NoticeProps): ReactNode => (
   <div className={`notice notice--${tone}`} role={tone === 'refusal' ? 'alert' : 'status'}>
     {children}

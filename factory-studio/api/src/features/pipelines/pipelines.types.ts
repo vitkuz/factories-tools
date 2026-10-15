@@ -1,13 +1,7 @@
 import type { z } from 'zod';
 import type { DocumentAnswer } from '../documents/documents.types.js';
-import type {
-  discoveredPipelineSchema,
-  newPipelineFileSchema,
-  pipelineFileSchema,
-} from './pipelines.schema.js';
+import type { discoveredPipelineSchema } from './pipelines.schema.js';
 
-export type PipelineFile = z.infer<typeof pipelineFileSchema>;
-export type NewPipelineFile = z.infer<typeof newPipelineFileSchema>;
 export type DiscoveredPipeline = z.infer<typeof discoveredPipelineSchema>;
 
 /** One `factories/<id>/pipeline.json` as found on disk. */
@@ -33,47 +27,22 @@ export interface PipelineListResponse {
   pipelines: PipelineListEntry[];
 }
 
+/** The answer of a run document write (E8). */
 export interface SavedResponse {
   kind: 'saved';
   bytes: number;
 }
 
-export type ReadPipelineResult = { ok: true; file: string } | { ok: false; reason: 'not-found' };
-
-export type SavePipelineResult =
-  | { ok: true; bytes: number }
-  | { ok: false; reason: 'not-found' }
-  | { ok: false; reason: 'id-mismatch' };
-
 export type ReadKnowledgeResult =
   { ok: true; answer: DocumentAnswer } | { ok: false; reason: 'not-found' };
 
-/** The answer of a create (E4b): the two files a new factory is made of, relative to `WORK_DIR`. */
-export interface CreatedResponse {
-  kind: 'created';
-  id: string;
-  /** `factories/<id>/pipeline.json` */
-  path: string;
-  /** `factories-skills/<id>/SKILL.md` (linked from `.claude/skills/<id>`) */
-  skill: string;
-  bytes: number;
-}
-
-export type CreatePipelineResult =
-  { ok: true; created: CreatedResponse } | { ok: false; reason: 'exists'; existing: string };
-
+/** Read-only: the app lists pipelines and reads their knowledge, it never writes a pipeline. */
 export interface PipelineServices {
   listPipelineSkills: () => Promise<PipelineSkill[]>;
-  readPipelineFile: (id: string) => Promise<ReadPipelineResult>;
-  writePipelineFile: (id: string, raw: unknown) => Promise<SavePipelineResult>;
-  createFactory: (body: NewPipelineFile, raw: unknown) => Promise<CreatePipelineResult>;
 }
 
 /** What `server.ts` hands the routes. */
 export interface PipelineUsecases {
   listPipelines: () => Promise<PipelineListResponse>;
-  readPipeline: (id: string) => Promise<ReadPipelineResult>;
-  savePipeline: (id: string, body: PipelineFile, raw: unknown) => Promise<SavePipelineResult>;
-  createPipeline: (body: NewPipelineFile, raw: unknown) => Promise<CreatePipelineResult>;
   readKnowledgeDocument: (id: string, rawPath: string) => Promise<ReadKnowledgeResult>;
 }

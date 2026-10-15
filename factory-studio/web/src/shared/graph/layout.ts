@@ -14,13 +14,13 @@ import {
   type StepNodeOf,
   type TerminalNodeType,
 } from './graph.types';
-import { edgeKey, rankPipeline, type PipelineRanks } from './rank';
+import { edgeKey, type PipelineRanks } from './rank';
 import { displayDocPath, estimateSansWidth, wrappedLineCount } from './text';
 
 /**
- * The pipeline graph's layout, shared by the Runs screen and the Editor: a DFS rank, one
- * column per rank, fan-out siblings stacked under the main-row card, loops and jumps on
- * lanes below and above the row. Pure functions returning new objects; colours are never
+ * The pipeline graph's layout the Runs screen draws: a DFS rank, one column per rank,
+ * fan-out siblings stacked under the main-row card, loops and jumps on lanes below and
+ * above the row. Pure functions returning new objects; colours are never
  * literal here — every tone is a CSS class.
  */
 
@@ -234,7 +234,7 @@ interface RouteGroup {
   results: string[];
 }
 
-/** A target that exists: a step, or END. A dangling target (an editor in progress) draws nothing. */
+/** A target that exists: a step, or END. A dangling target (a pipeline.json mid-edit) draws nothing. */
 const knownTarget =
   (pipeline: GraphPipeline) =>
   (target: string): boolean =>
@@ -474,58 +474,3 @@ export const structuralEdgeClass = (data: EdgeData): string =>
       : data.jump
         ? 'edge-jump'
         : 'edge-forward';
-
-/**
- * The event a step takes when all goes well: its first-declared event that leads
- * somewhere forward (an event that only loops back is a retry, not the happy path).
- */
-const happyEvent =
-  (pipeline: GraphPipeline, ranks: PipelineRanks) =>
-  (slug: string): string | undefined =>
-    Object.entries(pipeline.steps[slug]?.transitions ?? {}).find(
-      ([, route]: [string, GraphRoute]): boolean =>
-        route.target.some((t: string): boolean => !ranks.back.has(edgeKey(slug, t))),
-    )?.[0];
-
-/**
- * Without run data, the lit ("taken") path is: Start edges, and each step's happy event.
- * Loops, max escapes and every other event stay grey, dashed where a loop or jump is dashed.
- */
-export const highlightHappyPath =
-  (pipeline: GraphPipeline, ranks: PipelineRanks) =>
-  (edges: readonly GraphEdge[]): GraphEdge[] => {
-    const happy = happyEvent(pipeline, ranks);
-    return edges.map((e: GraphEdge): GraphEdge => {
-      const base: EdgeData = e.data as EdgeData;
-      const first: string | undefined =
-        base.kind === 'route' && !base.loop ? happy(e.source) : undefined;
-      const takenResults: string[] =
-        base.kind === 'start'
-          ? base.results
-          : first !== undefined && base.results.includes(first)
-            ? [first]
-            : [];
-      const data: EdgeData = { ...base, taken: takenResults.length > 0, takenResults };
-      const classes: string[] = [
-        structuralEdgeClass(data),
-        data.results.includes('SKIP') ? 'edge-skip' : '',
-        data.taken ? 'edge-taken' : '',
-      ].filter(Boolean);
-      return { ...e, data, className: classes.join(' ') };
-    });
-  };
-
-/** Nodes and edges of a pipeline definition: laid out, laned and lit along the happy path. */
-export const buildDefinitionGraph = <D extends StepCardData>(
-  pipeline: GraphPipeline,
-  toData: (slug: string, stackIndex: number) => D,
-  heightOf: (data: D) => number,
-): { nodes: GraphNodeOf<D>[]; edges: GraphEdge[] } => {
-  const ranks: PipelineRanks = rankPipeline(pipeline);
-  const nodes: GraphNodeOf<D>[] = layoutNodes(pipeline, ranks, toData, heightOf);
-  const edges: GraphEdge[] = highlightHappyPath(
-    pipeline,
-    ranks,
-  )(assignLanes(nodes, ranks)(buildEdges(pipeline, ranks, stackedIds(nodes))));
-  return { nodes, edges };
-};

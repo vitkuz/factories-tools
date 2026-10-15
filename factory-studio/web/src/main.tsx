@@ -7,7 +7,6 @@ import '@fontsource/ibm-plex-sans/600.css';
 import '@fontsource/ibm-plex-mono/400.css';
 import '@xyflow/react/dist/style.css';
 import './shared/styles/global.css';
-import './shared/styles/editor.css';
 import './shared/styles/tables.css';
 import App from './App';
 import { ErrorScreen } from './features/runs';

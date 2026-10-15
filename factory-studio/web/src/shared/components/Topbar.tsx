@@ -12,7 +12,6 @@ interface NavLink {
 }
 
 const LINKS: NavLink[] = [
-  { screen: 'editor', label: 'Editor', route: { screen: 'editor', pipelineId: null } },
   { screen: 'runs', label: 'Runs', route: { screen: 'runs', run: null } },
   { screen: 'sessions', label: 'Sessions', route: { screen: 'sessions' } },
 ];

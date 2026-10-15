@@ -4,10 +4,11 @@ import type { ViewMode } from '../../features/runs/lib/graph';
 export type { ViewMode };
 
 /**
- * Screens and ids live in the path — `/editor/<pipelineId>`, `/runs/<pipelineId>/<runId>`,
- * `/sessions` — and the card detail mode stays in the hash as the dashboard wrote it
- * (`#view=detailed`). The API answers `index.html` for every non-`/api` path, so a reload
- * of any of these lands on the same screen.
+ * Screens and ids live in the path — `/runs`, `/runs/<pipelineId>/<runId>`, `/sessions` —
+ * and the card detail mode stays in the hash as the dashboard wrote it (`#view=detailed`).
+ * The API answers `index.html` for every non-`/api` path, so a reload of any of these lands
+ * on the same screen. `/` and every other path (an old `/editor/<id>` bookmark, say) open
+ * the runs list.
  */
 
 export interface RunRef {
@@ -15,10 +16,7 @@ export interface RunRef {
   runId: string;
 }
 
-export type Route =
-  | { screen: 'editor'; pipelineId: string | null }
-  | { screen: 'runs'; run: RunRef | null }
-  | { screen: 'sessions' };
+export type Route = { screen: 'runs'; run: RunRef | null } | { screen: 'sessions' };
 
 const VIEW_KEY = 'view';
 
@@ -36,9 +34,6 @@ const segmentsOf = (pathname: string): string[] =>
 
 export const parseRoute = (pathname: string): Route => {
   const [screen, a, b]: string[] = segmentsOf(pathname);
-  if (screen === undefined || screen === 'editor') {
-    return { screen: 'editor', pipelineId: a ?? null };
-  }
   if (screen === 'sessions') return { screen: 'sessions' };
   if (screen === 'runs' && a !== undefined && b !== undefined) {
     return { screen: 'runs', run: { pipelineId: a, runId: b } };
@@ -48,8 +43,6 @@ export const parseRoute = (pathname: string): Route => {
 
 export const buildPath = (route: Route): string => {
   switch (route.screen) {
-    case 'editor':
-      return route.pipelineId ? `/editor/${encodeURIComponent(route.pipelineId)}` : '/editor';
     case 'runs':
       return route.run
         ? `/runs/${encodeURIComponent(route.run.pipelineId)}/${encodeURIComponent(route.run.runId)}`
@@ -97,6 +90,20 @@ export interface RouteState {
   view: ViewMode;
 }
 
+/** `/` is the runs list as it is; any other path the routes do not name is rewritten in place. */
+const isCanonical = (pathname: string): boolean =>
+  pathname === '/' || pathname === buildPath(parseRoute(pathname));
+
+/**
+ * Replace a path no screen owns (`/editor/<id>`, a stray `/runs/<id>`) with the one it
+ * opens, without a history entry, so the address bar names the screen on view.
+ */
+const canonicalise = (): void => {
+  const { pathname, search, hash }: Location = window.location;
+  if (isCanonical(pathname)) return;
+  window.history.replaceState(null, '', `${buildPath(parseRoute(pathname))}${search}${hash}`);
+};
+
 const readLocation = (): RouteState => ({
   route: parseRoute(window.location.pathname),
   view: readView(window.location.hash),
@@ -106,7 +113,11 @@ const readLocation = (): RouteState => ({
 export const useRoute = (): RouteState => {
   const [state, setState] = useState<RouteState>(readLocation);
   useEffect(() => {
-    const listen = (): void => setState(readLocation());
+    canonicalise();
+    const listen = (): void => {
+      canonicalise();
+      setState(readLocation());
+    };
     listeners.add(listen);
     window.addEventListener('popstate', listen);
     window.addEventListener('hashchange', listen);

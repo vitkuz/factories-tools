@@ -73,8 +73,6 @@ const scopeWord = (doc: DocRef): string => {
       return 'script';
     case 'inline':
       return 'pipeline.json';
-    case 'artifact':
-      return 'artifact';
   }
 };
 
@@ -460,13 +458,6 @@ export default function DocModal({ doc, editable, canBack, onBack, onClose, onOp
         return (
           <p className="doc-state">
             <code>{doc.path}</code> has not been written yet.
-          </p>
-        );
-      case 'editor':
-        return (
-          <p className="doc-state">
-            You are in the editor. No documents are available for input and output paths:{' '}
-            <code>{doc.path}</code> is written by a run. Open the run on the Runs screen to read it.
           </p>
         );
       case 'unavailable':

@@ -1,10 +1,8 @@
 import type { AxiosResponse } from 'axios';
-import { z } from 'zod';
 import { http } from './axios.adapter';
 import { toApiError, type ApiError } from './api-error.utils';
 import {
   knowledgeDocPath,
-  pipelinePath,
   pipelinesPath,
   runDocPath,
   runsPath,
@@ -13,17 +11,13 @@ import {
   stopSessionPath,
 } from './api-paths';
 import {
-  createdSchema,
   pipelineListSchema,
-  savedSchema,
-} from '../../features/editor/editor.schema';
-import type { Created, PipelineList, Saved } from '../../features/editor/editor.types';
-import {
   sessionListSchema,
   startedSessionSchema,
   stoppedSchema,
 } from '../../features/sessions/sessions.schema';
 import type {
+  PipelineList,
   SessionList,
   StartSessionPayload,
   StartedSession,
@@ -33,11 +27,13 @@ import type {
 import {
   directoryListingSchema,
   missingNoticeSchema,
+  savedSchema,
 } from '../../shared/document-viewer/docs.schema';
 import type {
   DocContent,
   KnowledgeDocRef,
   RunDocRef,
+  Saved,
   ScriptDocRef,
 } from '../../shared/document-viewer/docs.types';
 
@@ -53,51 +49,11 @@ const failWith = (error: unknown): never => {
   throw apiError;
 };
 
-/** E2 */
+/** E2: the pipelines a session can start (read-only). */
 export const listPipelines = async (signal?: AbortSignal): Promise<PipelineList> => {
   try {
     const { data }: AxiosResponse<unknown> = await http.get(pipelinesPath(), { signal });
     return pipelineListSchema.parse(data);
-  } catch (error: unknown) {
-    return failWith(error);
-  }
-};
-
-/** E3: the file's bytes as text, untouched, so a parse and a save round-trip the file. */
-export const readPipeline = async (id: string, signal?: AbortSignal): Promise<string> => {
-  try {
-    const { data }: AxiosResponse<unknown> = await http.get(pipelinePath(id), {
-      signal,
-      responseType: 'text',
-      transformResponse: identity,
-    });
-    return z.string().parse(data);
-  } catch (error: unknown) {
-    return failWith(error);
-  }
-};
-
-/** E4: the serialised pipeline as the body, sent as-is so the API writes that key order. */
-export const savePipeline = async (id: string, text: string): Promise<Saved> => {
-  try {
-    const { data }: AxiosResponse<unknown> = await http.put(pipelinePath(id), text, {
-      headers: { 'Content-Type': 'application/json' },
-      transformRequest: identity,
-    });
-    return savedSchema.parse(data);
-  } catch (error: unknown) {
-    return failWith(error);
-  }
-};
-
-/** E4b: a new factory from the serialised pipeline; the API writes the file and the wrapper skill. */
-export const createPipeline = async (text: string): Promise<Created> => {
-  try {
-    const { data }: AxiosResponse<unknown> = await http.post(pipelinesPath(), text, {
-      headers: { 'Content-Type': 'application/json' },
-      transformRequest: identity,
-    });
-    return createdSchema.parse(data);
   } catch (error: unknown) {
     return failWith(error);
   }

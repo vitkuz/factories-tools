@@ -33,8 +33,8 @@ export const API_PREFIX = '/api/v1';
  * Express wiring, and nothing else. Everything the routes need arrives in `settings`, so a
  * test can build the whole app around a fake tmux client and a temp WORK_DIR. No CORS: the
  * app and the API share one origin. No app-wide body parser: each route that takes a body
- * attaches its own (JSON on the pipeline save and the session routes, raw text on the run
- * document PUT), so a JSON-typed document is never consumed before the text parser sees it.
+ * attaches its own (JSON on the session routes, raw text on the run document PUT), so a
+ * JSON-typed document is never consumed before the text parser sees it.
  */
 export const createApp = ({
   apiKey,

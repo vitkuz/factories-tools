@@ -6,16 +6,10 @@ import { createTmuxClient } from './clients/tmux/tmux.client.js';
 import type { TmuxClient } from './clients/tmux/tmux.types.js';
 import { readDocumentFactory, writeDocumentFactory } from './features/documents/index.js';
 import {
-  createFactoryFactory,
-  createPipelineFactory,
   listPipelineSkillsFactory,
   listPipelinesFactory,
   listStartableFactoriesFactory,
   readKnowledgeDocumentFactory,
-  readPipelineFactory,
-  readPipelineFileFactory,
-  savePipelineFactory,
-  writePipelineFileFactory,
 } from './features/pipelines/index.js';
 import type { PipelineServices, PipelineUsecases } from './features/pipelines/pipelines.types.js';
 import {
@@ -49,15 +43,9 @@ const writeDocument = writeDocumentFactory({ fs });
 
 const pipelineServices: PipelineServices = {
   listPipelineSkills: listPipelineSkillsFactory({ fs, workDir, logger }),
-  readPipelineFile: readPipelineFileFactory({ fs, workDir }),
-  writePipelineFile: writePipelineFileFactory({ fs, workDir }),
-  createFactory: createFactoryFactory({ fs, workDir }),
 };
 const pipelines: PipelineUsecases = {
   listPipelines: listPipelinesFactory(pipelineServices),
-  readPipeline: readPipelineFactory(pipelineServices),
-  savePipeline: savePipelineFactory({ ...pipelineServices, logger }),
-  createPipeline: createPipelineFactory({ ...pipelineServices, logger }),
   readKnowledgeDocument: readKnowledgeDocumentFactory({
     ...pipelineServices,
     readDocument,

@@ -1,5 +1,4 @@
 import path from 'node:path';
-import { pipelineIdParamSchema } from './pipelines.schema.js';
 
 /** Where the shared factory graphs live: `factories/<id>/pipeline.json` (+ per-factory extras) — the kit, a git submodule. */
 export const FACTORIES_DIR = 'factories';
@@ -9,16 +8,10 @@ export const LOCAL_FACTORIES_DIR = 'factories.local';
 export const FACTORY_DIRS: readonly string[] = [LOCAL_FACTORIES_DIR, FACTORIES_DIR];
 /** Where the wrapper skills live: `.claude/skills/<id>/SKILL.md` hands off to `any-factory`. */
 export const SKILLS_DIR = '.claude/skills';
-/** Where the skills repository keeps the wrapper skills (`factories-skills/<id>/SKILL.md`); `.claude/skills/<id>` links there. */
-export const KIT_SKILLS_DIR = 'factories-skills';
 export const PIPELINE_FILE = 'pipeline.json';
 export const SKILL_FILE = 'SKILL.md';
 /** Where a factory keeps its own knowledge: `factories/<id>/knowledge/`. */
 export const KNOWLEDGE_DIR = 'knowledge';
-
-export const isPipelineId = (id: string): boolean => pipelineIdParamSchema.safeParse(id).success;
-
-export const factoriesRoot = (workDir: string): string => path.join(workDir, FACTORIES_DIR);
 
 /** The folder holding `<id>`'s `pipeline.json` under `<dir>` (`factories` or `factories.local`). */
 export const factoryDirIn =
@@ -26,32 +19,16 @@ export const factoryDirIn =
   (workDir: string, id: string): string =>
     path.join(workDir, dir, id);
 
-/** The shared folder holding `<id>`'s `pipeline.json` — what the `{{factoryPath}}` constant resolves to. */
-export const factoryDir = (workDir: string, id: string): string =>
-  factoryDirIn(FACTORIES_DIR)(workDir, id);
-
 export const pipelineFileIn =
   (dir: string) =>
   (workDir: string, id: string): string =>
     path.join(factoryDirIn(dir)(workDir, id), PIPELINE_FILE);
-
-export const pipelineFile = (workDir: string, id: string): string =>
-  pipelineFileIn(FACTORIES_DIR)(workDir, id);
 
 /** `pipeline.json` relative to `WORK_DIR` with `/` separators, under `<dir>`. */
 export const pipelineRelativePathIn =
   (dir: string) =>
   (id: string): string =>
     `${dir}/${id}/${PIPELINE_FILE}`;
-
-/** `<id>`'s wrapper skill in the skills repository: `factories-skills/<id>/SKILL.md`. */
-export const kitSkillFile = (workDir: string, id: string): string =>
-  path.join(workDir, KIT_SKILLS_DIR, id, SKILL_FILE);
-
-export const kitSkillRelativePath = (id: string): string => `${KIT_SKILLS_DIR}/${id}/${SKILL_FILE}`;
-
-/** What `.claude/skills/<id>` links to, as install.sh writes it: relative, so the project moves. */
-export const kitSkillLinkTarget = (id: string): string => `../../${KIT_SKILLS_DIR}/${id}`;
 
 /** The knowledge folder of the factory whose `pipeline.json` sits in `dir`. */
 export const knowledgeDirOf = (dir: string): string => path.join(dir, KNOWLEDGE_DIR);
@@ -66,10 +43,6 @@ export const knowledgeDirOf = (dir: string): string => path.join(dir, KNOWLEDGE_
 export const legacyKnowledgeCandidates = (segments: readonly string[]): string[][] =>
   segments.map((_: string, index: number): string[] => segments.slice(index));
 
-/** The shared `pipeline.json` relative to `WORK_DIR` with `/` separators, whatever the platform. */
-export const pipelineRelativePath = (id: string): string =>
-  pipelineRelativePathIn(FACTORIES_DIR)(id);
-
 /** `<id>`'s wrapper skill folder `.claude/skills/<id>` — what `{{skillPath}}` resolves to. */
 export const wrapperSkillDir = (workDir: string, id: string): string =>
   path.join(workDir, SKILLS_DIR, id);
@@ -77,44 +50,6 @@ export const wrapperSkillDir = (workDir: string, id: string): string =>
 /** The wrapper skill `/<id>` a session starts with. */
 export const wrapperSkillFile = (workDir: string, id: string): string =>
   path.join(workDir, SKILLS_DIR, id, SKILL_FILE);
-
-/** `SKILL.md` relative to `WORK_DIR` with `/` separators, whatever the platform. */
-export const wrapperSkillRelativePath = (id: string): string => `${SKILLS_DIR}/${id}/${SKILL_FILE}`;
-
-/** The one line the wrapper's frontmatter quotes: no newline, no unescaped `"`. */
-const frontmatterText = (text: string): string =>
-  text.replace(/\s+/g, ' ').trim().replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-
-/**
- * The wrapper skill a new factory gets, modelled on `.claude/skills/quick-research-factory/
- * SKILL.md`: the pipeline's description (with the standing "only when invoked" clause) in the
- * frontmatter, and a body that hands `/<id> <args>` to `any-factory`. Pure.
- */
-export const wrapperSkillText = (id: string, description: string | undefined): string => {
-  const summary: string = description?.trim() ? description : `Runs the ${id} pipeline.`;
-  const clause = 'Only run it when the user invokes it by name, never on your own initiative.';
-  return [
-    '---',
-    `name: ${id}`,
-    `description: "${frontmatterText(`${summary} ${clause}`)}"`,
-    'allowed-tools: Read, Write, Glob, Task, AskUserQuestion, Bash, Skill',
-    '---',
-    '',
-    `# ${id}`,
-    '',
-    'This factory is a decoration of the universal `any-factory` skill. Its graph',
-    `lives at \`${FACTORIES_DIR}/${id}/${PIPELINE_FILE}\`; nothing here is run`,
-    'directly.',
-    '',
-    'Invoke the `any-factory` skill (Skill tool) with args:',
-    '',
-    `    ${id} $ARGUMENTS`,
-    '',
-    'If the Skill tool is unavailable, read `.claude/skills/any-factory/SKILL.md`',
-    `and follow it with pipeline id \`${id}\`.`,
-    '',
-  ].join('\n');
-};
 
 export interface KnowledgeContext {
   /** The folder holding `pipeline.json`: the base of a path with no template. */
@@ -199,6 +134,3 @@ export const knowledgeBase = (rawDocPath: string, ctx: KnowledgeContext): Knowle
   }
   return { base: ctx.pipelineDir, rest: docPath };
 };
-
-/** The bytes a save writes: two-space JSON, trailing newline, keys in the order received. */
-export const serialisePipelineFile = (raw: unknown): string => `${JSON.stringify(raw, null, 2)}\n`;

@@ -9,7 +9,6 @@ import {
 import type { DocContent, DocRef, SaveResult } from './docs.types';
 
 export type {
-  ArtifactDocRef,
   DocContent,
   DocRef,
   DocScope,
@@ -21,12 +20,13 @@ export type {
 } from './docs.types';
 
 /**
- * Documents, one viewer for both screens:
+ * Documents, one viewer for the Runs screen:
  *   GET /api/v1/runs/<pipelineId>/<runId>/<path>     — a doc in the run's folder (E7)
  *   PUT /api/v1/runs/<pipelineId>/<runId>/<path>     — write it back (E8)
  *   GET /api/v1/pipelines/<pipelineId>/knowledge/<path> — a knowledge file of the factory (E5)
- * An `artifact` (an input/output path in the editor) is never fetched. Everything here is
- * pure apart from `fetchDoc` and `saveDoc`, which go through the adapter.
+ *   GET /api/v1/scripts/<path>                       — a hook script, read-only (E12)
+ * `inline` text is never fetched. Everything here is pure apart from `fetchDoc` and
+ * `saveDoc`, which go through the adapter.
  */
 
 /** The same-origin URL of a document — also what `<img src>` and links inside a doc use. */
@@ -38,7 +38,6 @@ export const docUrl = (ref: DocRef): string => {
       return knowledgeDocPath(ref.pipelineId, ref.path);
     case 'script':
       return scriptPath(ref.path);
-    case 'artifact':
     case 'inline':
       return '';
   }
@@ -111,8 +110,6 @@ const failureMessage = (error: unknown): string =>
 
 /** Fetch a doc; every outcome is a value, never a throw. */
 export const fetchDoc = async (ref: DocRef, signal?: AbortSignal): Promise<DocContent> => {
-  // An artifact is written by a run, not by the editor: there is nothing to ask for.
-  if (ref.scope === 'artifact') return { kind: 'editor' };
   // Inline text is already here (a prompt out of the pipeline definition).
   if (ref.scope === 'inline') return { kind: 'text', text: ref.text };
   try {

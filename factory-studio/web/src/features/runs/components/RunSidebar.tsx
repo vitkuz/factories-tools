@@ -17,6 +17,7 @@ import { runStatusToken } from './RunMeta';
 import { buildPath, type RunRef } from '../../../shared/lib/route';
 import { readJson, writeJson } from '../../../shared/lib/storage';
 import { useNow } from '../../../shared/lib/polling';
+import { CollapseToggle } from '../../../shared/components/CollapseToggle';
 
 const STORAGE_KEY = 'studio.runs.sidebar';
 
@@ -51,19 +52,6 @@ const isPlainClick = (event: MouseEvent<HTMLAnchorElement>): boolean =>
 
 const sameRun = (a: RunRef, b: RunRef): boolean =>
   a.pipelineId === b.pipelineId && a.runId === b.runId;
-
-const Chevron = ({ direction }: { direction: 'left' | 'right' }): ReactNode => (
-  <svg viewBox="0 0 12 12" width="12" height="12" aria-hidden="true">
-    <path
-      d={direction === 'left' ? 'M7.5 2.5 4 6l3.5 3.5' : 'M4.5 2.5 8 6l-3.5 3.5'}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    />
-  </svg>
-);
 
 /** One run: status dot and id on the first line; pipeline, status word and cost on the second. */
 const RunRow = ({
@@ -169,16 +157,7 @@ export const RunSidebar = ({ runs, current, onChoose }: RunSidebarProps): ReactN
   if (collapsed) {
     return (
       <div className="runs-rail">
-        <button
-          type="button"
-          className="runs-sidebar-toggle"
-          onClick={toggle}
-          title="Show runs"
-          aria-label="Show runs"
-          aria-expanded={false}
-        >
-          <Chevron direction="right" />
-        </button>
+        <CollapseToggle expanded={false} side="left" label="runs" onToggle={toggle} />
       </div>
     );
   }
@@ -191,16 +170,7 @@ export const RunSidebar = ({ runs, current, onChoose }: RunSidebarProps): ReactN
           <span className="runs-sidebar-count mono" aria-label={`${shown.length} runs shown`}>
             {shown.length}
           </span>
-          <button
-            type="button"
-            className="runs-sidebar-toggle"
-            onClick={toggle}
-            title="Hide runs"
-            aria-label="Hide runs"
-            aria-expanded={true}
-          >
-            <Chevron direction="left" />
-          </button>
+          <CollapseToggle expanded={true} side="left" label="runs" onToggle={toggle} />
         </div>
         <input
           type="text"

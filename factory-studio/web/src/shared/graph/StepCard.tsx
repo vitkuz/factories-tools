@@ -47,9 +47,9 @@ export const StepHandles = (): ReactNode => (
 );
 
 export interface StepCardProps {
-  /** The slug line — plain text, or the editor's rename field. */
+  /** The slug line. */
   slug: ReactNode;
-  /** Right end of the head line: the Runs screen's status dot, the editor's issue badge. */
+  /** Right end of the head line: the Runs screen's status dot. */
   headEnd?: ReactNode;
   agent: string;
   /** Model line; a human card prints "waits for a person" instead. */

@@ -1,11 +1,14 @@
-import type { DirEntry } from './docs.schema';
+import type { z } from 'zod';
+import type { DirEntry, savedSchema } from './docs.schema';
+
+/** The answer of a run document write (E8). */
+export type Saved = z.infer<typeof savedSchema>;
 
 /**
- * What a link on a card or in an inspector points at: a document of the run on screen,
- * a knowledge file of the factory, or an `artifact` — an input/output path of a pipeline
- * definition, which only a run writes (the editor shows a notice for it, no request).
+ * What a link on a card or in an inspector points at: a document of the run on screen, or
+ * a knowledge file of the factory.
  */
-export type DocScope = 'run' | 'knowledge' | 'artifact';
+export type DocScope = 'run' | 'knowledge';
 
 export interface RunDocRef {
   scope: 'run';
@@ -16,12 +19,6 @@ export interface RunDocRef {
 
 export interface KnowledgeDocRef {
   scope: 'pipeline';
-  pipelineId: string;
-  path: string;
-}
-
-export interface ArtifactDocRef {
-  scope: 'artifact';
   pipelineId: string;
   path: string;
 }
@@ -42,7 +39,7 @@ export interface InlineDocRef {
   text: string;
 }
 
-export type DocRef = RunDocRef | KnowledgeDocRef | ArtifactDocRef | ScriptDocRef | InlineDocRef;
+export type DocRef = RunDocRef | KnowledgeDocRef | ScriptDocRef | InlineDocRef;
 
 export type DocContent =
   | { kind: 'markdown'; text: string }
@@ -50,8 +47,6 @@ export type DocContent =
   | { kind: 'image'; url: string }
   | { kind: 'directory'; path: string; entries: DirEntry[] }
   | { kind: 'binary' }
-  /** An `input` / `output` path opened from the editor: written by a run, so nothing to open here. */
-  | { kind: 'editor' }
   | { kind: 'missing' }
   | { kind: 'unavailable' }
   | { kind: 'error'; message: string };

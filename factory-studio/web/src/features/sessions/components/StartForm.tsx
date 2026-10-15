@@ -1,5 +1,5 @@
 import { useState, type ChangeEvent, type FormEvent, type ReactNode } from 'react';
-import type { PipelineListEntry, ListState } from '../../editor/editor.types';
+import type { PipelineListEntry, ListState } from '../sessions.types';
 
 interface StartFormProps {
   entries: PipelineListEntry[];

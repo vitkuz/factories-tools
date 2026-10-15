@@ -8,6 +8,3 @@ export const isTypingTarget = (target: EventTarget | null): boolean =>
     (['SELECT', 'INPUT', 'TEXTAREA'].includes(target.tagName) ||
       target.isContentEditable ||
       target.closest('dialog') !== null));
-
-/** The editor's name for the same rule (its own test was a subset of this one). */
-export const isEditingShortcutTarget = isTypingTarget;
