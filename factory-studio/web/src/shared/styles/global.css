@@ -3155,6 +3155,18 @@ select {
   margin-left: 0;
 }
 
+/* the folded inspector: the same rail, mirrored onto the right edge */
+.runs-rail.is-right {
+  border-right: 0;
+  border-left: 1px solid var(--line);
+}
+
+/* in the inspector the fold button closes the title row, after the status and cost */
+.run-head .runs-sidebar-toggle {
+  flex: 0 0 auto;
+  margin-left: 0;
+}
+
 /* ---- the run header: back, pipeline / id, status, day · duration · cost, live ---- */
 .run-header {
   gap: 12px;
@@ -3227,5 +3239,15 @@ select {
   /* the inspector carries day, duration and cost; the header keeps the id */
   .run-header-facts {
     display: none;
+  }
+}
+
+@media (max-width: 900px) {
+  /* the inspector stacks under the graph: its rail is a full-width row, the button on the right */
+  .runs-rail.is-right {
+    justify-content: flex-end;
+    border-left: 0;
+    border-bottom: 0;
+    border-top: 1px solid var(--line);
   }
 }

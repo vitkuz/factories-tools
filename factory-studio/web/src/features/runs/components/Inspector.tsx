@@ -67,6 +67,16 @@ import StatusBadge, { Badge } from './StatusBadge';
 import LogList from './LogList';
 import { DocLink } from '../../../shared/document-viewer';
 import { FeedFooter } from './LiveStatus';
+import { readJson, writeJson } from '../../../shared/lib/storage';
+import { CollapseToggle } from '../../../shared/components/CollapseToggle';
+
+const STORAGE_KEY = 'studio.runs.inspector';
+
+interface InspectorPrefs {
+  collapsed: boolean;
+}
+
+const readPrefs = (): InspectorPrefs => readJson<InspectorPrefs>(STORAGE_KEY, { collapsed: false });
 
 interface Props {
   pipeline: Pipeline | null;
@@ -408,6 +418,23 @@ export default function Inspector({
   // Only the run id is a dependency on purpose: a live status change must not collapse
   // a log the user is reading.
   useEffect(() => setShowLog(active), [run.runId]); // eslint-disable-line react-hooks/exhaustive-deps
+  // `›` folds the inspector to a rail on the right, remembered in localStorage; selecting a
+  // step while it is folded keeps it folded, as the runs sidebar does.
+  const [collapsed, setCollapsed] = useState<boolean>(() => readPrefs().collapsed);
+
+  const toggle = (): void => {
+    const next: boolean = !collapsed;
+    setCollapsed(next);
+    writeJson(STORAGE_KEY, { collapsed: next });
+  };
+
+  if (collapsed) {
+    return (
+      <div className="runs-rail is-right">
+        <CollapseToggle expanded={false} side="right" label="run details" onToggle={toggle} />
+      </div>
+    );
+  }
 
   const selectedStep: PipelineStep | undefined =
     selectedId && pipeline ? pipeline.steps[selectedId] : undefined;
@@ -494,6 +521,7 @@ export default function Inspector({
                 {stale && <span className="run-cost-stale">stale</span>}
               </span>
             )}
+            <CollapseToggle expanded={true} side="right" label="run details" onToggle={toggle} />
           </div>
 
           <dl className="kv">
