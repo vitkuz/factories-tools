@@ -77,7 +77,7 @@
       "agent": "general-purpose",
       "model": "sonnet",
       "prompt": ["Do the work on {{topic}} at depth {{depth}}.", "Return DONE when finished."],
-      "output": ["4-report/report.md"],
+      "output": ["4-report/final-report.md"],
       "transitions": {
         "DONE": {
           "target": ["END"]

@@ -9,6 +9,10 @@ import { idMatchesFolder } from '../src/features/rules/pipeline/id-matches-folde
 import { knowledgeExists } from '../src/features/rules/pipeline/knowledge-exists.rule.js';
 import { loopsCapped } from '../src/features/rules/pipeline/loops-capped.rule.js';
 import { outputDirNotRecursive } from '../src/features/rules/pipeline/output-dir-not-recursive.rule.js';
+import {
+  onlyMatchesBlocked,
+  outputNameNotBlocked,
+} from '../src/features/rules/pipeline/output-name-not-blocked.rule.js';
 import { placeholdersDeclared } from '../src/features/rules/pipeline/placeholders-declared.rule.js';
 import { schemaRef } from '../src/features/rules/pipeline/schema-ref.rule.js';
 import { startExists } from '../src/features/rules/pipeline/start-exists.rule.js';
@@ -118,6 +122,36 @@ describe('names and paths', () => {
     expect(check(outputDirNotRecursive)((p) => (p.outputDir = '{{outputDir}}/x'))).toEqual([
       'error: outputDir cannot use {{outputDir}}: it is resolved from this value',
     ]);
+  });
+
+  it('output-name-not-blocked', () => {
+    const blocked = (name: string): string =>
+      `error: steps.draft.output: "1-draft/${name}" — a subagent's Write refuses the basenames ` +
+      'summary.md, report.md, findings.md, analysis.md (any case; "Subagents should return findings as text"), ' +
+      `so the step could not write it; use a prefixed name such as "1-draft/draft-${name.toLowerCase()}"`;
+    expect(check(outputNameNotBlocked)()).toEqual([]);
+    expect(
+      check(outputNameNotBlocked)((p) => (p.steps['draft']!.output = ['1-draft/summary.md'])),
+    ).toEqual([blocked('summary.md')]);
+    expect(
+      check(outputNameNotBlocked)((p) => (p.steps['draft']!.output = ['1-draft/SUMMARY.md'])),
+    ).toEqual([blocked('SUMMARY.md')]);
+    expect(
+      check(outputNameNotBlocked)(
+        (p) => (p.steps['draft']!.output = ['1-draft/meeting-summary.md', '1-draft/*.report.md']),
+      ),
+    ).toEqual([]);
+  });
+
+  it('output-name-not-blocked: globs', () => {
+    expect(onlyMatchesBlocked('summary.md')).toBe(true);
+    expect(onlyMatchesBlocked('[Ss]ummary.md')).toBe(true);
+    expect(onlyMatchesBlocked('[rR]eport.[m]d')).toBe(true);
+    expect(onlyMatchesBlocked('*.report.md')).toBe(false);
+    expect(onlyMatchesBlocked('*.md')).toBe(false);
+    expect(onlyMatchesBlocked('report.m?')).toBe(false);
+    expect(onlyMatchesBlocked('[!x]eport.md')).toBe(false);
+    expect(onlyMatchesBlocked('[rs]eport.md')).toBe(false);
   });
 
   it('knowledge-exists', () => {

@@ -1,3 +1,5 @@
+import type { z } from 'zod';
+import type { BlockedOutputNameSchema } from './rules.schema.js';
 import type { FileSystemClient } from '../../clients/file-system/index.js';
 import type { Pipeline } from '../pipeline/pipeline.types.js';
 
@@ -47,3 +49,5 @@ export interface Rule<Context> extends RuleMeta {
 
 export type SetupRule = Rule<SetupContext>;
 export type PipelineRule = Rule<PipelineContext>;
+
+export type BlockedOutputName = z.infer<typeof BlockedOutputNameSchema>;

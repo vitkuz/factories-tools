@@ -99,7 +99,7 @@ exports[`the graph model of each fixture > dangling-unreachable matches its snap
       "max": null,
       "model": "sonnet",
       "outputs": [
-        "2-summarise/summary.md",
+        "2-summarise/draft-summary.md",
       ],
       "prompt": "Do the work on {{topic}} at depth 2.",
       "rank": 2,
@@ -359,7 +359,7 @@ exports[`the graph model of each fixture > fan-out-fan-in matches its snapshot a
       "max": null,
       "model": "sonnet",
       "outputs": [
-        "4-report/report.md",
+        "4-report/final-report.md",
       ],
       "prompt": "Do the work on {{topic}} at depth 2.",
       "rank": 4,
@@ -4087,7 +4087,7 @@ exports[`the graph model of every factory in factories/ > consulting-research-fa
       "max": null,
       "model": "opus",
       "outputs": [
-        "12-write-report/report.md",
+        "12-write-report/consulting-report.md",
       ],
       "prompt": "Write the report on {{topic}} for a CEO and the executive team in English and markdown, from the storyline, the exhibits, the synthesis and the evidence base.",
       "rank": 10,
@@ -4105,7 +4105,7 @@ exports[`the graph model of every factory in factories/ > consulting-research-fa
         "9-synthesize-insights/synthesis.md",
         "10-build-storyline/storyline.md",
         "11-design-exhibits/exhibits.md",
-        "12-write-report/report.md",
+        "12-write-report/consulting-report.md",
       ],
       "kind": "step",
       "knowledge": [
@@ -4128,7 +4128,7 @@ exports[`the graph model of every factory in factories/ > consulting-research-fa
       "id": "finalize",
       "inputs": [
         "8-build-evidence-base/evidence.jsonl",
-        "12-write-report/report.md",
+        "12-write-report/consulting-report.md",
         "13-partner-review/review.md",
       ],
       "kind": "step",
@@ -4139,7 +4139,7 @@ exports[`the graph model of every factory in factories/ > consulting-research-fa
       "max": null,
       "model": "haiku",
       "outputs": [
-        "14-finalize/report.md",
+        "14-finalize/consulting-report.md",
         "14-finalize/report.html",
         "14-finalize/evidence.jsonl",
         "14-finalize/README.md",
@@ -5193,7 +5193,7 @@ exports[`the graph model of every factory in factories/ > feature-factory builds
       "max": null,
       "model": "haiku",
       "outputs": [
-        "22-report/report.md",
+        "22-report/feature-report.md",
       ],
       "prompt": "Write the run report for the feature {{feature}} from every report in the run folder, including the steps that failed or were skipped.",
       "rank": 18,
@@ -5204,7 +5204,7 @@ exports[`the graph model of every factory in factories/ > feature-factory builds
       "agent": "general-purpose",
       "id": "lessons",
       "inputs": [
-        "22-report/report.md",
+        "22-report/feature-report.md",
         "11-verify-back/*.md",
         "12-fix-back/*.md",
         "13-deploy-back/*.md",
@@ -5242,7 +5242,7 @@ exports[`the graph model of every factory in factories/ > feature-factory builds
         "15-implement-front/*.md",
         "17-fix-front/*.md",
         "21-update-docs/*.md",
-        "22-report/report.md",
+        "22-report/feature-report.md",
         "23-lessons/lessons.md",
       ],
       "kind": "step",
@@ -8682,7 +8682,7 @@ exports[`the graph model of every factory in factories/ > strategy-research-fact
       "max": null,
       "model": "opus",
       "outputs": [
-        "17-write-report/report.md",
+        "17-write-report/strategy-report.md",
       ],
       "prompt": "Write the report from the approved storyline for the CEO and the executive team.",
       "rank": 13,
@@ -8704,7 +8704,7 @@ exports[`the graph model of every factory in factories/ > strategy-research-fact
         "13-test-hypotheses/hypothesis-results.yaml",
         "14-synthesize-insights/synthesis.yaml",
         "15-build-storyline/storyline.md",
-        "17-write-report/report.md",
+        "17-write-report/strategy-report.md",
       ],
       "kind": "step",
       "knowledge": [
@@ -8731,7 +8731,7 @@ exports[`the graph model of every factory in factories/ > strategy-research-fact
         "4-route-frameworks/framework-selection.yaml",
         "12-build-evidence-base/evidence.jsonl",
         "13-test-hypotheses/hypothesis-results.yaml",
-        "17-write-report/report.md",
+        "17-write-report/strategy-report.md",
         "18-review-report/review.yaml",
         "18-review-report/review-history.md",
       ],
@@ -8743,7 +8743,7 @@ exports[`the graph model of every factory in factories/ > strategy-research-fact
       "max": null,
       "model": "haiku",
       "outputs": [
-        "20-finalize/report.md",
+        "20-finalize/strategy-report.md",
         "20-finalize/evidence.jsonl",
         "20-finalize/README.md",
       ],
@@ -9383,7 +9383,7 @@ exports[`the graph model of every factory in factories/ > write-articles-factory
       "max": 1,
       "model": "opus",
       "outputs": [
-        "9-fact-check/report.md",
+        "9-fact-check/fact-check-report.md",
       ],
       "prompt": "Fact-check all 3 articles on {{topic}}.",
       "rank": 7,
@@ -9395,7 +9395,7 @@ exports[`the graph model of every factory in factories/ > write-articles-factory
       "id": "edit",
       "inputs": [
         "*-write-article-*/article-*.md",
-        "9-fact-check/report.md",
+        "9-fact-check/fact-check-report.md",
       ],
       "kind": "step",
       "knowledge": [
@@ -9437,7 +9437,7 @@ exports[`the graph model of every factory in factories/ > write-articles-factory
       "inputs": [
         "11-humanize/article-*.final.md",
         "2-deep-research/sources.md",
-        "9-fact-check/report.md",
+        "9-fact-check/fact-check-report.md",
       ],
       "kind": "step",
       "knowledge": [

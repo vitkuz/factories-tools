@@ -46,6 +46,7 @@ and severity.
 | graph | `loops-capped`: every loop passes an edge with `max` | warning |
 | graph | `human-step`: needs an `output` (error), a `model` is ignored (warning) | both |
 | names | `placeholders-declared`, `output-dir-not-recursive` | error |
+| names | `output-name-not-blocked`: no `output` basename (any case) is `summary.md`, `report.md`, `findings.md` or `analysis.md` — a subagent's Write refuses those ("Subagents should return findings as text"), so prefix them (`meeting-summary.md`); a glob is flagged only when every name it can match is blocked (`[Ss]ummary.md`), `*.report.md` is fine | error |
 | paths | `knowledge-exists`: missing → error (under `factories-data/`: warning, it is project data), run-time variable or glob Node can't expand → warning | both |
 | conventions | `anchors-first`, `schema-ref`, `id-matches-folder`, `wrapper-skill-exists` | warning |
 | setup | `root-has-claude`, `cwd-is-root` | warning |
