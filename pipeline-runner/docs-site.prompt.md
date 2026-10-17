@@ -95,7 +95,7 @@ real code, and ends with how it was verified. Suggested outline (adjust after re
    of plan ∥ design → build, and the REVISE loop with `max`/`onMax`.
 10. `step-8-the-drive-loop` — `driveRun`: start ready → race → settle → persist → again; halting,
     the fuse, abort, resume. Diagram: the loop as a flowchart.
-11. `step-9-running-a-step` — prompt assembly order, fenced knowledge, absent inputs, revision
+11. `step-9-running-a-step` — prompt assembly order, knowledge passed as paths, absent inputs, revision
     pass, human steps; then the Claude adapter: argv, prompt on stdin, `--json-schema` with the
     events as an enum, last-line fallback, one retry via `--resume`, transcript path.
     Diagram: sequence of runner ↔ adapter ↔ `claude -p`.

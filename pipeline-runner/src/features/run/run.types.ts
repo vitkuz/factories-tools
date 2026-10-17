@@ -105,11 +105,6 @@ export interface PassInfo {
   feedbackFiles: string[];
 }
 
-export interface KnowledgeText {
-  file: string;
-  text: string;
-}
-
 export interface InputListing {
   declared: string;
   /** What is really on disk right now. Empty means: not there on this pass. */
@@ -117,7 +112,8 @@ export interface InputListing {
 }
 
 export interface StepMaterials {
-  knowledge: KnowledgeText[];
+  /** Absolute paths of the knowledge files on disk. Passed to the agent as paths, never as text. */
+  knowledge: string[];
   /** Declared knowledge files that are not on disk. The step runs without them and says so. */
   missingKnowledge: string[];
   inputs: InputListing[];

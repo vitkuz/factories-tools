@@ -1,26 +1,23 @@
 import path from 'node:path';
 import { isGlob } from '../../pipeline/index.js';
 import type { ResolvedStep } from '../../pipeline/index.js';
-import type { InputListing, KnowledgeText, PassInfo, StepMaterials } from '../run.types.js';
+import type { InputListing, PassInfo, StepMaterials } from '../run.types.js';
 
 type Section = string | undefined;
 
 const bullets = (lines: readonly string[]): string =>
   lines.map((line: string): string => `- ${line}`).join('\n');
 
-const knowledgeSection = (knowledge: readonly KnowledgeText[]): Section =>
+/**
+ * Knowledge goes by absolute path, never by text: a file can be 100+ KB or a PNG screenshot,
+ * neither of which survives being pasted. The agent opens each one itself.
+ */
+const knowledgeSection = (knowledge: readonly string[]): Section =>
   knowledge.length === 0
     ? undefined
-    : [
-        '## Knowledge',
-        'Standing instructions for this task. Follow them. Each file is fenced, so its own headings stay its own.',
-        ...knowledge.map(
-          ({ file, text }: KnowledgeText): string =>
-            `<knowledge file="${path.basename(file)}">\n${text.trim()}\n</knowledge>`,
-        ),
-      ].join('\n\n');
+    : `## Knowledge\nRead each of these files in full before doing anything. They are standing instructions for this task; follow them.\n\n${bullets(knowledge)}`;
 
-/** A knowledge file the task may refer to but nobody can paste: say so, or the agent goes looking. */
+/** A knowledge file the task may refer to but that is not on disk: say so, or the agent goes looking. */
 const missingKnowledgeSection = (missing: readonly string[]): Section =>
   missing.length === 0
     ? undefined
@@ -70,7 +67,7 @@ const eventSection = (events: readonly string[]): Section =>
   ].join('\n\n');
 
 /**
- * The task message, in the order runner.md fixes: the prompt, the knowledge, the inputs, the
+ * The task message, in the order runner.md fixes: the prompt, the knowledge paths, the inputs, the
  * outputs, the events. Pure — the same step and the same materials give the same message.
  * It never mentions the state file, the recorder or the graph around the step.
  */

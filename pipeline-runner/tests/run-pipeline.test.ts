@@ -82,7 +82,7 @@ describe('runPipeline', () => {
     expect(second?.prompt).toContain(`${b.pipeline.outputDir}/4-review/feedback.md`);
   });
 
-  it('builds the task message in the fixed order, with knowledge pasted and absent inputs marked', async () => {
+  it('builds the task message in the fixed order, with knowledge as paths and absent inputs marked', async () => {
     const b = bench({ plan: ['DONE'], design: ['DONE'], build: ['DONE'], review: ['APPROVE'] });
     await runPipelineFactory(b.deps)(b.pipeline, OPTIONS);
     const plan = b.agent.calls.find((call) => call.stepName === 'plan');
@@ -90,7 +90,8 @@ describe('runPipeline', () => {
     const order: number[] = [
       'Plan How to',
       '## Knowledge',
-      'Shape the outline like this.',
+      'Read each of these files in full before doing anything.',
+      '- /repo/knowledge/outline.md',
       '## Output files',
       '## Events',
     ].map((needle: string): number => plan?.prompt.indexOf(needle) ?? -1);
@@ -100,12 +101,50 @@ describe('runPipeline', () => {
         (at: number, i: number): boolean => at >= 0 && (i === 0 || at > (order[i - 1] ?? 0)),
       ),
     ).toBe(true);
+    expect(plan?.prompt).not.toContain('Shape the outline like this.');
     expect(plan?.model).toBe('opus');
     expect(build?.model).toBeUndefined();
     expect(build?.systemPrompt).toBe('You build demo-factory.');
     expect(build?.cwd).toBe('/repo');
     expect(build?.prompt).toContain('4-review/feedback.md — not present on this pass');
     expect(build?.prompt).not.toMatch(/state\.json|recorder/);
+  });
+
+  it('lists every knowledge file by path, a PNG too, and never reads one', async () => {
+    const withScreens = withSteps((steps) => {
+      steps['plan'] = {
+        ...steps['plan'],
+        knowledge: ['{{rootPath}}/knowledge/outline.md', '{{rootPath}}/knowledge/screens/*.png'],
+      };
+    });
+    const b = bench(
+      { plan: ['DONE'], design: ['DONE'], build: ['DONE'], review: ['APPROVE'] },
+      withScreens,
+    );
+    b.fileSystem.files.set('/repo/knowledge/screens/hero.png', '\u0089PNG\r\n\u001a\n binary');
+    b.fileSystem.files.set('/repo/knowledge/screens/pricing.png', '\u0089PNG\r\n\u001a\n binary');
+    const read: string[] = [];
+    const readText = b.fileSystem.readText;
+    b.fileSystem.readText = async (file: string): Promise<string> => {
+      read.push(file);
+      return readText(file);
+    };
+    await runPipelineFactory(b.deps)(b.pipeline, OPTIONS);
+    const plan = b.agent.calls.find((call) => call.stepName === 'plan');
+
+    expect(plan?.prompt).toContain(
+      [
+        '## Knowledge',
+        'Read each of these files in full before doing anything. They are standing instructions for this task; follow them.',
+        '',
+        '- /repo/knowledge/outline.md',
+        '- /repo/knowledge/screens/hero.png',
+        '- /repo/knowledge/screens/pricing.png',
+      ].join('\n'),
+    );
+    expect(plan?.prompt).not.toContain('PNG');
+    expect(plan?.prompt).not.toContain('Knowledge not available');
+    expect(read.filter((file: string): boolean => file.startsWith('/repo/knowledge/'))).toEqual([]);
   });
 
   it('runs a step without a missing knowledge file or agent profile, and records that it did', async () => {
@@ -122,7 +161,7 @@ describe('runPipeline', () => {
 
     expect(report.status).toBe('COMPLETED');
     expect(plan?.agentProfile).toBeUndefined();
-    expect(plan?.prompt).not.toContain('<knowledge');
+    expect(plan?.prompt).not.toContain('## Knowledge\n');
     expect(plan?.prompt).toContain('## Knowledge not available');
     expect(plan?.prompt).toContain('- outline.md');
     expect(stateOf(b).steps['plan']?.note).toBe(

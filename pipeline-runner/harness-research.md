@@ -31,7 +31,7 @@ What an adapter must do (from `AgentRequest` / `AgentResult`):
 | Need | Why |
 |---|---|
 | Run one prompt headless in a given `cwd` and wait for it | one process per step |
-| Take a large prompt (tens of kB: pasted knowledge files) | stdin preferred; argv has a ~128 kB per-argument limit on Linux |
+| Take a large prompt (tens of kB: long step prompts and file lists) | stdin preferred; argv has a ~128 kB per-argument limit on Linux |
 | Auto-approve tools | a headless step has nobody to ask |
 | Return the final text | last-line event fallback |
 | Return a structured `{event, report}` if the harness can constrain output | "which edge?" without reading prose |

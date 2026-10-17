@@ -185,8 +185,9 @@ and one more entry there. The tests swap the agent for a scripted one through th
 table has the others)
 
 - Task message order: prompt → revision note (pass ≥ 2: who sent it back, where the feedback is)
-  → knowledge (full text, fenced) → inputs (globs expanded; absent files marked) → outputs →
-  working directory → events. `system` (its lines joined) goes to `--append-system-prompt`, `model` to `--model`.
+  → knowledge (absolute paths, one per line, under "read each of these files in full before doing
+  anything" — never their text: knowledge can be 100+ KB or a PNG screenshot) → inputs (globs
+  expanded; absent files marked) → outputs → working directory → events. `system` (its lines joined) goes to `--append-system-prompt`, `model` to `--model`.
 - The event comes back through `--json-schema` as an **enum of the step's own events**, plus a
   `report` object for values a condition needs. Fallback: the last line. A miss is asked once
   more in the same session (`--resume`); a second miss fails the step.
