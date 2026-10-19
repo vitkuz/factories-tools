@@ -1105,6 +1105,10 @@ select {
   border-top: 1px solid var(--line);
 }
 
+/* A table scrolls sideways in its own box: the block is the box, the table inside it is as wide
+   as its columns need. Cells break between words only — the sheet's `anywhere` would let every
+   column shrink to one letter per line, so the table never overflowed — and each column keeps a
+   floor, so a wide table scrolls instead of squeezing its text to a word per line. */
 .doc-prose table {
   display: block;
   max-width: 100%;
@@ -1119,11 +1123,14 @@ select {
   border: 1px solid var(--line);
   text-align: left;
   vertical-align: top;
+  min-width: 8rem;
+  overflow-wrap: break-word;
 }
 
 .doc-prose th {
   background: var(--raised);
   font-weight: 600;
+  white-space: nowrap;
 }
 
 .doc-prose img {
