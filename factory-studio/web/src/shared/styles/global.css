@@ -61,28 +61,52 @@ select {
   font-size: 0.93em;
 }
 
+/* The shell: the sidebar down the left edge, the body (top bar over the screen) beside it. */
 .app {
   height: 100%;
   display: flex;
-  flex-direction: column;
   min-height: 0;
 }
 
+.app-body {
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
 /* ------------------------------------------------------------------ */
-/* Top bar: title, run picker, live indicator. Nothing else.            */
+/* Top bar, over the body: the screen tabs, then the screen's own line  */
+/* (the run header, the live indicator, Refresh). The brand is in the   */
+/* sidebar.                                                             */
 /* ------------------------------------------------------------------ */
 
 .topbar {
   position: relative;
-  z-index: 2; /* the open run picker floats over the canvas and the inspector */
+  z-index: 2; /* floats over the canvas and the inspector */
   display: flex;
   align-items: center;
-  gap: 20px;
+  gap: 16px;
   height: 52px;
-  padding: 0 20px;
+  padding: 0 20px 0 16px;
   border-bottom: 1px solid var(--line);
   background: var(--panel);
   flex: 0 0 auto;
+}
+
+/* The slot the screen fills; a hairline sets its line off the tabs once there is one. */
+.topbar-slot {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+}
+
+.topbar-slot:not(:empty) {
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
 }
 
 /* The wordmark: the favicon mark, the house name in the ink, and the tool's own word in a white tile. */
@@ -2478,7 +2502,9 @@ select {
 }
 
 @media (max-width: 900px) {
+  /* the sidebar stacks over the body: the page scrolls as one */
   .app {
+    flex-direction: column;
     height: auto;
     min-height: 100%;
   }
@@ -2488,6 +2514,19 @@ select {
     height: auto;
     padding: 10px 16px;
     gap: 10px 16px;
+  }
+
+  .topbar-slot,
+  .topbar-slot .subbar {
+    flex-wrap: wrap;
+    row-gap: 8px;
+  }
+
+  /* the screen's line takes a row of its own under the tabs, no hairline between */
+  .topbar-slot:not(:empty) {
+    flex-basis: 100%;
+    padding-left: 0;
+    border-left: 0;
   }
 
   .main {
@@ -2563,7 +2602,7 @@ select {
   display: flex;
   align-items: center;
   gap: 4px;
-  margin-left: 8px;
+  flex: 0 0 auto;
 }
 
 .nav a {
@@ -2596,26 +2635,14 @@ select {
   flex-direction: column;
 }
 
-/* A screen's own header row: a title or a picker on the left, the live indicator on the right. */
+/* A screen's own line, drawn in the top bar's slot: what is on screen on the left, the live
+   indicator or Refresh on the right. The tabs already name the screen, so it has no title. */
 .subbar {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 16px;
-  min-height: 44px;
-  padding: 0 20px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
-  flex: 0 0 auto;
-  position: relative;
-  z-index: 1;
-}
-
-.subbar-title {
-  margin: 0;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
 }
 
 .subbar-note {
@@ -2913,22 +2940,8 @@ select {
 
 /* ------------------------------------------------------------------ */
 /* Runs sidebar and run header: the run is chosen on the left, named   */
-/* above the graph. Same tokens as the rest; chroma still means status. */
+/* in the top bar. Same tokens as the rest; chroma still means status.  */
 /* ------------------------------------------------------------------ */
-
-.runs-layout {
-  flex: 1;
-  min-height: 0;
-  display: flex;
-}
-
-.run-main {
-  flex: 1;
-  min-width: 0;
-  min-height: 0;
-  display: flex;
-  flex-direction: column;
-}
 
 .runs-sidebar {
   width: 300px;
@@ -2938,6 +2951,21 @@ select {
   min-height: 0;
   border-right: 1px solid var(--line);
   background: var(--panel);
+}
+
+/* The brand block: as tall as the top bar, so the two hairlines meet at the sidebar's edge. */
+.sidebar-brand {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 52px;
+  padding: 0 12px 0 14px;
+  border-bottom: 1px solid var(--line);
+}
+
+.sidebar-brand .brand {
+  min-width: 0;
 }
 
 .runs-sidebar-head {
@@ -3155,6 +3183,29 @@ select {
   margin-left: 0;
 }
 
+/* the app's rail keeps the mark where the brand was, over the button, down the full height */
+.runs-rail.is-app {
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  padding-top: 0;
+}
+
+.rail-brand {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--line);
+}
+
+.rail-brand .brand-mark {
+  display: block;
+}
+
 /* the folded inspector: the same rail, mirrored onto the right edge */
 .runs-rail.is-right {
   border-right: 0;
@@ -3214,10 +3265,6 @@ select {
 }
 
 @media (max-width: 900px) {
-  .runs-layout {
-    flex-direction: column;
-  }
-
   .runs-sidebar {
     width: 100%;
     border-right: 0;
@@ -3234,6 +3281,21 @@ select {
     padding: 6px 10px;
     border-right: 0;
     border-bottom: 1px solid var(--line);
+  }
+
+  /* the app's rail is a row: the mark, then the button */
+  .runs-rail.is-app {
+    flex-direction: row;
+    align-items: center;
+    gap: 10px;
+    padding-top: 6px;
+  }
+
+  .rail-brand {
+    width: auto;
+    height: auto;
+    margin-bottom: 0;
+    border-bottom: 0;
   }
 
   /* the inspector carries day, duration and cost; the header keeps the id */

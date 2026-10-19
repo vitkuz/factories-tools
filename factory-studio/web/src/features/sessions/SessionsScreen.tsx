@@ -2,6 +2,7 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { describeApiError, isApiError } from '../../adapters/http/api-error.utils';
 import { listPipelines } from '../../adapters/http/studio-api.adapter';
 import { useNow } from '../../shared/lib/polling';
+import { TopbarContent } from '../../shared/components/TopbarContent';
 import { formatRelative } from '../runs/lib/format';
 import type { ListState, PipelineList, PipelineListEntry } from './sessions.types';
 import { useSessions, type Sessions } from './hooks/use-sessions';
@@ -53,22 +54,23 @@ export const SessionsScreen = (): ReactNode => {
 
   return (
     <div className="screen screen-sessions">
-      <div className="subbar">
-        <h2 className="subbar-title">Sessions</h2>
-        <span className="muted subbar-note">
-          {sessions.state.error
-            ? `Can't reach the API (${sessions.state.error})`
-            : `Updated ${formatRelative(sessions.state.updatedAt, now)}`}
-        </span>
-        <button
-          type="button"
-          className="feed-refresh"
-          onClick={sessions.refresh}
-          disabled={sessions.state.refreshing}
-        >
-          {sessions.state.refreshing ? 'Refreshing…' : 'Refresh'}
-        </button>
-      </div>
+      <TopbarContent>
+        <div className="subbar">
+          <span className="muted subbar-note">
+            {sessions.state.error
+              ? `Can't reach the API (${sessions.state.error})`
+              : `Updated ${formatRelative(sessions.state.updatedAt, now)}`}
+          </span>
+          <button
+            type="button"
+            className="feed-refresh"
+            onClick={sessions.refresh}
+            disabled={sessions.state.refreshing}
+          >
+            {sessions.state.refreshing ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
+      </TopbarContent>
       <div className="sessions">
         <section className="sessions-pane" aria-label="Start a session">
           <h3 className="panel-title">Start</h3>

@@ -4,6 +4,7 @@ import type { Overview, RunGroup, RunOverview } from '../runs.types';
 import { groupByPipeline, overviewOf } from '../runs.utils';
 import type { RunRef } from '../../../shared/lib/route';
 import { useNow } from '../../../shared/lib/polling';
+import { TopbarContent } from '../../../shared/components/TopbarContent';
 import LiveStatus, { FeedFooter } from './LiveStatus';
 import NoRuns from './NoRuns';
 import { PipelineTable } from './PipelineTable';
@@ -15,6 +16,15 @@ interface RunsIndexProps {
   feed: RunsFeed;
   onOpen: (run: RunRef) => void;
 }
+
+/** The index's line in the top bar: the Runs tab names the screen, so only the live indicator. */
+const IndexBar = ({ feed }: { feed: RunsFeed }): ReactNode => (
+  <TopbarContent>
+    <div className="subbar">
+      <LiveStatus feed={feed} active={false} />
+    </div>
+  </TopbarContent>
+);
 
 /** The index: totals, the per-pipeline and per-run tables, and the grouped list. */
 export const RunsIndex = ({ feed, onOpen }: RunsIndexProps): ReactNode => {
@@ -36,10 +46,7 @@ export const RunsIndex = ({ feed, onOpen }: RunsIndexProps): ReactNode => {
   if (feed.data.runs.length === 0 && feed.settled) {
     return (
       <>
-        <div className="subbar">
-          <h2 className="subbar-title">Runs</h2>
-          <LiveStatus feed={feed} active={false} />
-        </div>
+        <IndexBar feed={feed} />
         <NoRuns feed={feed} />
       </>
     );
@@ -47,10 +54,7 @@ export const RunsIndex = ({ feed, onOpen }: RunsIndexProps): ReactNode => {
 
   return (
     <>
-      <div className="subbar">
-        <h2 className="subbar-title">Runs</h2>
-        <LiveStatus feed={feed} active={false} />
-      </div>
+      <IndexBar feed={feed} />
       <div className="runs-index">
         <Totals overview={overview} />
         <section className="runs-section" aria-label="Pipelines">

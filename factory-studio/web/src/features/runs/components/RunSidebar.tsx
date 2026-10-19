@@ -18,8 +18,12 @@ import { buildPath, type RunRef } from '../../../shared/lib/route';
 import { readJson, writeJson } from '../../../shared/lib/storage';
 import { useNow } from '../../../shared/lib/polling';
 import { CollapseToggle } from '../../../shared/components/CollapseToggle';
+import { BrandMark } from '../../../shared/components/BrandMark';
 
 const STORAGE_KEY = 'studio.runs.sidebar';
+const BRAND_LEAD = 'FACTORY';
+const BRAND_TAG = 'STUDIO';
+const BRAND_NAME = `${BRAND_LEAD} ${BRAND_TAG}`;
 
 interface SidebarPrefs {
   collapsed: boolean;
@@ -39,8 +43,8 @@ const FILTERS: FilterChip[] = [
 
 interface RunSidebarProps {
   runs: RunRecord[];
-  /** The run on screen — its row is marked and kept in view. */
-  current: RunRef;
+  /** The run on screen — its row is marked and kept in view; `null` on the index and on Sessions. */
+  current: RunRef | null;
   onChoose: (ref: RunRef) => void;
 }
 
@@ -100,10 +104,21 @@ const RunRow = ({
   );
 };
 
+/** The wordmark at the top of the sidebar: the favicon mark, the house name, the tool's word in a tile. */
+const Brand = (): ReactNode => (
+  <h1 className="brand">
+    <BrandMark />
+    <span className="brand-lead">{BRAND_LEAD}</span>
+    <span className="brand-tag">{BRAND_TAG}</span>
+  </h1>
+);
+
 /**
- * The runs sidebar: a search box, status chips and every run grouped by its start day, the
- * one on screen marked. Rows are links, so Tab, Enter and a middle click work as links do;
- * ArrowUp/ArrowDown move between rows. `‹` folds it to a rail, remembered in localStorage.
+ * The sidebar down the left edge of the app: the brand on top, then a search box, status
+ * chips and every run grouped by its start day, the one on screen marked. Rows are links, so
+ * Tab, Enter and a middle click work as links do; ArrowUp/ArrowDown move between rows. `‹`
+ * folds it to a rail that keeps the mark and the button that brings it back, remembered in
+ * localStorage.
  */
 export const RunSidebar = ({ runs, current, onChoose }: RunSidebarProps): ReactNode => {
   const now: number = useNow(60_000);
@@ -125,12 +140,13 @@ export const RunSidebar = ({ runs, current, onChoose }: RunSidebarProps): ReactN
   };
 
   // The current row is brought into view when the run changes, never on a poll.
+  const currentKey: string | null = current ? `${current.pipelineId}/${current.runId}` : null;
   useEffect(() => {
-    if (collapsed) return;
+    if (collapsed || currentKey === null) return;
     listRef.current
       ?.querySelector<HTMLElement>('[aria-current="page"]')
       ?.scrollIntoView({ block: 'nearest' });
-  }, [current.pipelineId, current.runId, collapsed]);
+  }, [currentKey, collapsed]);
 
   const onListKeyDown = (event: KeyboardEvent<HTMLElement>): void => {
     if (event.key !== 'ArrowDown' && event.key !== 'ArrowUp') return;
@@ -156,7 +172,10 @@ export const RunSidebar = ({ runs, current, onChoose }: RunSidebarProps): ReactN
 
   if (collapsed) {
     return (
-      <div className="runs-rail">
+      <div className="runs-rail is-app">
+        <div className="rail-brand" title={BRAND_NAME} aria-label={BRAND_NAME} role="img">
+          <BrandMark />
+        </div>
         <CollapseToggle expanded={false} side="left" label="runs" onToggle={toggle} />
       </div>
     );
@@ -164,13 +183,16 @@ export const RunSidebar = ({ runs, current, onChoose }: RunSidebarProps): ReactN
 
   return (
     <aside className="runs-sidebar" aria-label="Runs">
+      <div className="sidebar-brand">
+        <Brand />
+        <CollapseToggle expanded={true} side="left" label="runs" onToggle={toggle} />
+      </div>
       <div className="runs-sidebar-head">
         <div className="runs-sidebar-title-row">
           <h2 className="runs-sidebar-title">Latest runs</h2>
           <span className="runs-sidebar-count mono" aria-label={`${shown.length} runs shown`}>
             {shown.length}
           </span>
-          <CollapseToggle expanded={true} side="left" label="runs" onToggle={toggle} />
         </div>
         <input
           type="text"
@@ -209,14 +231,21 @@ export const RunSidebar = ({ runs, current, onChoose }: RunSidebarProps): ReactN
                 <RunRow
                   key={`${run.pipelineId}/${run.runId}`}
                   run={run}
-                  active={sameRun(current, { pipelineId: run.pipelineId, runId: run.runId })}
+                  active={
+                    current !== null &&
+                    sameRun(current, { pipelineId: run.pipelineId, runId: run.runId })
+                  }
                   onChoose={onChoose}
                 />
               ))}
             </ul>
           </section>
         ))}
-        {shown.length === 0 && <p className="runs-empty muted">No runs match.</p>}
+        {shown.length === 0 && (
+          <p className="runs-empty muted">
+            {runs.length === 0 ? 'No runs yet.' : 'No runs match.'}
+          </p>
+        )}
       </nav>
     </aside>
   );

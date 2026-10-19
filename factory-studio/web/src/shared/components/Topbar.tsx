@@ -1,9 +1,5 @@
 import type { MouseEvent, ReactNode } from 'react';
 import { buildPath, type Route } from '../lib/route';
-import { BrandMark } from './BrandMark';
-
-const BRAND_LEAD = 'FACTORY';
-const BRAND_TAG = 'STUDIO';
 
 interface NavLink {
   screen: Route['screen'];
@@ -20,16 +16,17 @@ interface TopbarProps {
   route: Route;
   /** Called on a plain left click; modified clicks fall through to the browser (new tab). */
   onNavigate: (route: Route) => void;
+  /** Receives the slot element the screens fill (see `TopbarContent`). */
+  onSlot: (element: HTMLElement | null) => void;
 }
 
-/** The one navigation: the brand, then a link per screen, the current one marked. */
-export const Topbar = ({ route, onNavigate }: TopbarProps): ReactNode => (
+/**
+ * The bar over the content, to the right of the sidebar: a link per screen, the current one
+ * marked, then the slot the screen on show fills with its own line (the run's header, the live
+ * indicator, Refresh). The brand lives at the top of the sidebar.
+ */
+export const Topbar = ({ route, onNavigate, onSlot }: TopbarProps): ReactNode => (
   <header className="topbar">
-    <h1 className="brand">
-      <BrandMark />
-      <span className="brand-lead">{BRAND_LEAD}</span>
-      <span className="brand-tag">{BRAND_TAG}</span>
-    </h1>
     <nav className="nav" aria-label="Screens">
       {LINKS.map((link: NavLink) => (
         <a
@@ -53,5 +50,6 @@ export const Topbar = ({ route, onNavigate }: TopbarProps): ReactNode => (
         </a>
       ))}
     </nav>
+    <div className="topbar-slot" ref={onSlot} />
   </header>
 );

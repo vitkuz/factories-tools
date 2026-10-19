@@ -131,15 +131,19 @@ only for a `curl`-only deployment.
 
 ## What you get
 
-One address, `http://127.0.0.1:3100/`, one shell with one navigation (Runs, Sessions), and two
-screens. Runs is the landing screen. Switching screens changes the URL, and every URL reloads in
+One address, `http://127.0.0.1:3100/`, one shell and two screens. The shell is a sidebar down the
+left edge — the brand on top, then every run (search box, All / Running / Completed / Failed chips,
+runs grouped by start day — Today, Yesterday, Oct 3 — with status dot, id, pipeline and cost; rows
+are links, ArrowUp/Down move between them; `‹` folds it to a rail that keeps the mark, remembered in
+the browser) — and beside it a top bar with the navigation (Runs, Sessions) followed by the line of
+the screen on show. Runs is the landing screen. Switching screens changes the URL, and every URL reloads in
 place.
 
 | URL | Screen |
 | --- | --- |
 | `/` | the Runs index, as `/runs` (the address stays `/`). |
 | `/runs` | **Runs index**: totals, a per-pipeline table (a row filters the run table), a per-run table (a row opens the run), and every run grouped by pipeline with status, day and cost; a run without `state.json` shows `no state`; `Live` indicator, "Updated n s ago" footer and `Refresh`; a run with an invalid `state.json` is dropped and named in the footer while the rest still show. |
-| `/runs/<pipelineId>/<runId>[#view=detailed]` | **One run**: the runs sidebar on the left (search box, All / Running / Completed / Failed chips, every run grouped by start day — Today, Yesterday, Oct 3 — with status dot, id, pipeline and cost; the shown run marked and kept in view; rows are links, ArrowUp/Down move between them; `‹` folds it to a rail, remembered in the browser), the run's header line (`All runs`, `pipeline /` id, status, day, duration, cost, `Live`), the status-coloured graph with result pills, legend, `Details`, minimap, the inspector (overview, cost breakdown with a `stale` pill, step pane with attempts, per-step cost and prompt), the collapsible log whose step chips select a node, and the document viewer; refetches every 5 s while the run is `RUNNING`/`PAUSED`, every 30 s otherwise, pauses while the tab is hidden, and keeps viewport and selection across refreshes; `Offline` with the last data when the API stops answering; a stateless run shows the definition graph with "No state.json yet". |
+| `/runs/<pipelineId>/<runId>[#view=detailed]` | **One run**: its row marked and kept in view in the sidebar, its header line in the top bar after the tabs (`All runs`, `pipeline /` id, status, day, duration, cost, `Live`), the status-coloured graph with result pills, legend, `Details`, minimap, the inspector (overview, cost breakdown with a `stale` pill, step pane with attempts, per-step cost and prompt), the collapsible log whose step chips select a node, and the document viewer; refetches every 5 s while the run is `RUNNING`/`PAUSED`, every 30 s otherwise, pauses while the tab is hidden, and keeps viewport and selection across refreshes; `Offline` with the last data when the API stops answering; a stateless run shows the definition graph with "No state.json yet". |
 | `/sessions` | **Sessions**: a prompt text area, a factory picker, `Start` (disabled until both are filled) which starts a Claude harness in tmux and shows the new row within about a second; the list of running `factory-*` sessions (session, factory, harness, started, age) refreshed every 10 s, with `Stop` on each row; every refusal (`400`, `404`, `409`, `502`) is a notice on the screen. |
 | anything else | the Runs index; the address is rewritten to `/runs` without a history entry, so an old `/editor` or `/editor/<id>` bookmark lands on Runs. |
 

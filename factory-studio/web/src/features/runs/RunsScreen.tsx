@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { buildGraph, type GraphResult, type ViewMode } from './lib/graph';
-import { pickDefaultRun, resolvePipeline, useRunsFeed, type RunsFeed } from './hooks/use-runs-feed';
+import { pickDefaultRun, resolvePipeline, type RunsFeed } from './hooks/use-runs-feed';
 import { isActiveRun } from './runs.utils';
 import type { DashboardData, Pipeline, RunRecord } from './runs.types';
 import { navigate, writeView, type RunRef } from '../../shared/lib/route';
@@ -16,6 +16,8 @@ const SLOW_POLL_MS = 30_000;
 const EMPTY_GRAPH: GraphResult = { nodes: [], edges: [] };
 
 interface RunsScreenProps {
+  /** The run list, owned by the shell so the sidebar has it on every screen. */
+  feed: RunsFeed;
   /** The run in the route, or `null` for the index. */
   run: RunRef | null;
   view: ViewMode;
@@ -26,11 +28,10 @@ const sameRef = (a: RunRef | null, b: RunRef | null): boolean =>
 
 /**
  * The Runs screen: the index (tables and the grouped list) at `/runs`, one run at
- * `/runs/<pipelineId>/<runId>`. The list is fetched on mount and polled — fast while the
- * shown run is moving, slowly otherwise — and a refresh never touches the viewport.
+ * `/runs/<pipelineId>/<runId>`. The list is polled here — fast while the shown run is moving,
+ * slowly otherwise — and a refresh never touches the viewport.
  */
-export const RunsScreen = ({ run: requested, view }: RunsScreenProps): ReactNode => {
-  const feed: RunsFeed = useRunsFeed();
+export const RunsScreen = ({ feed, run: requested, view }: RunsScreenProps): ReactNode => {
   const data: DashboardData = feed.data;
   const runs: RunRecord[] = data.runs;
 
@@ -140,7 +141,6 @@ export const RunsScreen = ({ run: requested, view }: RunsScreenProps): ReactNode
         }
         view={view}
         onToggleView={toggleView}
-        onChooseRun={openRun}
         onBackToIndex={backToIndex}
       />
     </div>
