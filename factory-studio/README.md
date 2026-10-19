@@ -143,7 +143,7 @@ place.
 | --- | --- |
 | `/` | the Runs index, as `/runs` (the address stays `/`). |
 | `/runs` | **Runs index**: totals, a per-pipeline table (a row filters the run table), a per-run table (a row opens the run), and every run grouped by pipeline with status, day and cost; a run without `state.json` shows `no state`; `Live` indicator, "Updated n s ago" footer and `Refresh`; a run with an invalid `state.json` is dropped and named in the footer while the rest still show. |
-| `/runs/<pipelineId>/<runId>[#view=detailed]` | **One run**: its row marked and kept in view in the sidebar, its header line in the top bar after the tabs (`All runs`, `pipeline /` id, status, day, duration, cost, `Live`), the status-coloured graph with result pills, legend, `Details`, minimap, the inspector (overview, cost breakdown with a `stale` pill, step pane with attempts, per-step cost and prompt), the collapsible log whose step chips select a node, and the document viewer; refetches every 5 s while the run is `RUNNING`/`PAUSED`, every 30 s otherwise, pauses while the tab is hidden, and keeps viewport and selection across refreshes; `Offline` with the last data when the API stops answering; a stateless run shows the definition graph with "No state.json yet". |
+| `/runs/<pipelineId>/<runId>[#view=detailed]` | **One run**: its row marked and kept in view in the sidebar, its header line in the top bar after the tabs (`All runs`, `pipeline /` id, status, day, duration, cost, `Live`), the status-coloured graph — one column per wave, result pills, the loops, escapes and jumps the run did not take drawn quiet until a card is hovered or pinned (click a card to pin its neighbourhood; the same card again, the empty canvas or `Escape` unpins), `All routes` (`a`) to draw them all — legend, `Details`, minimap, the inspector (overview, cost breakdown with a `stale` pill, step pane with attempts, per-step cost and prompt), the collapsible log whose step chips select a node, and the document viewer; refetches every 5 s while the run is `RUNNING`/`PAUSED`, every 30 s otherwise, pauses while the tab is hidden, and keeps viewport and selection across refreshes; `Offline` with the last data when the API stops answering; a stateless run shows the definition graph with "No state.json yet". |
 | `/sessions` | **Sessions**: a prompt text area, a factory picker, `Start` (disabled until both are filled) which starts a Claude harness in tmux and shows the new row within about a second; the list of running `factory-*` sessions (session, factory, harness, started, age) refreshed every 10 s, with `Stop` on each row; every refusal (`400`, `404`, `409`, `502`) is a notice on the screen. |
 | anything else | the Runs index; the address is rewritten to `/runs` without a history entry, so an old `/editor` or `/editor/<id>` bookmark lands on Runs. |
 
@@ -248,3 +248,17 @@ named in the footer; unchanged runs and pipelines keep their identity across pol
 flicker and the viewport and selection survive a refresh. Legacy `state.json` shapes, and run snapshots
 of `pipeline.json` with string prompts, are upgraded on read (`web/src/features/runs/lib/legacy.ts`). The graph keeps no node positions: it is laid out from the pipeline alone
 (`web/src/shared/graph/`), so a pipeline edited on disk is drawn afresh on the next poll.
+
+The layout is by **wave**: a route with `max` is a retry loop, every other route and every
+`onMax` exit goes forward, and a step's column is its longest forward distance from START — the
+same layering the recorder writes as each step's `order`, so parallel steps share a column and no
+forward edge points left (a pipeline with an uncapped loop, which the validator warns about, breaks
+that cycle at the edge that closes it). Inside a column the main-row card (the happy path) comes
+first and the rest stack below it in the order of their predecessors. Loops run on lanes under the
+row, escapes and jumps above it; the ones the run did not take are *quiet* — thin, faded, no
+pills — until one of their cards is focused or `All routes` is on, so a graph with a dozen retry
+loops reads as its main flow. Without a `state.json` the happy path (each step's first forward
+event) is lit instead, as the Editor draws it. The same files are copied into
+`factory-editor/web/src/shared/graph/` and `factory-diagram/src/shared/studio-graph/`; both carry a
+test that fails when the copy drifts (`web/tests/` here covers the ranking, the layout, the focus
+overlay and the run decoration over a real 25-step factory).

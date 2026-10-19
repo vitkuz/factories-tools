@@ -6,6 +6,7 @@ import {
   buildEdges,
   displayDocPath,
   highlightHappyPath,
+  markQuiet,
   rankPipeline,
   stepMax,
   type EdgeData,
@@ -99,6 +100,7 @@ const toEdge =
       ...capOf(step, data),
       lane: data.lane as EdgeLane,
       happy: data.taken,
+      quiet: data.quiet,
     };
   };
 
@@ -124,19 +126,18 @@ const droppedEdgeWarnings = (loaded: LoadedPipeline): string[] => {
 };
 
 /**
- * The model: the Studio's rank (longest path over forward edges, back edges are loops), its
- * edge grouping (one edge per source → target, every event on it) and its happy-path lighting,
- * read into renderer-neutral nodes and edges. Deterministic: declaration order throughout.
+ * The model: the Studio's waves (longest path over the forward graph; capped routes are the
+ * loops), its edge grouping (one edge per source → target, every event on it), its happy-path
+ * lighting and its quiet routes, read into renderer-neutral nodes and edges. Deterministic.
  */
 export const buildGraph = (loaded: LoadedPipeline): GraphModel => {
   const pipeline: GraphPipeline = loaded.definition;
   const ranks: PipelineRanks = rankPipeline(pipeline);
   const stacks: Record<string, number> = stackIndexes(ranks);
   const toStep = stepNode(loaded, ranks, stacks);
-  const edges: StudioEdge[] = highlightHappyPath(
-    pipeline,
-    ranks,
-  )(buildEdges(pipeline, ranks, new Set<string>()));
+  const edges: StudioEdge[] = markQuiet(
+    highlightHappyPath(pipeline, ranks)(buildEdges(pipeline, ranks, new Set<string>())),
+  );
   const { definition } = loaded;
   return {
     id: definition.id,

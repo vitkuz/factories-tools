@@ -48,6 +48,8 @@ export const graphEdgeSchema = z.strictObject({
   lane: edgeLaneSchema,
   /** On the happy path: START edges and each step's first forward-going event. */
   happy: z.boolean(),
+  /** A loop, escape or jump off the happy path: drawn faint, as the Studio draws an untaken one. */
+  quiet: z.boolean(),
 });
 
 export const graphModelSchema = z.strictObject({

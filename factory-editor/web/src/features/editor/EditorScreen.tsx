@@ -37,8 +37,8 @@ import {
   type OpenDoc,
 } from '../../shared/document-viewer';
 import {
+  applyFocus,
   AutoMiniMap,
-  dimOutsideFocus,
   EndNode,
   FIT,
   FlowEdge as FlowEdgeComponent,
@@ -211,17 +211,19 @@ const EditorBody = ({
     [pipeline, compact, issues, selection],
   );
 
-  // Hovering a node keeps it and its neighbours and dims the rest; the happy-path switch
-  // dims every retry, escape and alternative route. Both are class-name overlays, so the
-  // graph itself is not rebuilt.
+  // Hovering a node keeps it and its neighbours and dims the rest; in View mode the loops,
+  // escapes and jumps off the happy path are quiet until hovered (Edit mode draws every route
+  // in full); the happy-path switch dims every retry, escape and alternative route. All are
+  // class-name overlays, so the graph itself is not rebuilt.
   const { nodes, edges }: { nodes: FlowNode[]; edges: FlowEdge[] } = useMemo(() => {
-    const focused: { nodes: FlowNode[]; edges: FlowEdge[] } = dimOutsideFocus(
+    const focused: { nodes: FlowNode[]; edges: FlowEdge[] } = applyFocus(
       graph.nodes,
       graph.edges,
-      hovered,
+      { hoveredId: hovered, pinnedId: null },
+      editing,
     );
     return focusPath ? dimOffHappyPath(focused.nodes, focused.edges) : focused;
-  }, [graph, hovered, focusPath]);
+  }, [graph, hovered, focusPath, editing]);
 
   // Fit the whole graph whenever its structure changes (a step added, removed or rewired,
   // the card mode switched); the hook also refits when the canvas changes size, as when

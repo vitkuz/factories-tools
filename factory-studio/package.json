@@ -2,14 +2,17 @@
   "name": "factory-studio",
   "private": true,
   "version": "0.1.0",
-  "description": "Factory Studio: a runs-only app — one local API (api/) serving the runs and sessions screens (web/) over the factory data on disk.",
-  "workspaces": ["api", "web"],
+  "description": "Factory Studio: a runs-only app \u2014 one local API (api/) serving the runs and sessions screens (web/) over the factory data on disk.",
+  "workspaces": [
+    "api",
+    "web"
+  ],
   "engines": {
     "node": ">=20.19"
   },
   "scripts": {
     "typecheck": "npm run typecheck --workspaces",
-    "test": "npm run test -w api",
+    "test": "npm run test --workspaces",
     "build": "npm run build -w web && npm run build -w api",
     "start": "npm run start -w api",
     "dev:api": "npm run dev -w api",

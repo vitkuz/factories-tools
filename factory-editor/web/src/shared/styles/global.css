@@ -10,6 +10,9 @@
   --ink: #e9edf2;
   --ink-2: #9aa6b8;
   --mask: rgb(21 27 38 / 0.3);
+  /* Focus: how far everything outside the focused card steps back, and how faint a quiet route is. */
+  --dim-opacity: 0.25;
+  --quiet-opacity: 0.18;
 
   --st-completed: #5cc489;
   --st-running: #5aa9ff;
@@ -532,7 +535,16 @@ select {
 /* ---- hover focus: neighbours stay, everything else steps back ---- */
 .react-flow__node.dimmed,
 .react-flow__edge.dimmed {
-  opacity: 0.4;
+  opacity: var(--dim-opacity);
+}
+
+/* ---- quiet routes (View mode): loops, escapes and jumps off the happy path, until hovered ---- */
+.react-flow__edge.edge-quiet {
+  opacity: var(--quiet-opacity);
+}
+
+.react-flow__edge.edge-quiet .react-flow__edge-path {
+  stroke-width: 1;
 }
 
 /* ------------------------------------------------------------------ */
@@ -613,7 +625,7 @@ select {
 }
 
 .edge-label--dimmed {
-  opacity: 0.4;
+  opacity: var(--dim-opacity);
 }
 
 .edge-count {

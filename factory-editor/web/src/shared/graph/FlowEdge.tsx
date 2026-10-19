@@ -104,7 +104,8 @@ function FlowEdge({
   const label: Point =
     above || below ? { x: (sourceX + targetX) / 2, y: laneY } : { x: midX, y: midY };
 
-  const pills: Pill[] = pillsFor(d);
+  // A hushed edge (an untaken loop, escape or jump nobody is looking at) keeps its line, loses its label.
+  const pills: Pill[] = d.hushed ? [] : pillsFor(d);
   const rowClass: string = [
     'edge-label',
     d.taken ? 'edge-label--taken' : '',

@@ -21,8 +21,8 @@ import {
   type ViewMode,
 } from '../lib/graph';
 import {
+  applyFocus,
   AutoMiniMap,
-  dimOutsideFocus,
   EndNode,
   FlowEdge,
   FIT,
@@ -31,6 +31,7 @@ import {
   StartNode,
   useFitGraph,
 } from '../../../shared/graph';
+import { isTypingTarget } from '../../../shared/lib/keys';
 import Legend from './Legend';
 import StepNode from './nodes/StepNode';
 
@@ -66,18 +67,29 @@ export interface CanvasProps {
   runKey: string;
   view: ViewMode;
   onToggleView: () => void;
+  /** Every untaken loop, escape and jump drawn in full, instead of quiet. */
+  allRoutes: boolean;
+  onToggleAllRoutes: () => void;
   stateless: boolean;
+  /** The selected card: what the inspector shows, and the pinned focus of the canvas. */
   selectedId: string | null;
   onSelect: (id: string | null) => void;
   wrapRef: RefObject<HTMLDivElement | null>;
 }
 
-/** The React Flow canvas with controlled nodes/edges (read-only pipeline graph). */
+/**
+ * The React Flow canvas with controlled nodes/edges (read-only pipeline graph). Hovering a
+ * card focuses it (its neighbours stay, the rest steps back); clicking a card selects it,
+ * which pins that focus until the same card is clicked again, the empty canvas is clicked
+ * or Escape is pressed.
+ */
 export default function GraphCanvas({
   graph,
   runKey,
   view,
   onToggleView,
+  allRoutes,
+  onToggleAllRoutes,
   stateless,
   selectedId,
   onSelect,
@@ -157,11 +169,33 @@ export default function GraphCanvas({
     [onSelect],
   );
 
-  // Hover focus is a thin overlay over the controlled arrays so untouched nodes and
-  // edges keep their object identity (memoised node components skip re-rendering).
+  // Clicking the selected card again unpins it. React Flow itself leaves a click on a selected
+  // node alone (without multi-select), so this is the only place that turns it into a deselect.
+  const onNodeClick = useCallback(
+    (_e: unknown, node: Node): void => {
+      if (node.id === selectedId) onSelect(null);
+    },
+    [selectedId, onSelect],
+  );
+
+  // Escape clears the pin — unless the person is typing, or a document modal is up.
+  useEffect(() => {
+    if (selectedId === null) return;
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'Escape' || isTypingTarget(e.target)) return;
+      onSelect(null);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [selectedId, onSelect]);
+
+  // The focus (hover, else the pinned selection) and the quiet routes are a thin overlay over
+  // the controlled arrays so untouched nodes and edges keep their object identity (memoised
+  // node components skip re-rendering).
   const viewGraph = useMemo(
-    (): { nodes: GraphNode[]; edges: GraphEdge[] } => dimOutsideFocus(nodes, edges, hoveredId),
-    [nodes, edges, hoveredId],
+    (): { nodes: GraphNode[]; edges: GraphEdge[] } =>
+      applyFocus(nodes, edges, { hoveredId, pinnedId: selectedId }, allRoutes),
+    [nodes, edges, hoveredId, selectedId, allRoutes],
   );
 
   const enterNode = (id: string): void => {
@@ -181,6 +215,7 @@ export default function GraphCanvas({
       onNodesChange={onNodesChange}
       onEdgesChange={onEdgesChange}
       onSelectionChange={onSelectionChange}
+      onNodeClick={onNodeClick}
       nodeTypes={nodeTypes}
       edgeTypes={edgeTypes}
       onNodeMouseEnter={(_e, node) => enterNode(node.id)}
@@ -206,7 +241,13 @@ export default function GraphCanvas({
         </Panel>
       )}
       <Panel position="bottom-left">
-        <Legend statuses={statusesPresent(graph.nodes)} view={view} onToggleView={onToggleView} />
+        <Legend
+          statuses={statusesPresent(graph.nodes)}
+          view={view}
+          onToggleView={onToggleView}
+          allRoutes={allRoutes}
+          onToggleAllRoutes={onToggleAllRoutes}
+        />
       </Panel>
     </ReactFlow>
   );

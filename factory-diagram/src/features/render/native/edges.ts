@@ -24,6 +24,7 @@ const edgeClass = (routed: RoutedEdge): string => {
     `edge-${edge.kind}`,
     edge.results.includes('SKIP') ? 'edge-skip' : '',
     edge.happy ? 'edge-happy' : '',
+    edge.quiet ? 'edge-quiet' : '',
   ]
     .filter(Boolean)
     .join(' ');

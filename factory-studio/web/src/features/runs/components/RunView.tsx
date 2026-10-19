@@ -1,9 +1,10 @@
-import { Suspense, useCallback, useRef, useState, type ReactNode } from 'react';
+import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import type { RunsFeed } from '../hooks/use-runs-feed';
 import type { GraphResult, ViewMode } from '../lib/graph';
 import type { Pipeline, RunRecord } from '../runs.types';
 import { runRelativePath } from '../runs.utils';
+import { isTypingTarget } from '../../../shared/lib/keys';
 import type { RunRef } from '../../../shared/lib/route';
 import {
   DocOpenContext,
@@ -51,6 +52,18 @@ export const RunView = ({
 }: RunViewProps): ReactNode => {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  // `All routes`: every untaken loop, escape and jump in full. A viewing preference, so it
+  // survives a run switch (unlike the selection) and is not written anywhere.
+  const [allRoutes, setAllRoutes] = useState<boolean>(false);
+  const toggleAllRoutes = useCallback((): void => setAllRoutes((on: boolean): boolean => !on), []);
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent): void => {
+      if (e.key !== 'a' || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
+      toggleAllRoutes();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [toggleAllRoutes]);
 
   // The document modal: a stack so a link inside one doc opens on top of it (Back pops).
   const [docStack, setDocStack] = useState<DocRef[]>([]);
@@ -115,6 +128,8 @@ export const RunView = ({
                     runKey={runKey}
                     view={view}
                     onToggleView={onToggleView}
+                    allRoutes={allRoutes}
+                    onToggleAllRoutes={toggleAllRoutes}
                     stateless={!run.state}
                     selectedId={selectedId}
                     onSelect={setSelectedId}

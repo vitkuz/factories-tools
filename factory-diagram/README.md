@@ -7,7 +7,7 @@ The skill `/draw-factory <id>` is a thin wrapper around this CLI.
 factories/<id>/pipeline.json  (or factories.local/<id>/, the project's own)
         ↓  load + validate   (the kit's factories-tools/bin/validate.mjs, then Zod for types)
         ↓  resolve constants (the runner's rules; {{date}} and empty params stay as written)
-   GraphModel  (nodes start|step|human|end, edges forward|loop|max|jump, ranks, lanes)   ← --format json
+   GraphModel  (nodes start|step|human|end, edges forward|loop|max|jump, happy, quiet, ranks, lanes)   ← --format json
         ↓  renderer: native (the Studio's layout, ported; own SVG writer)
    <out>/<id>.svg
 ```
@@ -44,8 +44,11 @@ a failure.
 `src/shared/studio-graph/` is a verbatim copy of `factories-tools/factory-studio/web/src/shared/graph/`
 (`rank.ts`, `layout.ts`, `text.ts`, `graph.types.ts`); `tests/studio-sync.test.ts` fails when
 the two drift. Edit the Studio, then copy again — never the copy. The native renderer only turns
-the port's handles and lane ys into SVG paths. Known inherited limit: when a step caps two
-different events, only the first one's `onMax` is drawn as an escape.
+the port's handles and lane ys into SVG paths. A column is a wave (longest path over the forward
+graph; a route with `max` is the loop that closes a cycle), the main-row card of a column is the
+happy path, and every loop, escape or jump off the happy path is `quiet` (drawn faint). Known
+inherited limit: when a step caps two different events, only the first one's `onMax` is drawn as
+an escape.
 
 ## Layout of the code
 

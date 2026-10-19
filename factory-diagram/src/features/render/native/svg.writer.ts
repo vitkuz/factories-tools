@@ -59,6 +59,8 @@ const styleBlock = (t: ThemeTokens): string =>
   `.edge-loop .edge-path, .edge-max .edge-path, .edge-jump .edge-path, .edge-skip .edge-path { stroke-dasharray: 5 5; }` +
   `.edge-happy .edge-path { stroke: ${t.edgeHappy}; stroke-width: 2.5; }` +
   `.edge-happy .edge-arrow { fill: ${t.edgeHappy}; }` +
+  `.edge-quiet { opacity: 0.45; }` +
+  `.edge-quiet .edge-path { stroke-width: 1; }` +
   `.pill rect { fill: ${t.canvas}; }` +
   `.pill text { font-size: 12px; fill: ${t.ink2}; }` +
   `.pill.is-lit text { fill: ${t.edgeHappy}; font-weight: 600; }` +

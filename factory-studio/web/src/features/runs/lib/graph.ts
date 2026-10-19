@@ -5,8 +5,11 @@ import type { Cost, Pipeline, PipelineStep, RunState, StepState, StepStatus } fr
 import {
   assignLanes,
   buildEdges,
+  highlightHappyPath,
   HUMAN_AGENT,
+  isOffRow,
   layoutNodes,
+  markQuiet,
   rankPipeline,
   stackedIds,
   stepMax,
@@ -285,6 +288,8 @@ export const decorateEdges =
         tone,
         bypassed: n === 0 && touchesSkipped,
         live: e.id === live,
+        // An untaken loop, escape or jump steps back until someone looks at it.
+        quiet: n === 0 && isOffRow(base),
       };
       const classes: string[] = [
         structuralEdgeClass(data),
@@ -298,7 +303,11 @@ export const decorateEdges =
     });
   };
 
-/** Pure and curried: `buildGraph(pipeline, options)(state)`. */
+/**
+ * Pure and curried: `buildGraph(pipeline, options)(state)`. With a state the edges carry what
+ * the run did; without one (no state.json yet) the happy path is lit, as the Editor draws it,
+ * and every other loop, escape and jump is quiet.
+ */
 export const buildGraph =
   (pipeline: Pipeline, options: GraphOptions = { detailed: false }) =>
   (state: RunState | null): GraphResult => {
@@ -309,10 +318,13 @@ export const buildGraph =
       stepNodeData(pipeline, state, options),
       stepNodeHeight,
     );
-    const edges: GraphEdge[] = decorateEdges(
-      deriveTraversals(pipeline)(state),
-      state,
-    )(assignLanes(nodes, ranks)(buildEdges(pipeline, ranks, stackedIds(nodes))));
+    const laned: GraphEdge[] = assignLanes(
+      nodes,
+      ranks,
+    )(buildEdges(pipeline, ranks, stackedIds(nodes)));
+    const edges: GraphEdge[] = state
+      ? decorateEdges(deriveTraversals(pipeline)(state), state)(laned)
+      : markQuiet(highlightHappyPath(pipeline, ranks)(laned));
     return { nodes, edges };
   };
 

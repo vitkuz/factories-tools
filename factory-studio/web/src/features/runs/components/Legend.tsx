@@ -6,10 +6,19 @@ interface Props {
   statuses: StepStatusKey[];
   view: ViewMode;
   onToggleView: () => void;
+  /** Every untaken loop, escape and jump drawn in full, instead of quiet. */
+  allRoutes: boolean;
+  onToggleAllRoutes: () => void;
 }
 
-/** Bottom-left canvas strip: the status legend and the Details toggle, one row. */
-export default function Legend({ statuses, view, onToggleView }: Props) {
+/** Bottom-left canvas strip: the status legend, the Details toggle and the All routes toggle, one row. */
+export default function Legend({
+  statuses,
+  view,
+  onToggleView,
+  allRoutes,
+  onToggleAllRoutes,
+}: Props) {
   const detailed: boolean = view === 'detailed';
   return (
     <div className="canvas-strip">
@@ -36,6 +45,19 @@ export default function Legend({ statuses, view, onToggleView }: Props) {
         }
       >
         Details
+      </button>
+      <button
+        type="button"
+        className="details-toggle"
+        aria-pressed={allRoutes}
+        onClick={onToggleAllRoutes}
+        title={
+          allRoutes
+            ? 'Fade the loops, escapes and jumps the run did not take (a)'
+            : 'Draw every loop, escape and jump in full, with its events (a)'
+        }
+      >
+        All routes
       </button>
     </div>
   );

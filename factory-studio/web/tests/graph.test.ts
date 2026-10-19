@@ -1,0 +1,79 @@
+import { describe, expect, it } from 'vitest';
+import { buildGraph, type GraphResult } from '../src/features/runs/lib/graph';
+import { isOffRow, type EdgeData, type GraphEdge } from '../src/shared/graph';
+import { kpPipeline, kpState } from './helpers';
+
+const dataOf = (graph: GraphResult, id: string): EdgeData => {
+  const edge: GraphEdge | undefined = graph.edges.find((e: GraphEdge): boolean => e.id === id);
+  if (!edge) throw new Error(`no edge ${id}`);
+  return edge.data as EdgeData;
+};
+const offRow = (graph: GraphResult): GraphEdge[] =>
+  graph.edges.filter((e: GraphEdge): boolean => isOffRow(e.data as EdgeData));
+const quiet = (graph: GraphResult): string[] =>
+  graph.edges.filter((e: GraphEdge): boolean => (e.data as EdgeData).quiet).map((e) => e.id);
+
+describe('buildGraph with a run', () => {
+  const graph: GraphResult = buildGraph(kpPipeline())(kpState());
+
+  it('keeps the loops, escapes and jumps the run took, and hushes the rest', () => {
+    expect(offRow(graph)).toHaveLength(29);
+    const taken: string[] = offRow(graph)
+      .filter((e: GraphEdge): boolean => (e.data as EdgeData).taken)
+      .map((e: GraphEdge): string => e.id)
+      .sort();
+    expect(taken).toEqual(
+      [
+        'e:check-facts->extract-fields',
+        'e:verify-claims->write-blocks',
+        'e:verify-claims->write-demo-buyer',
+        'e:verify-claims->route-mediaplan',
+        'e:qa-slides->build-slides',
+        'e:evaluate-against-expected->END',
+      ].sort(),
+    );
+    expect(quiet(graph)).toHaveLength(23);
+    expect(quiet(graph)).not.toContain('e:check-facts->extract-fields');
+    expect(quiet(graph)).toContain('e:approve-kp->END:max');
+    expect(quiet(graph)).toContain('e:qa-landing->END');
+  });
+
+  it('never hushes a row edge, taken or not', () => {
+    for (const e of graph.edges) {
+      const data: EdgeData = e.data as EdgeData;
+      if (!isOffRow(data)) expect(data.quiet, e.id).toBe(false);
+    }
+    expect(dataOf(graph, 'e:route-mediaplan->calc-mediaplan-mini')).toMatchObject({
+      taken: false,
+      quiet: false,
+      bypassed: true,
+    });
+  });
+
+  it('counts a taken loop from one', () => {
+    expect(dataOf(graph, 'e:verify-claims->route-mediaplan')).toMatchObject({
+      loop: true,
+      traversals: 1,
+      takenResults: ['REVISE_ALL'],
+    });
+  });
+});
+
+describe('buildGraph without a run (no state.json yet)', () => {
+  const graph: GraphResult = buildGraph(kpPipeline())(null);
+
+  it('lights the happy path and hushes every loop, escape and jump', () => {
+    expect(dataOf(graph, 'e:START->get-transcript').taken).toBe(true);
+    expect(dataOf(graph, 'e:check-facts->find-missing')).toMatchObject({
+      taken: true,
+      takenResults: ['PASS'],
+      quiet: false,
+    });
+    expect(dataOf(graph, 'e:check-facts->extract-fields')).toMatchObject({
+      loop: true,
+      taken: false,
+      quiet: true,
+    });
+    expect(quiet(graph)).toHaveLength(28);
+  });
+});

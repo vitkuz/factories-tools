@@ -1,0 +1,243 @@
+{
+  "runId": "run-20261018T165158-453bd5",
+  "pipelineName": "klevrs-kp-factory",
+  "status": "COMPLETED",
+  "createdAt": "2026-10-18T16:51:58.914659983Z",
+  "updatedAt": "2026-10-18T17:55:23.975346102Z",
+  "mode": "graph",
+  "currentWave": 14,
+  "activeSteps": [],
+  "frontier": [],
+  "context": {
+    "constants": {},
+    "params": {},
+    "captured": {}
+  },
+  "edges": {
+    "approve-kp:APPROVE": 1,
+    "build-claims:DONE": 2,
+    "build-demo-landing:DONE": 1,
+    "build-landing:DONE": 1,
+    "build-slides:DONE": 2,
+    "calc-mediaplan-ideas:DONE": 2,
+    "check-facts:PASS": 1,
+    "check-facts:REVISE": 1,
+    "evaluate-against-expected:DONE": 1,
+    "evaluate-kp-against-expected:SKIPPED": 1,
+    "extract-fields:DONE": 2,
+    "find-missing:DONE": 1,
+    "get-transcript:DONE": 1,
+    "prepare-crm-update:DONE": 1,
+    "qa-demo-landing:PASS": 1,
+    "qa-landing:PASS": 1,
+    "qa-slides:PASS": 1,
+    "qa-slides:REVISE": 1,
+    "research-buyer:DONE": 1,
+    "review-inputs:APPROVE": 1,
+    "route-kp:DONE": 1,
+    "route-mediaplan:IDEAS": 2,
+    "verify-claims:PASS": 1,
+    "verify-claims:REVISE_ALL": 1,
+    "write-blocks:DONE": 2,
+    "write-demo-buyer:DONE": 2
+  },
+  "history": [],
+  "steps": {
+    "approve-kp": {
+      "order": 13,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "APPROVE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "build-claims": {
+      "order": 9,
+      "status": "COMPLETED",
+      "passes": 2,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "build-demo-landing": {
+      "order": 11,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "build-landing": {
+      "order": 11,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "build-slides": {
+      "order": 11,
+      "status": "COMPLETED",
+      "passes": 2,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "calc-mediaplan-ideas": {
+      "order": 8,
+      "status": "COMPLETED",
+      "passes": 2,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "calc-mediaplan-mini": {
+      "order": 8,
+      "status": "SKIPPED",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "calc-mediaplan-personal": {
+      "order": 8,
+      "status": "SKIPPED",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "check-facts": {
+      "order": 3,
+      "status": "COMPLETED",
+      "passes": 2,
+      "event": "PASS",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "evaluate-against-expected": {
+      "order": 6,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "evaluate-kp-against-expected": {
+      "order": 14,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "SKIPPED",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "extract-fields": {
+      "order": 2,
+      "status": "COMPLETED",
+      "passes": 2,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "find-missing": {
+      "order": 4,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "get-transcript": {
+      "order": 1,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "prepare-crm-update": {
+      "order": 14,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "qa-demo-landing": {
+      "order": 12,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "PASS",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "qa-landing": {
+      "order": 12,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "PASS",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "qa-slides": {
+      "order": 12,
+      "status": "COMPLETED",
+      "passes": 2,
+      "event": "PASS",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "research-buyer": {
+      "order": 7,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "review-inputs": {
+      "order": 6,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "APPROVE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "route-kp": {
+      "order": 5,
+      "status": "COMPLETED",
+      "passes": 1,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "route-mediaplan": {
+      "order": 7,
+      "status": "COMPLETED",
+      "passes": 2,
+      "event": "IDEAS",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "verify-claims": {
+      "order": 10,
+      "status": "COMPLETED",
+      "passes": 2,
+      "event": "PASS",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "write-blocks": {
+      "order": 8,
+      "status": "COMPLETED",
+      "passes": 2,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    },
+    "write-demo-buyer": {
+      "order": 8,
+      "status": "COMPLETED",
+      "passes": 2,
+      "event": "DONE",
+      "outputs": [],
+      "retryCount": 0
+    }
+  }
+}

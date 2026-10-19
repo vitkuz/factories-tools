@@ -76,9 +76,9 @@ export type EdgeData = {
   results: string[];
   /** The pipeline entries this edge draws, one per result (none for a START edge). */
   routes: EdgeRouteRef[];
-  /** Back edge by rank (a real loop): drawn under the row. */
+  /** Back edge (a capped retry route, or the edge closing an uncapped loop): drawn under the row. */
   loop: boolean;
-  /** Forward edge spanning more than one column (a shortcut): drawn above the row. */
+  /** Forward edge spanning more than one wave (a shortcut): drawn above the row. */
   jump: boolean;
   lane: EdgeLane;
   /** Flow-space y of the lane's horizontal segment (undefined for row edges). */
@@ -94,8 +94,15 @@ export type EdgeData = {
   bypassed: boolean;
   /** The comet: only the edge into the current step while the run is running. */
   live: boolean;
-  /** Hover focus is on other nodes: the edge and its label are dimmed (set by the canvas). */
+  /**
+   * An untaken loop, escape or jump: faded and without its label until one of its ends is
+   * focused or every route is asked for. Structural; `hushed` says whether it is faded now.
+   */
+  quiet: boolean;
+  /** Focus is on other nodes: the edge and its label are dimmed (set by the canvas). */
   dimmed?: boolean;
+  /** Drawn quiet right now — thin, faded, no pills (set by the canvas). */
+  hushed?: boolean;
 };
 
 export type GraphEdge = Edge<EdgeData, 'flow'>;

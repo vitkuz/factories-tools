@@ -1,0 +1,476 @@
+{
+  "id": "klevrs-kp-factory",
+  "START": [
+    "get-transcript"
+  ],
+  "steps": {
+    "get-transcript": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "extract-fields"
+          ]
+        }
+      }
+    },
+    "extract-fields": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "check-facts"
+          ]
+        }
+      }
+    },
+    "check-facts": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "PASS": {
+          "target": [
+            "find-missing"
+          ]
+        },
+        "REVISE": {
+          "target": [
+            "extract-fields"
+          ],
+          "max": 2,
+          "onMax": [
+            "find-missing"
+          ]
+        }
+      }
+    },
+    "find-missing": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "route-kp"
+          ]
+        }
+      }
+    },
+    "route-kp": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "review-inputs",
+            "evaluate-against-expected"
+          ]
+        }
+      }
+    },
+    "review-inputs": {
+      "agent": "human",
+      "prompt": [],
+      "transitions": {
+        "APPROVE": {
+          "target": [
+            "route-mediaplan",
+            "research-buyer"
+          ]
+        },
+        "STOP": {
+          "target": [
+            "END"
+          ]
+        }
+      }
+    },
+    "route-mediaplan": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "IDEAS": {
+          "target": [
+            "calc-mediaplan-ideas"
+          ]
+        },
+        "MINI": {
+          "target": [
+            "calc-mediaplan-mini"
+          ]
+        },
+        "PERSONAL": {
+          "target": [
+            "calc-mediaplan-personal"
+          ]
+        }
+      }
+    },
+    "calc-mediaplan-ideas": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "build-claims"
+          ]
+        }
+      }
+    },
+    "calc-mediaplan-mini": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "build-claims"
+          ]
+        }
+      }
+    },
+    "calc-mediaplan-personal": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "build-claims"
+          ]
+        }
+      }
+    },
+    "research-buyer": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "write-demo-buyer",
+            "write-blocks"
+          ]
+        },
+        "REUSED": {
+          "target": [
+            "write-demo-buyer",
+            "write-blocks"
+          ]
+        },
+        "FAILED": {
+          "target": [
+            "END"
+          ]
+        }
+      }
+    },
+    "write-demo-buyer": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "build-claims"
+          ]
+        }
+      }
+    },
+    "write-blocks": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "build-claims"
+          ]
+        }
+      }
+    },
+    "build-claims": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "verify-claims"
+          ]
+        }
+      }
+    },
+    "verify-claims": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "PASS": {
+          "target": [
+            "build-demo-landing",
+            "build-landing",
+            "build-slides"
+          ]
+        },
+        "REVISE_BLOCKS": {
+          "target": [
+            "write-blocks"
+          ],
+          "max": 5,
+          "onMax": [
+            "build-demo-landing",
+            "build-landing",
+            "build-slides"
+          ]
+        },
+        "REVISE_DEMO": {
+          "target": [
+            "write-demo-buyer"
+          ],
+          "max": 5,
+          "onMax": [
+            "build-demo-landing",
+            "build-landing",
+            "build-slides"
+          ]
+        },
+        "REVISE_BOTH": {
+          "target": [
+            "write-blocks",
+            "write-demo-buyer"
+          ],
+          "max": 5,
+          "onMax": [
+            "build-demo-landing",
+            "build-landing",
+            "build-slides"
+          ]
+        },
+        "REVISE_CLAIMS": {
+          "target": [
+            "build-claims"
+          ],
+          "max": 5,
+          "onMax": [
+            "build-demo-landing",
+            "build-landing",
+            "build-slides"
+          ]
+        },
+        "REVISE_MEDIAPLAN": {
+          "target": [
+            "route-mediaplan"
+          ],
+          "max": 5,
+          "onMax": [
+            "build-demo-landing",
+            "build-landing",
+            "build-slides"
+          ]
+        },
+        "REVISE_ALL": {
+          "target": [
+            "route-mediaplan",
+            "write-blocks",
+            "write-demo-buyer"
+          ],
+          "max": 5,
+          "onMax": [
+            "build-demo-landing",
+            "build-landing",
+            "build-slides"
+          ]
+        }
+      }
+    },
+    "build-demo-landing": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "qa-demo-landing"
+          ]
+        }
+      }
+    },
+    "qa-demo-landing": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "PASS": {
+          "target": [
+            "approve-kp"
+          ]
+        },
+        "REVISE": {
+          "target": [
+            "build-demo-landing"
+          ],
+          "max": 2,
+          "onMax": [
+            "approve-kp"
+          ]
+        },
+        "FAILED": {
+          "target": [
+            "END"
+          ]
+        }
+      }
+    },
+    "build-landing": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "qa-landing"
+          ]
+        }
+      }
+    },
+    "qa-landing": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "PASS": {
+          "target": [
+            "approve-kp"
+          ]
+        },
+        "REVISE": {
+          "target": [
+            "build-landing"
+          ],
+          "max": 2,
+          "onMax": [
+            "approve-kp"
+          ]
+        },
+        "FAILED": {
+          "target": [
+            "END"
+          ]
+        }
+      }
+    },
+    "approve-kp": {
+      "agent": "human",
+      "prompt": [],
+      "transitions": {
+        "APPROVE": {
+          "target": [
+            "prepare-crm-update",
+            "evaluate-kp-against-expected"
+          ]
+        },
+        "REVISE_TEXT": {
+          "target": [
+            "write-blocks",
+            "write-demo-buyer"
+          ],
+          "max": 2,
+          "onMax": [
+            "END"
+          ]
+        },
+        "REVISE_PAGES": {
+          "target": [
+            "build-demo-landing",
+            "build-landing",
+            "build-slides"
+          ],
+          "max": 2,
+          "onMax": [
+            "END"
+          ]
+        },
+        "REJECT": {
+          "target": [
+            "END"
+          ]
+        }
+      }
+    },
+    "prepare-crm-update": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "END"
+          ]
+        }
+      }
+    },
+    "build-slides": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "qa-slides"
+          ]
+        },
+        "FAILED": {
+          "target": [
+            "END"
+          ]
+        }
+      }
+    },
+    "qa-slides": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "PASS": {
+          "target": [
+            "approve-kp"
+          ]
+        },
+        "REVISE": {
+          "target": [
+            "build-slides"
+          ],
+          "max": 2,
+          "onMax": [
+            "approve-kp"
+          ]
+        },
+        "FAILED": {
+          "target": [
+            "END"
+          ]
+        }
+      }
+    },
+    "evaluate-against-expected": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "END"
+          ]
+        },
+        "SKIPPED": {
+          "target": [
+            "END"
+          ]
+        }
+      }
+    },
+    "evaluate-kp-against-expected": {
+      "agent": "general-purpose",
+      "prompt": [],
+      "transitions": {
+        "DONE": {
+          "target": [
+            "END"
+          ]
+        },
+        "SKIPPED": {
+          "target": [
+            "END"
+          ]
+        }
+      }
+    }
+  }
+}
