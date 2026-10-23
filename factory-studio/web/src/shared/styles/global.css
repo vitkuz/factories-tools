@@ -1033,6 +1033,16 @@ select {
   outline-offset: -5px;
 }
 
+/* human steps read orange on the run graph: border, faint ground, agent label (the waiting tone) */
+.step-node.is-human {
+  border-color: var(--st-waiting);
+  background: color-mix(in srgb, var(--st-waiting) 7%, var(--raised));
+}
+
+.step-node.is-human .step-agent {
+  color: var(--st-waiting);
+}
+
 /* Claude's question for this step waits in the studio: the waiting tone, full strength */
 .step-node.is-needs-you {
   border-color: var(--st-waiting);
@@ -1357,6 +1367,23 @@ select {
   fill: var(--st-skipped);
 }
 
+/* back edges (loops) are orange: dashed stroke, arrowhead, label; untaken ones a muted orange */
+.react-flow__edge.edge-loop .react-flow__edge-path {
+  stroke: var(--st-waiting);
+}
+
+.react-flow__edge.edge-loop .edge-arrow {
+  fill: var(--st-waiting);
+}
+
+.react-flow__edge.edge-loop.edge-quiet .react-flow__edge-path {
+  stroke: color-mix(in srgb, var(--st-waiting) 55%, var(--line));
+}
+
+.react-flow__edge.edge-loop.edge-quiet .edge-arrow {
+  fill: color-mix(in srgb, var(--st-waiting) 55%, var(--line));
+}
+
 /* the comet: only on the edge into the step that is running right now */
 .edge-flow-overlay {
   stroke: var(--st-running);
@@ -1388,6 +1415,11 @@ select {
 
 .edge-label--taken .edge-pill.is-lit {
   color: var(--st-completed);
+}
+
+.edge-label--loop .edge-pill,
+.edge-label--loop .edge-pill.is-lit {
+  color: var(--st-waiting);
 }
 
 .edge-label--skipped .edge-pill.is-lit {
