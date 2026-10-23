@@ -19,6 +19,8 @@ export interface FakeWorkspace {
   texts: string[];
   keys: string[][];
   status: HerdrAgentStatus;
+  /** What herdr's Claude integration would report as the pane's agent session. */
+  agentSessionId?: string;
 }
 
 export interface FakeHerdr {
@@ -89,6 +91,7 @@ export const fakeHerdr = (initial: FakeWorkspace[] = []): FakeHerdr => {
         workspaceId: workspace.workspaceId,
         cwd: workspace.cwd,
         status: workspace.status,
+        ...(workspace.agentSessionId ? { agentSessionId: workspace.agentSessionId } : {}),
       })),
     closeWorkspace: async (workspaceId: string): Promise<boolean> => {
       if (

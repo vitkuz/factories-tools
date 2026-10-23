@@ -34,6 +34,14 @@ export const scriptPath = (path: string): string => `${API_PREFIX}/scripts/${enc
 
 export const sessionsPath = (): string => `${API_PREFIX}/sessions`;
 
+/** A session's live chat history (REST mirror of the socket backlog). */
+export const sessionChatPath = (session: string): string =>
+  `${API_PREFIX}/sessions/${encodeURIComponent(session)}/chat`;
+
+/** One chat item, uncut. */
+export const chatItemPath = (session: string, itemId: string): string =>
+  `${sessionChatPath(session)}/items/${encodeURIComponent(itemId)}`;
+
 export const stopSessionPath = (): string => `${API_PREFIX}/sessions/stop`;
 
 /** The WebSocket of the API (path only; the scheme and host come from the page). */

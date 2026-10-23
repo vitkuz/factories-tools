@@ -200,6 +200,7 @@ export const toFactorySession = (
     status: pane?.status ?? workspace.status,
     workspaceId: workspace.workspaceId,
     ...(pane ? { paneId: pane.paneId } : {}),
+    ...(pane?.agentSessionId ? { claudeSessionId: pane.agentSessionId } : {}),
   };
 };
 
@@ -212,7 +213,11 @@ export const shellQuote = (value: string): string => `'${value.replace(/'/g, `'\
 
 export const settingsFileName = (session: string): string => `${session}.settings.json`;
 
-/** Both hooks run the same script; it tells them apart by `hook_event_name` on stdin. */
+/**
+ * Every hook runs the same script; it tells them apart by `hook_event_name` on stdin.
+ * SessionStart reports the transcript path (for the live chat), the two on AskUserQuestion
+ * carry the question to the app and back.
+ */
 export const buildHookSettings = (
   nodePath: string,
   hookScript: string,
@@ -220,6 +225,7 @@ export const buildHookSettings = (
   const command: string = `${shellQuote(nodePath)} ${shellQuote(hookScript)}`;
   return {
     hooks: {
+      SessionStart: [{ hooks: [{ type: 'command', command, timeout: 15 }] }],
       PreToolUse: [
         { matcher: 'AskUserQuestion', hooks: [{ type: 'command', command, timeout: 3600 }] },
       ],

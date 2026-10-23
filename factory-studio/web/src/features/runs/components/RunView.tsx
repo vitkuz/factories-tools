@@ -20,6 +20,7 @@ import NoPipeline from './NoPipeline';
 import { PlainView } from './PlainView';
 import { RunHeader } from './RunHeader';
 import { RunQuestionPanel } from '../../sessions';
+import { LiveSessionPanel } from '../../chat';
 
 const withClass = (cls: string | undefined, extra: string): string =>
   [cls, extra].filter(Boolean).join(' ');
@@ -167,6 +168,7 @@ export const RunView = ({
                 <RunQuestionPanel run={{ pipelineId: run.pipelineId, runId: run.runId }} />
               ) : null
             }
+            live={<LiveSessionPanel run={run} />}
           />
         </main>
       </DocOpenContext.Provider>

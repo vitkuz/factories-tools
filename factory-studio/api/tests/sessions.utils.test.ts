@@ -140,6 +140,10 @@ describe('hook settings', () => {
     expect(settings.hooks.PostToolUse).toEqual([
       { matcher: 'AskUserQuestion', hooks: [{ type: 'command', command }] },
     ]);
+    // SessionStart reports the transcript path for the live chat; no matcher, a short timeout.
+    expect(settings.hooks.SessionStart).toEqual([
+      { hooks: [{ type: 'command', command, timeout: 15 }] },
+    ]);
   });
 
   it('adds the session id to the shared environment without touching it', () => {

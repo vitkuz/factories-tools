@@ -46,11 +46,13 @@ export const toWorkspaces = (result: Record<string, unknown>): HerdrWorkspace[] 
 export const toPanes = (result: Record<string, unknown>): HerdrPane[] =>
   asArray(result.panes).map((raw: unknown): HerdrPane => {
     const item: Record<string, unknown> = asRecord(raw);
+    const agentSessionId: string = asString(asRecord(item.agent_session).value);
     return {
       paneId: asString(item.pane_id),
       workspaceId: asString(item.workspace_id),
       cwd: asString(item.cwd),
       status: toStatus(item.agent_status),
+      ...(agentSessionId === '' ? {} : { agentSessionId }),
     };
   });
 

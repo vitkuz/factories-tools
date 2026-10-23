@@ -1,8 +1,9 @@
 import type { IncomingMessage } from 'node:http';
 import type { Duplex } from 'node:stream';
+import { v4 as uuid } from 'uuid';
 import { WebSocketServer, type RawData, type WebSocket } from 'ws';
 import { API_KEY_HEADER, keysMatch } from '../middleware/api-key.js';
-import type { AttachWebSocketSettings, WsHub } from './ws.types.js';
+import type { AttachWebSocketSettings, WsClient, WsHub } from './ws.types.js';
 
 const requestUrl = (req: IncomingMessage): URL => new URL(req.url ?? '/', 'http://localhost');
 
@@ -44,6 +45,7 @@ export const attachWebSocket = ({
   logger,
   onConnect,
   onMessage,
+  onDisconnect,
   heartbeatMs = 30_000,
 }: AttachWebSocketSettings): WsHub => {
   const wss: WebSocketServer = new WebSocketServer({ noServer: true, maxPayload: 1024 * 1024 });
@@ -65,12 +67,17 @@ export const attachWebSocket = ({
   });
 
   wss.on('connection', (client: WebSocket): void => {
+    const handle: WsClient = {
+      id: uuid(),
+      send: (message: unknown): void => sendJson(client, message),
+    };
     alive.add(client);
+    client.on('close', (): void => onDisconnect?.(handle));
     client.on('pong', (): void => {
       alive.add(client);
     });
     client.on('message', (data: RawData): void => {
-      onMessage(rawToText(data))
+      onMessage(rawToText(data), handle)
         .then((reply: unknown): void => {
           if (reply !== null && reply !== undefined) sendJson(client, reply);
         })

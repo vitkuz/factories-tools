@@ -11,8 +11,17 @@ export interface AttachWebSocketSettings {
   /** What a client is sent the moment it connects (the `hello` frame). */
   onConnect: () => unknown;
   /** One text frame from a client; the return value, if any, is sent back to that client. */
-  onMessage: (raw: string) => Promise<unknown>;
+  onMessage: (raw: string, client: WsClient) => Promise<unknown>;
+  /** A client went away (closed, or terminated by the heartbeat). */
+  onDisconnect?: (client: WsClient) => void;
   heartbeatMs?: number;
+}
+
+/** One connected client, as handlers see it: an id to key subscriptions by, and a way to reach it. */
+export interface WsClient {
+  id: string;
+  /** Dropped silently when the socket is no longer open. */
+  send: (message: unknown) => void;
 }
 
 export interface WsHub {

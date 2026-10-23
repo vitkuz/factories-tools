@@ -30,6 +30,7 @@ interface SessionBoardProps {
   onAnswer: (question: PendingQuestion, answers: Answer[]) => void;
   onClearError: () => void;
   onStop: (session: string) => void;
+  onOpenChat: (session: string) => void;
 }
 
 interface ColumnProps {
@@ -71,6 +72,7 @@ export const SessionBoard = ({
   onAnswer,
   onClearError,
   onStop,
+  onOpenChat,
 }: SessionBoardProps): ReactNode => {
   // undefined: nothing picked yet (the oldest is open); null: "Later" closed them all.
   const [chosen, setChosen] = useState<string | null | undefined>(undefined);
@@ -120,6 +122,7 @@ export const SessionBoard = ({
               onLater={(): void => setChosen(null)}
               onAnswer={onAnswer}
               onStop={(): void => onStop(question.sessionId)}
+              onOpenChat={(): void => onOpenChat(question.sessionId)}
             />
           )),
           ...board.terminal.map((session: FactorySession) => (
@@ -129,6 +132,7 @@ export const SessionBoard = ({
               factoryId={session.factoryId}
               stopping={stopping === session.session}
               onStop={(): void => onStop(session.session)}
+              onOpenChat={(): void => onOpenChat(session.session)}
             />
           )),
         ]}
@@ -146,6 +150,7 @@ export const SessionBoard = ({
             status="working"
             stopping={stopping === session.session}
             onStop={(): void => onStop(session.session)}
+            onOpenChat={(): void => onOpenChat(session.session)}
           />
         ))}
       </Column>
@@ -157,6 +162,7 @@ export const SessionBoard = ({
             status={effectiveStatus(session, state.statuses)}
             stopping={stopping === session.session}
             onStop={(): void => onStop(session.session)}
+            onOpenChat={(): void => onOpenChat(session.session)}
           />
         ))}
       </Column>

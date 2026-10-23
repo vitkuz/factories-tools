@@ -40,6 +40,22 @@ describe('herdr output shapes', () => {
         panes: [{ pane_id: 'w1:p1', workspace_id: 'w1', cwd: '/x', agent_status: 'working' }],
       }),
     ).toEqual([{ paneId: 'w1:p1', workspaceId: 'w1', cwd: '/x', status: 'working' }]);
+    // herdr's Claude integration reports the agent's own session id on the pane.
+    expect(
+      toPanes({
+        panes: [
+          {
+            pane_id: 'w1:p1',
+            workspace_id: 'w1',
+            cwd: '/x',
+            agent_status: 'idle',
+            agent_session: { agent: 'claude', kind: 'id', value: 'c-1' },
+          },
+        ],
+      }),
+    ).toEqual([
+      { paneId: 'w1:p1', workspaceId: 'w1', cwd: '/x', status: 'idle', agentSessionId: 'c-1' },
+    ]);
     expect(toStatus('nonsense')).toBe('unknown');
     expect(parseResult('not json')).toEqual({});
   });

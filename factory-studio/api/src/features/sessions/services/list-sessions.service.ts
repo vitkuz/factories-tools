@@ -6,12 +6,19 @@ export interface ListSessionsSettings {
   herdr: HerdrClient;
   /** `null` when the session has no readable meta file. */
   readMeta: (session: string) => Promise<SessionMeta | null>;
+  /** Claude's session id as the SessionStart hook reported it; wins over herdr's. */
+  readClaudeSessionId?: (session: string) => Promise<string | null>;
   now?: () => Date;
 }
 
 /** Every `factory-*` workspace on the herdr server, oldest first. Other workspaces are not ours. */
 export const listSessionsFactory =
-  ({ herdr, readMeta, now = (): Date => new Date() }: ListSessionsSettings) =>
+  ({
+    herdr,
+    readMeta,
+    readClaudeSessionId = async (): Promise<string | null> => null,
+    now = (): Date => new Date(),
+  }: ListSessionsSettings) =>
   async (): Promise<FactorySession[]> => {
     const [workspaces, panes]: [HerdrWorkspace[], HerdrPane[]] = await Promise.all([
       herdr.listWorkspaces(),
@@ -26,7 +33,12 @@ export const listSessionsFactory =
         const pane: HerdrPane | undefined = panes.find(
           (candidate: HerdrPane): boolean => candidate.workspaceId === workspace.workspaceId,
         );
-        return toFactorySession(workspace, pane, await readMeta(workspace.label), at);
+        const [meta, hooked]: [SessionMeta | null, string | null] = await Promise.all([
+          readMeta(workspace.label),
+          readClaudeSessionId(workspace.label),
+        ]);
+        const session: FactorySession = toFactorySession(workspace, pane, meta, at);
+        return hooked === null ? session : { ...session, claudeSessionId: hooked };
       }),
     );
     return sessions.sort(

@@ -25,6 +25,11 @@ const envSchema = z.object({
   WORK_DIR: z.string().min(1).default(REPO_ROOT),
   /** Where each session's prompt is written for the harness to read. */
   PROMPT_DIR: z.string().min(1).default(path.join(os.tmpdir(), 'factory-studio')),
+  /** Claude Code's transcripts, `<dir>/<project>/<session-id>.jsonl`: the live chat reads only here. */
+  CLAUDE_PROJECTS_DIR: z
+    .string()
+    .min(1)
+    .default(path.join(os.homedir(), '.claude', 'projects')),
   /** How long a new session must stay alive before a start counts as started. */
   START_GRACE_MS: z.coerce.number().int().min(0).max(10000).default(750),
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),

@@ -1,7 +1,10 @@
 import type { AxiosResponse } from 'axios';
 import { http } from './axios.adapter';
 import { toApiError, type ApiError } from './api-error.utils';
+import { chatItemResponseSchema } from '../../features/chat/chat.schema';
+import type { ChatItem } from '../../features/chat/chat.types';
 import {
+  chatItemPath,
   knowledgeDocPath,
   pipelinesPath,
   runDocPath,
@@ -206,6 +209,24 @@ export const stopSession = async (payload: StopSessionPayload): Promise<Stopped>
   try {
     const { data }: AxiosResponse<unknown> = await http.post(stopSessionPath(), payload);
     return stoppedSchema.parse(data);
+  } catch (error: unknown) {
+    return failWith(error);
+  }
+};
+
+/** One chat item uncut ("show more"): the item id and the `ref` the cut item carried. */
+export const readChatItem = async (
+  sessionId: string,
+  itemId: string,
+  ref: string,
+  signal?: AbortSignal,
+): Promise<ChatItem> => {
+  try {
+    const { data }: AxiosResponse<unknown> = await http.get(chatItemPath(sessionId, itemId), {
+      params: { ref },
+      signal,
+    });
+    return chatItemResponseSchema.parse(data).item;
   } catch (error: unknown) {
     return failWith(error);
   }

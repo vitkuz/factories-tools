@@ -1,4 +1,6 @@
 import express, { Router, type Express, type Request, type Response } from 'express';
+import { createChatRoutes } from './features/chat/index.js';
+import type { ChatUsecases } from './features/chat/chat.types.js';
 import { createPipelinesRoutes } from './features/pipelines/index.js';
 import type { PipelineUsecases } from './features/pipelines/pipelines.types.js';
 import { createQuestionsRoutes } from './features/questions/index.js';
@@ -27,6 +29,7 @@ export interface AppSettings {
   scripts: ScriptUsecases;
   sessions: SessionUsecases;
   questions: QuestionUsecases;
+  chat: ChatUsecases;
   logger: AppLogger;
 }
 
@@ -47,6 +50,7 @@ export const createApp = ({
   scripts,
   sessions,
   questions,
+  chat,
   logger,
 }: AppSettings): Express => {
   const app: Express = express();
@@ -66,6 +70,7 @@ export const createApp = ({
   api.use(createScriptsRoutes(scripts));
   api.use(createSessionsRoutes(sessions));
   api.use(createQuestionsRoutes(questions));
+  api.use(createChatRoutes(chat));
   app.use(API_PREFIX, api);
 
   // Every API route is registered above this line: a miss under /api is JSON, never a page.

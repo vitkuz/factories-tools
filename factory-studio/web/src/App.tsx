@@ -23,7 +23,7 @@ export default function App(): ReactNode {
     route.screen === 'runs' ? (
       <RunsScreen feed={feed} run={route.run} view={view} />
     ) : (
-      <SessionsScreen />
+      <SessionsScreen chat={route.chat ?? null} />
     );
 
   return (

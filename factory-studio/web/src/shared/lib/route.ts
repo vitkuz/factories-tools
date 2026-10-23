@@ -4,7 +4,8 @@ import type { ViewMode } from '../../features/runs/lib/graph';
 export type { ViewMode };
 
 /**
- * Screens and ids live in the path — `/runs`, `/runs/<pipelineId>/<runId>`, `/sessions` —
+ * Screens and ids live in the path — `/runs`, `/runs/<pipelineId>/<runId>`, `/sessions`,
+ * `/sessions/<session>` (that session's live chat over the board) —
  * and the card detail mode stays in the hash as the dashboard wrote it (`#view=detailed`).
  * The API answers `index.html` for every non-`/api` path, so a reload of any of these lands
  * on the same screen. `/` and every other path (an old `/editor/<id>` bookmark, say) open
@@ -16,7 +17,9 @@ export interface RunRef {
   runId: string;
 }
 
-export type Route = { screen: 'runs'; run: RunRef | null } | { screen: 'sessions' };
+/** `chat`: the session whose live chat is open over the board (`/sessions/<session>`). */
+export type Route =
+  { screen: 'runs'; run: RunRef | null } | { screen: 'sessions'; chat?: string | null };
 
 const VIEW_KEY = 'view';
 
@@ -34,7 +37,7 @@ const segmentsOf = (pathname: string): string[] =>
 
 export const parseRoute = (pathname: string): Route => {
   const [screen, a, b]: string[] = segmentsOf(pathname);
-  if (screen === 'sessions') return { screen: 'sessions' };
+  if (screen === 'sessions') return { screen: 'sessions', chat: a ?? null };
   if (screen === 'runs' && a !== undefined && b !== undefined) {
     return { screen: 'runs', run: { pipelineId: a, runId: b } };
   }
@@ -48,7 +51,7 @@ export const buildPath = (route: Route): string => {
         ? `/runs/${encodeURIComponent(route.run.pipelineId)}/${encodeURIComponent(route.run.runId)}`
         : '/runs';
     case 'sessions':
-      return '/sessions';
+      return route.chat ? `/sessions/${encodeURIComponent(route.chat)}` : '/sessions';
   }
 };
 

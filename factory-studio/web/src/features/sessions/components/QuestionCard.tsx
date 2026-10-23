@@ -13,6 +13,7 @@ import { QuestionBody } from './QuestionBody';
 import { QuestionStepper, panelId, tabId } from './QuestionStepper';
 import { CardHead } from './CardHead';
 import { StopButton } from './StopButton';
+import { ChatButton } from './ChatButton';
 
 interface QuestionCardProps {
   question: PendingQuestion;
@@ -32,6 +33,8 @@ interface QuestionCardProps {
   onAnswer: (question: PendingQuestion, answers: Answer[]) => void;
   /** Left out where the session is not to be stopped from (the run page): no Stop button. */
   onStop?: () => void;
+  /** Left out where the chat is already open: no Chat button. */
+  onOpenChat?: () => void;
 }
 
 /** One question Claude is asking, as a "Needs you" card: a line and Answer, or the stepper, the active question and Submit. */
@@ -47,6 +50,7 @@ export const QuestionCard = ({
   onLater,
   onAnswer,
   onStop,
+  onOpenChat,
 }: QuestionCardProps): ReactNode => {
   const [drafts, setDrafts] = useState<Draft[]>(() => draftsFor(question.questions));
   const [active, setActive] = useState<number>(0);
@@ -87,9 +91,12 @@ export const QuestionCard = ({
       {!open ? (
         <div className="board-card-row">
           <span className="board-card-preview">{questionPreview(question.questions, drafts)}</span>
-          <button type="button" className="answer-button" onClick={onOpen}>
-            Answer
-          </button>
+          <span className="board-card-actions">
+            {onOpenChat ? <ChatButton session={question.sessionId} onOpen={onOpenChat} /> : null}
+            <button type="button" className="answer-button" onClick={onOpen}>
+              Answer
+            </button>
+          </span>
         </div>
       ) : (
         <>

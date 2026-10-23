@@ -1,4 +1,12 @@
 import { z } from 'zod';
+import {
+  chatBacklogMessageSchema,
+  chatEndedMessageSchema,
+  chatItemsMessageSchema,
+  chatSubscribeMessageSchema,
+  chatUnavailableMessageSchema,
+  chatUnsubscribeMessageSchema,
+} from '../chat/chat.schema';
 
 /** A param's default or value: the runner takes text, numbers and booleans. */
 export const paramValueSchema = z.union([z.string(), z.number(), z.boolean()]);
@@ -43,6 +51,8 @@ export const factorySessionSchema = z.object({
   status: sessionStatusSchema.optional(),
   workspaceId: z.string().optional(),
   paneId: z.string().optional(),
+  /** Claude's own session id: the run page finds its live session by it. */
+  claudeSessionId: z.string().optional(),
 });
 
 export const sessionListSchema = z.object({
@@ -147,6 +157,10 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
     status: sessionStatusSchema,
   }),
   z.object({ type: z.literal('error'), message: z.string(), ref: z.string().optional() }),
+  chatBacklogMessageSchema,
+  chatItemsMessageSchema,
+  chatUnavailableMessageSchema,
+  chatEndedMessageSchema,
 ]);
 
 export const clientMessageSchema = z.discriminatedUnion('type', [
@@ -158,4 +172,6 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   }),
   z.object({ type: z.literal('session.dismiss'), sessionId: z.string(), promptId: z.string() }),
   z.object({ type: z.literal('session.reply'), sessionId: z.string(), text: z.string().min(1) }),
+  chatSubscribeMessageSchema,
+  chatUnsubscribeMessageSchema,
 ]);

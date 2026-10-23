@@ -6,6 +6,8 @@ export interface PollSessionStatusSettings {
   listSessions: () => Promise<FactorySession[]>;
   broadcast: Broadcast;
   intervalMs?: number;
+  /** Every successful poll, with the whole list: the live chat ends tails of gone sessions. */
+  onSessions?: (sessions: readonly FactorySession[]) => Promise<void> | void;
   logger?: AppLogger;
 }
 
@@ -34,6 +36,7 @@ export const pollSessionStatusFactory = ({
   listSessions,
   broadcast,
   intervalMs = 2000,
+  onSessions,
   logger,
 }: PollSessionStatusSettings): SessionStatusPoller => {
   let last: ReadonlyMap<string, SessionStatus> = new Map();
@@ -55,6 +58,7 @@ export const pollSessionStatusFactory = ({
           session.status ?? 'unknown',
         ]),
       );
+      await onSessions?.(sessions);
     } catch (error: unknown) {
       logger?.warn('status poll failed', {
         message: error instanceof Error ? error.message : String(error),

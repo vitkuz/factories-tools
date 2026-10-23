@@ -32,6 +32,8 @@ export interface FactorySession {
   status?: SessionStatus;
   workspaceId?: string;
   paneId?: string;
+  /** Claude's own session id: from the SessionStart hook, else what herdr's integration saw. */
+  claudeSessionId?: string;
 }
 
 /** A param as it goes on the command line: its name and its value, coerced to the default's type. */

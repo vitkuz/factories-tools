@@ -1,12 +1,14 @@
 import type { ReactNode } from 'react';
 import { CardHead } from './CardHead';
 import { StopButton } from './StopButton';
+import { ChatButton } from './ChatButton';
 
 interface TerminalWaitCardProps {
   sessionId: string;
   factoryId: string;
   stopping: boolean;
   onStop: () => void;
+  onOpenChat: () => void;
 }
 
 /**
@@ -19,6 +21,7 @@ export const TerminalWaitCard = ({
   factoryId,
   stopping,
   onStop,
+  onOpenChat,
 }: TerminalWaitCardProps): ReactNode => (
   <article className="board-card ask-card" aria-label={`${sessionId} is waiting in the terminal`}>
     <CardHead session={sessionId} factoryId={factoryId} />
@@ -30,6 +33,7 @@ export const TerminalWaitCard = ({
     </p>
     <pre className="mono ask-terminal-command">herdr session attach factory-studio</pre>
     <div className="board-card-row is-end">
+      <ChatButton session={sessionId} onOpen={onOpenChat} />
       <StopButton stopping={stopping} onStop={onStop} />
     </div>
   </article>

@@ -1,6 +1,10 @@
 #!/usr/bin/env node
-// Factory Studio question hook for Claude Code (PreToolUse and PostToolUse on AskUserQuestion).
+// Factory Studio hook for Claude Code (SessionStart, and PreToolUse and PostToolUse on
+// AskUserQuestion).
 //
+// SessionStart: tells the studio API where Claude writes this session's transcript, so the app
+// can show the session live as a chat. Prints nothing: a SessionStart hook's stdout would be
+// added to Claude's context.
 // PreToolUse: posts the question to the studio API and blocks until a person answers it in the
 // app. The answers go back to Claude as `updatedInput.answers`, so Claude's own dialog never
 // opens. Any failure, a dismissal or no studio around prints nothing and exits 0, which makes
@@ -29,6 +33,14 @@ export const buildAskBody = (event, sessionId) => ({
   transcriptPath: event.transcript_path,
   toolUseId: event.tool_use_id ?? '',
   toolInput: event.tool_input ?? {},
+});
+
+/** The body the API's session-start route takes. */
+export const buildSessionStartBody = (event, sessionId) => ({
+  sessionId,
+  claudeSessionId: event.session_id ?? '',
+  transcriptPath: event.transcript_path ?? '',
+  source: event.source ?? '',
 });
 
 export const buildResolvedBody = (event, sessionId) => ({
@@ -94,6 +106,15 @@ const main = async () => {
   const apiKey = process.env.STUDIO_API_KEY;
   const event = JSON.parse(await readStdin());
 
+  if (event.hook_event_name === 'SessionStart') {
+    await postJson(
+      baseUrl,
+      '/api/v1/hooks/session-start',
+      buildSessionStartBody(event, sessionId),
+      apiKey,
+    );
+    return;
+  }
   if (event.hook_event_name === 'PreToolUse') {
     const reply = await postJson(
       baseUrl,

@@ -24,6 +24,8 @@ export interface HerdrPane {
   workspaceId: string;
   cwd: string;
   status: HerdrAgentStatus;
+  /** The agent's own session id when herdr's integration reported one (Claude's session uuid). */
+  agentSessionId?: string;
 }
 
 export interface CreateWorkspaceArgs {

@@ -429,6 +429,12 @@ const applyMessage = (state: QuestionsState, message: ServerMessage): QuestionsS
         ...state,
         statuses: { ...state.statuses, [message.sessionId]: message.status },
       };
+    // The live chat's frames: `useSessionChat` reads them, the question state has no part in them.
+    case 'session.chat.backlog':
+    case 'session.chat.items':
+    case 'session.chat.unavailable':
+    case 'session.chat.ended':
+      return state;
     case 'error': {
       const ref: string | undefined = message.ref;
       if (ref !== undefined && state.prompts[ref] !== undefined)

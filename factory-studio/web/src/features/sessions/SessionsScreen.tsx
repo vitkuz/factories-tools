@@ -1,11 +1,19 @@
-import { useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { navigate } from '../../shared/lib/route';
+import { ChatDrawer } from '../chat';
 import { describeApiError, isApiError } from '../../adapters/http/api-error.utils';
 import { listPipelines } from '../../adapters/http/studio-api.adapter';
 import { useNow } from '../../shared/lib/polling';
 import { FeedBar } from '../../shared/components/FeedBar';
 import { TopbarContent } from '../../shared/components/TopbarContent';
 import { formatRelative } from '../runs/lib/format';
-import type { ListState, PipelineList, PipelineListEntry, StartRequest } from './sessions.types';
+import type {
+  FactorySession,
+  ListState,
+  PipelineList,
+  PipelineListEntry,
+  StartRequest,
+} from './sessions.types';
 import { REFRESH_LIVE_MS, REFRESH_MS, useSessions, type Sessions } from './hooks/use-sessions';
 import type { SessionQuestions } from './hooks/use-session-questions';
 import { useQuestions } from './hooks/use-questions';
@@ -18,8 +26,16 @@ import { SessionNotice } from './components/SessionNotice';
 
 const APP_NAME = 'Factory Studio';
 
-/** The Sessions screen: the start form across the top, then every herdr session on a board by what it needs. */
-export const SessionsScreen = (): ReactNode => {
+interface SessionsScreenProps {
+  /** The session whose live chat is open over the board (`/sessions/<session>`), or `null`. */
+  chat: string | null;
+}
+
+/**
+ * The Sessions screen: the start form across the top, then every herdr session on a board by
+ * what it needs, and a session's live chat over it when the route names one.
+ */
+export const SessionsScreen = ({ chat }: SessionsScreenProps): ReactNode => {
   const questions: SessionQuestions = useQuestions();
   // The socket carries the live news; the list is polled fast only while the socket is down.
   const sessions: Sessions = useSessions(
@@ -66,6 +82,12 @@ export const SessionsScreen = (): ReactNode => {
     void sessions.start(request).finally((): void => setStarting(false));
   };
 
+  const openChat = useCallback(
+    (session: string): void => navigate({ screen: 'sessions', chat: session }),
+    [],
+  );
+  const closeChat = useCallback((): void => navigate({ screen: 'sessions', chat: null }), []);
+
   const onStop = (session: string): void => {
     setStopping(session);
     void sessions.stop(session).finally((): void => setStopping(null));
@@ -105,8 +127,18 @@ export const SessionsScreen = (): ReactNode => {
           onAnswer={questions.answer}
           onClearError={questions.clearError}
           onStop={onStop}
+          onOpenChat={openChat}
         />
       </div>
+      {chat !== null ? (
+        <ChatDrawer
+          sessionId={chat}
+          session={
+            sessions.state.sessions.find((s: FactorySession): boolean => s.session === chat) ?? null
+          }
+          onClose={closeChat}
+        />
+      ) : null}
     </div>
   );
 };

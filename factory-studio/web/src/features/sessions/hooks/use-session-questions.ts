@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useReducer } from 'react';
+import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
 import {
   parseServerMessage,
   serializeClientMessage,
@@ -19,11 +19,23 @@ const NOT_CONNECTED =
   'Not connected to the API. Wait for the reconnect, or answer in the terminal.';
 const SOCKET_URL: string = sessionsSocketUrl();
 
+/** Every frame the socket receives, for a screen that reads more than the questions (the live chat). */
+export type FrameListener = (message: ServerMessage) => void;
+
+/** The shared socket as the live chat uses it: send a frame, hear every frame. */
+export interface SocketChannel {
+  /** `false` when the socket is not open and nothing was sent. */
+  send: (message: ClientMessage) => boolean;
+  /** Returns the function that stops listening. */
+  listen: (listener: FrameListener) => () => void;
+}
+
 export interface SessionQuestions {
   state: QuestionsState;
   connection: SocketState;
   answer: (question: PendingQuestion, answers: Answer[]) => void;
   clearError: () => void;
+  channel: SocketChannel;
 }
 
 /** The questions Claude asks, the sessions' live status, and the means to answer over the socket. */
@@ -33,10 +45,12 @@ export const useSessionQuestions = (): SessionQuestions => {
     initialQuestionsState,
   );
 
-  const onMessage = useCallback(
-    (message: ServerMessage): void => dispatch({ kind: 'message', message }),
-    [],
-  );
+  const listeners = useRef<ReadonlySet<FrameListener>>(new Set());
+
+  const onMessage = useCallback((message: ServerMessage): void => {
+    dispatch({ kind: 'message', message });
+    listeners.current.forEach((listener: FrameListener): void => listener(message));
+  }, []);
 
   const socket = useWebSocket<ServerMessage, ClientMessage>({
     url: SOCKET_URL,
@@ -66,5 +80,20 @@ export const useSessionQuestions = (): SessionQuestions => {
 
   const clearError = useCallback((): void => dispatch({ kind: 'clear-error' }), []);
 
-  return { state, connection: socket.state, answer, clearError };
+  const channel: SocketChannel = useMemo(
+    (): SocketChannel => ({
+      send,
+      listen: (listener: FrameListener): (() => void) => {
+        listeners.current = new Set([...listeners.current, listener]);
+        return (): void => {
+          listeners.current = new Set(
+            [...listeners.current].filter((other: FrameListener): boolean => other !== listener),
+          );
+        };
+      },
+    }),
+    [send],
+  );
+
+  return { state, connection: socket.state, answer, clearError, channel };
 };

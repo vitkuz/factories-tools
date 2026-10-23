@@ -85,6 +85,8 @@ interface Props {
   onSelectStep: (slug: string) => void;
   /** Claude's question for this run, drawn first; while there is one the panel stays open. */
   question?: ReactNode;
+  /** The run's live session (status and the way into its chat), when it has one. */
+  live?: ReactNode;
 }
 
 function Row({ k, v, title }: { k: string; v: ReactNode; title?: string }) {
@@ -408,6 +410,7 @@ export default function Inspector({
   selectedId,
   onSelectStep,
   question = null,
+  live = null,
 }: Props) {
   const state = run.state;
   const now: number = useNow(1000);
@@ -496,6 +499,7 @@ export default function Inspector({
     <aside className="inspector">
       <div className="inspector-scroll">
         {question}
+        {live}
         <section className="pane">
           {missing && (
             <p className="run-missing" role="status">

@@ -46,6 +46,17 @@ import {
   writeSessionMetaFactory,
 } from '../src/features/sessions/index.js';
 import type { FactorySession } from '../src/features/sessions/sessions.types.js';
+import { createTranscriptClient } from '../src/clients/transcript/transcript.client.js';
+import type { TranscriptClient } from '../src/clients/transcript/transcript.types.js';
+import {
+  createChatHub,
+  createTailerFactory,
+  readTranscriptLinkFactory,
+  recordSessionStartFactory,
+  recordTranscriptLinkFactory,
+  resolveTranscriptFactory,
+} from '../src/features/chat/index.js';
+import type { ChatHub } from '../src/features/chat/index.js';
 import type { Broadcast } from '../src/features/questions/questions.types.js';
 import type { AppLogger } from '../src/shared/types.js';
 
@@ -113,6 +124,8 @@ export interface WorkDir {
   dir: string;
   promptDir: string;
   webDist: string;
+  /** Stands in for `~/.claude/projects`. */
+  projectsDir: string;
   cleanup: () => Promise<void>;
 }
 
@@ -179,6 +192,7 @@ export const makeWorkDir = async (): Promise<WorkDir> => {
     dir,
     promptDir: path.join(dir, 'prompts'),
     webDist: path.join(dir, 'dist'),
+    projectsDir: path.join(dir, 'claude-projects'),
     cleanup: (): Promise<void> => rm(dir, { recursive: true, force: true }),
   };
 };
@@ -193,6 +207,8 @@ export interface TestAppOptions {
   broadcast?: Broadcast;
   questionStore?: QuestionStore;
   questionTimeoutMs?: number;
+  /** Shared with the test, so it can subscribe to the same live chat. */
+  onChatHub?: (hub: ChatHub) => void;
 }
 
 /** The whole app over real services and a temp WORK_DIR, the way `server.ts` wires it. */
@@ -213,11 +229,31 @@ export const buildTestApp = (
     collectRunRecords: collectRunRecordsFactory({ fs, workDir, logger: quiet }),
     locateRunDir: locateRunDirFactory({ fs, workDir }),
   };
+  const readLink = readTranscriptLinkFactory({
+    fs,
+    promptDir: work.promptDir,
+    projectsDir: work.projectsDir,
+  });
   const listSessions: () => Promise<FactorySession[]> = listSessionsFactory({
     herdr,
     readMeta: readSessionMetaFactory({ fs, promptDir: work.promptDir }),
+    readClaudeSessionId: async (session: string): Promise<string | null> =>
+      (await readLink(session))?.claudeSessionId ?? null,
     now: options.now,
   });
+  const transcripts: TranscriptClient = createTranscriptClient();
+  const chatHub: ChatHub = createChatHub({
+    resolveTranscript: resolveTranscriptFactory({
+      readLink,
+      herdr,
+      transcripts,
+      projectsDir: work.projectsDir,
+      workDir,
+    }),
+    createTailer: createTailerFactory({ client: transcripts, intervalMs: 50 }),
+    transcripts,
+  });
+  options.onChatHub?.(chatHub);
   const store: QuestionStore = options.questionStore ?? createQuestionStore();
   const broadcast: Broadcast = options.broadcast ?? ((): void => {});
   const questions: QuestionUsecases = {
@@ -281,6 +317,19 @@ export const buildTestApp = (
       replySession: replySessionFactory({ herdr, listSessions }),
     },
     questions,
+    chat: {
+      recordSessionStart: recordSessionStartFactory({
+        recordLink: recordTranscriptLinkFactory({
+          fs,
+          promptDir: work.promptDir,
+          projectsDir: work.projectsDir,
+        }),
+        relink: chatHub.relink,
+        logger: quiet,
+      }),
+      history: chatHub.history,
+      readItem: chatHub.readItem,
+    },
   });
 };
 

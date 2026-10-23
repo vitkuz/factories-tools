@@ -638,5 +638,28 @@ describe('hook script', () => {
       expect(out).toBe('');
       expect(received).toMatchObject({ url: '/api/v1/hooks/question-resolved' });
     });
+
+    it('SessionStart posts the transcript path and prints nothing', async () => {
+      reply = { ok: true };
+      const out: string = await run(
+        {
+          hook_event_name: 'SessionStart',
+          session_id: 'c-1',
+          transcript_path: '/home/u/.claude/projects/-w/c-1.jsonl',
+          source: 'startup',
+        },
+        { STUDIO_SESSION_ID: 's', STUDIO_API_URL: origin },
+      );
+      expect(out).toBe('');
+      expect(received).toMatchObject({
+        url: '/api/v1/hooks/session-start',
+        body: {
+          sessionId: 's',
+          claudeSessionId: 'c-1',
+          transcriptPath: '/home/u/.claude/projects/-w/c-1.jsonl',
+          source: 'startup',
+        },
+      });
+    });
   });
 });
