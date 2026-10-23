@@ -47,7 +47,7 @@ export interface OpenContext {
   pipelineFile: string;
   /** The `$schema` pointer written into state.json. */
   schemaRef: string;
-  /** CLAUDE_SESSION_ID, or ''. */
+  /** CLAUDE_SESSION_ID, else CLAUDE_CODE_SESSION_ID, or ''. */
   sessionId: string;
   /** Absolute path of the state.json to create. */
   stateFile: string;

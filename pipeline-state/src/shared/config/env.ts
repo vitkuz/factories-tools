@@ -1,4 +1,4 @@
-// Copied from factories-tools/pipeline-validation/src/shared/config/env.ts, plus CLAUDE_SESSION_ID.
+// Copied from factories-tools/pipeline-validation/src/shared/config/env.ts, plus the harness session id.
 import { z } from 'zod';
 import { config } from 'dotenv';
 
@@ -9,6 +9,8 @@ const envSchema = z.object({
   LOG_LEVEL: z.enum(['error', 'warn', 'info', 'debug']).default('info'),
   /** Recorded in the PIPELINE_INIT entry of a new run; empty when the harness does not set it. */
   CLAUDE_SESSION_ID: z.string().default(''),
+  /** What Claude Code itself sets in every Bash command; the fallback for CLAUDE_SESSION_ID. */
+  CLAUDE_CODE_SESSION_ID: z.string().default(''),
 });
 
 export type Env = z.infer<typeof envSchema>;

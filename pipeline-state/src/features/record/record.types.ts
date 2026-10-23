@@ -11,7 +11,7 @@ export interface RecordDeps {
   rootPath: string;
   /** Where relative paths on the command line start. */
   cwd: string;
-  /** CLAUDE_SESSION_ID, or ''. */
+  /** CLAUDE_SESSION_ID, else CLAUDE_CODE_SESSION_ID, or ''. */
   sessionId: string;
   /** Absolute path of state.schema.json: the `$schema` a new state.json points at. */
   schemaFile: string;

@@ -22,7 +22,8 @@ export const createDeps = (): RecordDeps => {
     newRunId: createRunIdGenerator(),
     rootPath,
     cwd,
-    sessionId: env.CLAUDE_SESSION_ID,
+    // The Claude session that opened the run: Factory Studio links its questions to the run by it.
+    sessionId: env.CLAUDE_SESSION_ID || env.CLAUDE_CODE_SESSION_ID,
     schemaFile: path.join(rootPath, 'factories', 'state.schema.json'),
   };
 };

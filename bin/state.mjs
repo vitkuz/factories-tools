@@ -35877,7 +35877,9 @@ var import_dotenv = __toESM(require_dist(), 1);
 var envSchema = external_exports.object({
   LOG_LEVEL: external_exports.enum(["error", "warn", "info", "debug"]).default("info"),
   /** Recorded in the PIPELINE_INIT entry of a new run; empty when the harness does not set it. */
-  CLAUDE_SESSION_ID: external_exports.string().default("")
+  CLAUDE_SESSION_ID: external_exports.string().default(""),
+  /** What Claude Code itself sets in every Bash command; the fallback for CLAUDE_SESSION_ID. */
+  CLAUDE_CODE_SESSION_ID: external_exports.string().default("")
 });
 var env = envSchema.parse(process.env);
 var env_default = env;
@@ -35925,7 +35927,8 @@ var createDeps = () => {
     newRunId: createRunIdGenerator(),
     rootPath,
     cwd,
-    sessionId: env_default.CLAUDE_SESSION_ID,
+    // The Claude session that opened the run: Factory Studio links its questions to the run by it.
+    sessionId: env_default.CLAUDE_SESSION_ID || env_default.CLAUDE_CODE_SESSION_ID,
     schemaFile: path10.join(rootPath, "factories", "state.schema.json")
   };
 };
