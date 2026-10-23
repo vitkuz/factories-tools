@@ -1,17 +1,13 @@
 {
   "id": "klevrs-kp-factory",
-  "START": [
-    "get-transcript"
-  ],
+  "START": ["get-transcript"],
   "steps": {
     "get-transcript": {
       "agent": "general-purpose",
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "extract-fields"
-          ]
+          "target": ["extract-fields"]
         }
       }
     },
@@ -20,9 +16,7 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "check-facts"
-          ]
+          "target": ["check-facts"]
         }
       }
     },
@@ -31,18 +25,12 @@
       "prompt": [],
       "transitions": {
         "PASS": {
-          "target": [
-            "find-missing"
-          ]
+          "target": ["find-missing"]
         },
         "REVISE": {
-          "target": [
-            "extract-fields"
-          ],
+          "target": ["extract-fields"],
           "max": 2,
-          "onMax": [
-            "find-missing"
-          ]
+          "onMax": ["find-missing"]
         }
       }
     },
@@ -51,9 +39,7 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "route-kp"
-          ]
+          "target": ["route-kp"]
         }
       }
     },
@@ -62,10 +48,7 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "review-inputs",
-            "evaluate-against-expected"
-          ]
+          "target": ["review-inputs", "evaluate-against-expected"]
         }
       }
     },
@@ -74,15 +57,10 @@
       "prompt": [],
       "transitions": {
         "APPROVE": {
-          "target": [
-            "route-mediaplan",
-            "research-buyer"
-          ]
+          "target": ["route-mediaplan", "research-buyer"]
         },
         "STOP": {
-          "target": [
-            "END"
-          ]
+          "target": ["END"]
         }
       }
     },
@@ -91,19 +69,13 @@
       "prompt": [],
       "transitions": {
         "IDEAS": {
-          "target": [
-            "calc-mediaplan-ideas"
-          ]
+          "target": ["calc-mediaplan-ideas"]
         },
         "MINI": {
-          "target": [
-            "calc-mediaplan-mini"
-          ]
+          "target": ["calc-mediaplan-mini"]
         },
         "PERSONAL": {
-          "target": [
-            "calc-mediaplan-personal"
-          ]
+          "target": ["calc-mediaplan-personal"]
         }
       }
     },
@@ -112,9 +84,7 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "build-claims"
-          ]
+          "target": ["build-claims"]
         }
       }
     },
@@ -123,9 +93,7 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "build-claims"
-          ]
+          "target": ["build-claims"]
         }
       }
     },
@@ -134,9 +102,7 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "build-claims"
-          ]
+          "target": ["build-claims"]
         }
       }
     },
@@ -145,21 +111,13 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "write-demo-buyer",
-            "write-blocks"
-          ]
+          "target": ["write-demo-buyer", "write-blocks"]
         },
         "REUSED": {
-          "target": [
-            "write-demo-buyer",
-            "write-blocks"
-          ]
+          "target": ["write-demo-buyer", "write-blocks"]
         },
         "FAILED": {
-          "target": [
-            "END"
-          ]
+          "target": ["END"]
         }
       }
     },
@@ -168,9 +126,7 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "build-claims"
-          ]
+          "target": ["build-claims"]
         }
       }
     },
@@ -179,9 +135,7 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "build-claims"
-          ]
+          "target": ["build-claims"]
         }
       }
     },
@@ -190,9 +144,7 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "verify-claims"
-          ]
+          "target": ["verify-claims"]
         }
       }
     },
@@ -201,80 +153,37 @@
       "prompt": [],
       "transitions": {
         "PASS": {
-          "target": [
-            "build-demo-landing",
-            "build-landing",
-            "build-slides"
-          ]
+          "target": ["build-demo-landing", "build-landing", "build-slides"]
         },
         "REVISE_BLOCKS": {
-          "target": [
-            "write-blocks"
-          ],
+          "target": ["write-blocks"],
           "max": 5,
-          "onMax": [
-            "build-demo-landing",
-            "build-landing",
-            "build-slides"
-          ]
+          "onMax": ["build-demo-landing", "build-landing", "build-slides"]
         },
         "REVISE_DEMO": {
-          "target": [
-            "write-demo-buyer"
-          ],
+          "target": ["write-demo-buyer"],
           "max": 5,
-          "onMax": [
-            "build-demo-landing",
-            "build-landing",
-            "build-slides"
-          ]
+          "onMax": ["build-demo-landing", "build-landing", "build-slides"]
         },
         "REVISE_BOTH": {
-          "target": [
-            "write-blocks",
-            "write-demo-buyer"
-          ],
+          "target": ["write-blocks", "write-demo-buyer"],
           "max": 5,
-          "onMax": [
-            "build-demo-landing",
-            "build-landing",
-            "build-slides"
-          ]
+          "onMax": ["build-demo-landing", "build-landing", "build-slides"]
         },
         "REVISE_CLAIMS": {
-          "target": [
-            "build-claims"
-          ],
+          "target": ["build-claims"],
           "max": 5,
-          "onMax": [
-            "build-demo-landing",
-            "build-landing",
-            "build-slides"
-          ]
+          "onMax": ["build-demo-landing", "build-landing", "build-slides"]
         },
         "REVISE_MEDIAPLAN": {
-          "target": [
-            "route-mediaplan"
-          ],
+          "target": ["route-mediaplan"],
           "max": 5,
-          "onMax": [
-            "build-demo-landing",
-            "build-landing",
-            "build-slides"
-          ]
+          "onMax": ["build-demo-landing", "build-landing", "build-slides"]
         },
         "REVISE_ALL": {
-          "target": [
-            "route-mediaplan",
-            "write-blocks",
-            "write-demo-buyer"
-          ],
+          "target": ["route-mediaplan", "write-blocks", "write-demo-buyer"],
           "max": 5,
-          "onMax": [
-            "build-demo-landing",
-            "build-landing",
-            "build-slides"
-          ]
+          "onMax": ["build-demo-landing", "build-landing", "build-slides"]
         }
       }
     },
@@ -283,9 +192,7 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "qa-demo-landing"
-          ]
+          "target": ["qa-demo-landing"]
         }
       }
     },
@@ -294,23 +201,15 @@
       "prompt": [],
       "transitions": {
         "PASS": {
-          "target": [
-            "approve-kp"
-          ]
+          "target": ["approve-kp"]
         },
         "REVISE": {
-          "target": [
-            "build-demo-landing"
-          ],
+          "target": ["build-demo-landing"],
           "max": 2,
-          "onMax": [
-            "approve-kp"
-          ]
+          "onMax": ["approve-kp"]
         },
         "FAILED": {
-          "target": [
-            "END"
-          ]
+          "target": ["END"]
         }
       }
     },
@@ -319,9 +218,7 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "qa-landing"
-          ]
+          "target": ["qa-landing"]
         }
       }
     },
@@ -330,23 +227,15 @@
       "prompt": [],
       "transitions": {
         "PASS": {
-          "target": [
-            "approve-kp"
-          ]
+          "target": ["approve-kp"]
         },
         "REVISE": {
-          "target": [
-            "build-landing"
-          ],
+          "target": ["build-landing"],
           "max": 2,
-          "onMax": [
-            "approve-kp"
-          ]
+          "onMax": ["approve-kp"]
         },
         "FAILED": {
-          "target": [
-            "END"
-          ]
+          "target": ["END"]
         }
       }
     },
@@ -355,36 +244,20 @@
       "prompt": [],
       "transitions": {
         "APPROVE": {
-          "target": [
-            "prepare-crm-update",
-            "evaluate-kp-against-expected"
-          ]
+          "target": ["prepare-crm-update", "evaluate-kp-against-expected"]
         },
         "REVISE_TEXT": {
-          "target": [
-            "write-blocks",
-            "write-demo-buyer"
-          ],
+          "target": ["write-blocks", "write-demo-buyer"],
           "max": 2,
-          "onMax": [
-            "END"
-          ]
+          "onMax": ["END"]
         },
         "REVISE_PAGES": {
-          "target": [
-            "build-demo-landing",
-            "build-landing",
-            "build-slides"
-          ],
+          "target": ["build-demo-landing", "build-landing", "build-slides"],
           "max": 2,
-          "onMax": [
-            "END"
-          ]
+          "onMax": ["END"]
         },
         "REJECT": {
-          "target": [
-            "END"
-          ]
+          "target": ["END"]
         }
       }
     },
@@ -393,9 +266,7 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "END"
-          ]
+          "target": ["END"]
         }
       }
     },
@@ -404,14 +275,10 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "qa-slides"
-          ]
+          "target": ["qa-slides"]
         },
         "FAILED": {
-          "target": [
-            "END"
-          ]
+          "target": ["END"]
         }
       }
     },
@@ -420,23 +287,15 @@
       "prompt": [],
       "transitions": {
         "PASS": {
-          "target": [
-            "approve-kp"
-          ]
+          "target": ["approve-kp"]
         },
         "REVISE": {
-          "target": [
-            "build-slides"
-          ],
+          "target": ["build-slides"],
           "max": 2,
-          "onMax": [
-            "approve-kp"
-          ]
+          "onMax": ["approve-kp"]
         },
         "FAILED": {
-          "target": [
-            "END"
-          ]
+          "target": ["END"]
         }
       }
     },
@@ -445,14 +304,10 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "END"
-          ]
+          "target": ["END"]
         },
         "SKIPPED": {
-          "target": [
-            "END"
-          ]
+          "target": ["END"]
         }
       }
     },
@@ -461,14 +316,10 @@
       "prompt": [],
       "transitions": {
         "DONE": {
-          "target": [
-            "END"
-          ]
+          "target": ["END"]
         },
         "SKIPPED": {
-          "target": [
-            "END"
-          ]
+          "target": ["END"]
         }
       }
     }

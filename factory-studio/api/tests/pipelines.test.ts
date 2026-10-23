@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { fakeTmux } from './helpers.js';
+import { fakeHerdr } from './helpers.js';
 import {
   CANONICAL_PIPELINE,
   buildTestApp,
@@ -18,7 +18,7 @@ describe('pipelines', () => {
 
   beforeAll(async () => {
     work = await makeWorkDir();
-    api = await listen(buildTestApp(work, fakeTmux().client));
+    api = await listen(buildTestApp(work, fakeHerdr().client));
     base = `${api.origin}/api/v1`;
   });
   afterAll(async () => {
@@ -32,7 +32,7 @@ describe('pipelines', () => {
       expect(res.status).toBe(200);
       expect(res.headers.get('cache-control')).toBe('no-store');
       const body = (await res.json()) as {
-        pipelines: { id: string; path: string; pipeline: { id: string } }[];
+        pipelines: { id: string; path: string; pipeline: { id: string }; params: unknown[] }[];
       };
       expect(body.pipelines.map((p): string => p.id)).toEqual([
         'canonical-factory',
@@ -48,7 +48,17 @@ describe('pipelines', () => {
         id: 'canonical-factory',
         path: 'factories/canonical-factory/pipeline.json',
         pipeline: { id: 'canonical-factory', hooks: CANONICAL_PIPELINE.hooks },
+        description: 'test pipeline',
+        params: [
+          { name: 'topic', type: 'string', default: '', required: true, main: true },
+          { name: 'sub_questions', type: 'number', default: 5, required: false, main: false },
+          { name: 'ratio', type: 'number', default: 0.5, required: false, main: false },
+          { name: 'deep', type: 'boolean', default: false, required: false, main: false },
+          { name: 'language', type: 'string', default: 'English', required: false, main: false },
+        ],
       });
+      expect(body.pipelines[1]).toMatchObject({ params: [] });
+      expect(body.pipelines[1]).not.toHaveProperty('description');
     });
   });
 

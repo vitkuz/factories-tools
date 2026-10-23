@@ -1,10 +1,26 @@
 import type { z } from 'zod';
 import type { DocumentAnswer, WriteAnswer } from '../documents/documents.types.js';
 import type { DiscoveredPipeline } from '../pipelines/pipelines.types.js';
-import type { costFileSchema, runStateFileSchema } from './runs.schema.js';
+import type {
+  costFileSchema,
+  runSessionStampSchema,
+  runStateFileSchema,
+  sessionRunLinkSchema,
+} from './runs.schema.js';
 
 export type RunStateFile = z.infer<typeof runStateFileSchema>;
 export type CostFile = z.infer<typeof costFileSchema>;
+export type RunSessionStamp = z.infer<typeof runSessionStampSchema>;
+export type SessionRunLink = z.infer<typeof sessionRunLinkSchema>;
+
+/** What is known about the session that asks: its Claude session id, and its studio meta. */
+export interface SessionRunQuery {
+  /** The harness's own session id, from the question hook; the recorder stamps runs with it. */
+  claudeSessionId?: string;
+  /** From the studio's session meta: only a session the studio started has these. */
+  factoryId?: string;
+  startedAt?: string;
+}
 
 /** One `run/<pipelineId>/<runId>` folder, as the app's run-list parser expects it. */
 export interface RunRecord {

@@ -3,15 +3,20 @@ import { validateBody } from '../../../shared/middleware/validate.js';
 import { MAX_DOCUMENT_BYTES } from '../../documents/documents.utils.js';
 import {
   listSessionsControllerFactory,
+  replySessionControllerFactory,
   startSessionControllerFactory,
   stopSessionControllerFactory,
 } from '../controllers/index.js';
-import { startSessionPayloadSchema, stopSessionPayloadSchema } from '../sessions.schema.js';
+import {
+  replySessionPayloadSchema,
+  startSessionPayloadSchema,
+  stopSessionPayloadSchema,
+} from '../sessions.schema.js';
 import type { SessionUsecases } from '../sessions.types.js';
 
 /**
- * E9–E11. Path, method and validation only; the API key is checked one level up. The JSON
- * parser is attached to the two routes that take a JSON body, never app-wide.
+ * E9–E11 and the reply route. Path, method and validation only; the API key is checked one level up. The JSON
+ * parser is attached to the routes that take a JSON body, never app-wide.
  */
 export const createSessionsRoutes = (usecases: SessionUsecases): Router => {
   const router: Router = Router();
@@ -28,6 +33,12 @@ export const createSessionsRoutes = (usecases: SessionUsecases): Router => {
     jsonBody,
     validateBody(stopSessionPayloadSchema),
     stopSessionControllerFactory(usecases),
+  );
+  router.post(
+    '/sessions/reply',
+    jsonBody,
+    validateBody(replySessionPayloadSchema),
+    replySessionControllerFactory(usecases),
   );
   return router;
 };

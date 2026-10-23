@@ -9,28 +9,27 @@
 /* The four numbers the tool exists to answer, before anything else on the page. */
 .screen-runs .totals,
 .screen-sessions .totals {
-  display: flex;
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 12px;
 }
 
 .screen-runs .figure,
 .screen-sessions .figure {
-  flex: 1 1 120px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 14px 16px;
+  gap: 4px;
+  padding: 16px 18px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: var(--radius);
+  border-radius: 8px;
 }
 
 .screen-runs .figure-value,
 .screen-sessions .figure-value {
-  font-size: 24px;
-  font-weight: 600;
-  line-height: 1.1;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
   font-variant-numeric: tabular-nums;
 }
 
@@ -44,12 +43,6 @@
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-2);
-}
-
-.screen-runs .figure-note,
-.screen-sessions .figure-note {
-  font-size: 11px;
   color: var(--ink-2);
 }
 
@@ -121,6 +114,35 @@
 .screen-sessions .grid .money {
   font-variant-numeric: tabular-nums;
   color: var(--st-completed);
+}
+
+/* A table that fills a panel edge to edge: roomier rows, the outer cells inset like the panel. */
+.screen-runs .grid--panel {
+  min-width: 640px;
+}
+
+.screen-runs .grid--panel th {
+  padding: 12px;
+  letter-spacing: 0.08em;
+}
+
+.screen-runs .grid--panel td {
+  padding: 12px;
+  border-bottom-color: color-mix(in srgb, var(--line) 55%, var(--panel));
+}
+
+.screen-runs .grid--panel tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.screen-runs .grid--panel th:first-child,
+.screen-runs .grid--panel td:first-child {
+  padding-left: 20px;
+}
+
+.screen-runs .grid--panel th:last-child,
+.screen-runs .grid--panel td:last-child {
+  padding-right: 20px;
 }
 
 /* An incomplete figure states its own incompleteness, under the figure. */

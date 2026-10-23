@@ -13,6 +13,7 @@ import {
 import {
   pipelineListSchema,
   sessionListSchema,
+  startSessionPayloadSchema,
   startedSessionSchema,
   stoppedSchema,
 } from '../../features/sessions/sessions.schema';
@@ -179,10 +180,11 @@ export const writeRunDocument = async (ref: RunDocRef, text: string): Promise<Sa
   }
 };
 
-/** E9 */
+/** E9: the payload is checked by the API's own rules before it leaves. */
 export const startSession = async (payload: StartSessionPayload): Promise<StartedSession> => {
   try {
-    const { data }: AxiosResponse<unknown> = await http.post(sessionsPath(), payload);
+    const body: StartSessionPayload = startSessionPayloadSchema.parse(payload);
+    const { data }: AxiosResponse<unknown> = await http.post(sessionsPath(), body);
     return startedSessionSchema.parse(data);
   } catch (error: unknown) {
     return failWith(error);

@@ -8,7 +8,7 @@ import { DocGroup, StepCard } from '../../../../shared/graph';
 /** Footer cells: left (result / running / skipped word), right (attempts). */
 interface Footer {
   left: string;
-  leftTone: 'result' | 'running' | 'skipped' | 'none';
+  leftTone: 'result' | 'running' | 'skipped' | 'needs-you' | 'none';
   right: string;
 }
 
@@ -19,6 +19,8 @@ export const footerFor = (data: StepNodeData): Footer => {
   if (!data.hasState || data.status === 'none') return { left: '', leftTone: 'none', right: '' };
   if (data.status === 'SKIPPED') return { left: 'skipped', leftTone: 'skipped', right: '' };
   if (data.status === 'waiting') return { left: '', leftTone: 'none', right: '' };
+  // Claude's question waits in the studio: the card says who it waits for, not just "running".
+  if (data.needsYou) return { left: 'needs you', leftTone: 'needs-you', right: '' };
   if (data.status === 'RUNNING' || data.status === 'RETRYING') {
     const full: string = data.human ? '' : formatAttempts(data.attempts, data.max, true);
     // A cost in the middle cell eats into the same budget.
@@ -78,14 +80,20 @@ const durationText = (data: StepNodeData, now: number): DurationLine => {
 
 function StepNode({ data }: NodeProps<StepNodeType>) {
   const now: number = useNow(data.detailed && data.status === 'RUNNING' ? 1000 : null);
-  const dotStyle: CSSProperties = { background: `var(${STATUS_META[data.status].token})` };
+  const dotStyle: CSSProperties = {
+    background: `var(${data.needsYou ? STATUS_META.waiting.token : STATUS_META[data.status].token})`,
+  };
   const foot: Footer = footerFor(data);
   const footEmpty: boolean = foot.left === '' && foot.right === '' && data.costUSD === null;
   // A run without state has nothing to time: the definition view carries no duration line.
   const duration: DurationLine | null =
     data.detailed && data.hasState ? durationText(data, now) : null;
   const dot: ReactNode = (
-    <span className="status-dot" style={dotStyle} aria-label={STATUS_META[data.status].label} />
+    <span
+      className="status-dot"
+      style={dotStyle}
+      aria-label={data.needsYou ? 'needs you' : STATUS_META[data.status].label}
+    />
   );
 
   return (
@@ -103,6 +111,7 @@ function StepNode({ data }: NodeProps<StepNodeType>) {
       }
       human={data.human}
       detailed={data.detailed}
+      className={data.needsYou ? 'is-needs-you' : undefined}
       status={data.status}
     >
       {duration && (

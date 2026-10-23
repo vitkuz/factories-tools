@@ -5,6 +5,7 @@ import { isActiveRun } from './runs.utils';
 import type { DashboardData, Pipeline, RunRecord } from './runs.types';
 import { navigate, writeView, type RunRef } from '../../shared/lib/route';
 import { usePolling } from '../../shared/lib/polling';
+import { questionsForRun, titleWithCount, useQuestions, type PendingQuestion } from '../sessions';
 import { isTypingTarget } from '../../shared/lib/keys';
 import ErrorScreen from './components/ErrorScreen';
 import { RunView } from './components/RunView';
@@ -46,14 +47,20 @@ export const RunsScreen = ({ feed, run: requested, view }: RunsScreenProps): Rea
   const missing: RunRef | null = requested !== null && !found && feed.settled ? requested : null;
   const run: RunRecord | undefined = requested ? (found ?? pickDefaultRun(data)) : undefined;
   const pipeline: Pipeline | null = run ? resolvePipeline(data)(run) : null;
+  // Claude's questions waiting in the studio: all of them for the tab title, this run's for the graph.
+  const asked: PendingQuestion[] = useQuestions().state.pending;
+  const asking: boolean = run !== undefined && questionsForRun(asked, run).length > 0;
 
   // Poll fast while the shown run is moving, slowly otherwise.
   usePolling(feed.refresh, isActiveRun(run) ? FAST_POLL_MS : SLOW_POLL_MS);
 
   useEffect(() => {
     if (pending) return;
-    document.title = run && requested ? `${run.runId} — ${APP_NAME}` : `Runs — ${APP_NAME}`;
-  }, [run, requested, pending]);
+    document.title = titleWithCount(
+      run && requested ? `${run.runId} — ${APP_NAME}` : `Runs — ${APP_NAME}`,
+      asked.length,
+    );
+  }, [run, requested, pending, asked.length]);
 
   const toggleView = useCallback(
     (): void => writeView(view === 'detailed' ? 'compact' : 'detailed'),
@@ -73,17 +80,17 @@ export const RunsScreen = ({ feed, run: requested, view }: RunsScreenProps): Rea
     navigate({ screen: 'runs', run: ref });
   }, []);
 
-  const backToIndex = useCallback((): void => navigate({ screen: 'runs', run: null }), []);
-
-  // Rebuilt only when the run object, its pipeline object or the card mode changes (see mergeStable).
+  // Rebuilt only when the run object, its pipeline object, the card mode or `asking` changes (see mergeStable).
   const graph: GraphResult = useMemo(
     () =>
       pipeline
-        ? buildGraph(pipeline, { detailed: view === 'detailed', cost: run?.cost ?? null })(
-            run?.state ?? null,
-          )
+        ? buildGraph(pipeline, {
+            detailed: view === 'detailed',
+            cost: run?.cost ?? null,
+            asking,
+          })(run?.state ?? null)
         : EMPTY_GRAPH,
-    [pipeline, run, view],
+    [pipeline, run, view, asking],
   );
 
   // A list that failed its schema and nothing on screen to keep: say so, draw nothing.
@@ -140,8 +147,8 @@ export const RunsScreen = ({ feed, run: requested, view }: RunsScreenProps): Rea
             : null
         }
         view={view}
+        asking={asking}
         onToggleView={toggleView}
-        onBackToIndex={backToIndex}
       />
     </div>
   );

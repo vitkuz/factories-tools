@@ -1,4 +1,6 @@
 import path from 'node:path';
+import { paramNameSchema, paramValueSchema } from './pipelines.schema.js';
+import type { FactoryParam, ParamValue } from './pipelines.types.js';
 
 /** Where the shared factory graphs live: `factories/<id>/pipeline.json` (+ per-factory extras) — the kit, a git submodule. */
 export const FACTORIES_DIR = 'factories';
@@ -133,4 +135,39 @@ export const knowledgeBase = (rawDocPath: string, ctx: KnowledgeContext): Knowle
     return { base: skill, rest: docPath.slice('{{skillPath}}/'.length) };
   }
   return { base: ctx.pipelineDir, rest: docPath };
+};
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * The declared params of a pipeline, in declaration order, typed by their default. A name the
+ * schema would refuse, or a default that is not text, a number or a boolean, is left out: the
+ * form cannot offer it and the runner would refuse the pipeline anyway. Pure.
+ */
+export const extractParams = (pipeline: unknown): FactoryParam[] => {
+  const params: unknown = isRecord(pipeline) ? pipeline.params : undefined;
+  if (!isRecord(params)) return [];
+  // The runner's main param is the first one declared, whatever the form can offer.
+  const first: string | undefined = Object.keys(params)[0];
+  return Object.entries(params)
+    .filter(
+      ([name, value]: [string, unknown]): boolean =>
+        paramNameSchema.safeParse(name).success && paramValueSchema.safeParse(value).success,
+    )
+    .map(([name, value]: [string, unknown]): FactoryParam => ({
+      name,
+      type: typeof value as FactoryParam['type'],
+      default: value as ParamValue,
+      required: value === '',
+      main: name === first,
+    }));
+};
+
+/** `pipeline.description` when it is a non-empty string. Pure. */
+export const extractDescription = (pipeline: unknown): string | undefined => {
+  const description: unknown = isRecord(pipeline) ? pipeline.description : undefined;
+  return typeof description === 'string' && description.trim() !== ''
+    ? description.trim()
+    : undefined;
 };

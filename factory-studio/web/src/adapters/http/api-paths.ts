@@ -35,3 +35,6 @@ export const scriptPath = (path: string): string => `${API_PREFIX}/scripts/${enc
 export const sessionsPath = (): string => `${API_PREFIX}/sessions`;
 
 export const stopSessionPath = (): string => `${API_PREFIX}/sessions/stop`;
+
+/** The WebSocket of the API (path only; the scheme and host come from the page). */
+export const socketPath = (): string => `${API_PREFIX}/ws`;

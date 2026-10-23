@@ -19,6 +19,7 @@ import Inspector from './Inspector';
 import NoPipeline from './NoPipeline';
 import { PlainView } from './PlainView';
 import { RunHeader } from './RunHeader';
+import { RunQuestionPanel } from '../../sessions';
 
 const withClass = (cls: string | undefined, extra: string): string =>
   [cls, extra].filter(Boolean).join(' ');
@@ -31,8 +32,9 @@ export interface RunViewProps {
   /** The run the link asked for when it is not on disk — `run` is then the one shown instead. */
   missing: RunRef | null;
   view: ViewMode;
+  /** Claude's question for this run waits in the studio: the inspector opens with it on top. */
+  asking: boolean;
   onToggleView: () => void;
-  onBackToIndex: () => void;
 }
 
 /**
@@ -47,8 +49,8 @@ export const RunView = ({
   graph,
   missing,
   view,
+  asking,
   onToggleView,
-  onBackToIndex,
 }: RunViewProps): ReactNode => {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -112,7 +114,7 @@ export const RunView = ({
 
   return (
     <>
-      <RunHeader run={run} feed={feed} onBackToIndex={onBackToIndex} />
+      <RunHeader run={run} feed={feed} />
 
       <DocOpenContext.Provider value={openDoc}>
         <main className="main">
@@ -159,8 +161,12 @@ export const RunView = ({
             run={run}
             missing={missing}
             selectedId={selectedId}
-            feed={feed}
             onSelectStep={setSelectedId}
+            question={
+              asking ? (
+                <RunQuestionPanel run={{ pipelineId: run.pipelineId, runId: run.runId }} />
+              ) : null
+            }
           />
         </main>
       </DocOpenContext.Provider>

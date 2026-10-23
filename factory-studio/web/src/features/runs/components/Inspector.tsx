@@ -12,7 +12,6 @@ import {
   type StepDocs,
   type StepStatusKey,
 } from '../lib/graph';
-import type { RunsFeed } from '../hooks/use-runs-feed';
 import { useNow } from '../../../shared/lib/polling';
 import { skipReason } from '../lib/history';
 import {
@@ -66,7 +65,6 @@ import type {
 import StatusBadge, { Badge } from './StatusBadge';
 import LogList from './LogList';
 import { DocLink } from '../../../shared/document-viewer';
-import { FeedFooter } from './LiveStatus';
 import { readJson, writeJson } from '../../../shared/lib/storage';
 import { CollapseToggle } from '../../../shared/components/CollapseToggle';
 
@@ -84,8 +82,9 @@ interface Props {
   /** The run the link asked for when it is not on disk — `run` is then the one shown instead. */
   missing?: RunRef | null;
   selectedId: string | null;
-  feed: RunsFeed;
   onSelectStep: (slug: string) => void;
+  /** Claude's question for this run, drawn first; while there is one the panel stays open. */
+  question?: ReactNode;
 }
 
 function Row({ k, v, title }: { k: string; v: ReactNode; title?: string }) {
@@ -407,8 +406,8 @@ export default function Inspector({
   run,
   missing = null,
   selectedId,
-  feed,
   onSelectStep,
+  question = null,
 }: Props) {
   const state = run.state;
   const now: number = useNow(1000);
@@ -428,7 +427,8 @@ export default function Inspector({
     writeJson(STORAGE_KEY, { collapsed: next });
   };
 
-  if (collapsed) {
+  // A question waits for an answer: the folded preference gives way until it is answered.
+  if (collapsed && question === null) {
     return (
       <div className="runs-rail is-right">
         <CollapseToggle expanded={false} side="right" label="run details" onToggle={toggle} />
@@ -495,6 +495,7 @@ export default function Inspector({
   return (
     <aside className="inspector">
       <div className="inspector-scroll">
+        {question}
         <section className="pane">
           {missing && (
             <p className="run-missing" role="status">
@@ -796,7 +797,6 @@ export default function Inspector({
           )}
         </section>
       </div>
-      <FeedFooter feed={feed} />
     </aside>
   );
 }

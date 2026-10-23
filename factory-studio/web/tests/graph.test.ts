@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
-import { buildGraph, type GraphResult } from '../src/features/runs/lib/graph';
+import { buildGraph, type GraphResult, type StepNodeData } from '../src/features/runs/lib/graph';
+import type { RunState } from '../src/features/runs/lib/types';
+import { footerFor } from '../src/features/runs/components/nodes/StepNode';
 import { isOffRow, type EdgeData, type GraphEdge } from '../src/shared/graph';
 import { kpPipeline, kpState } from './helpers';
 
@@ -75,5 +77,39 @@ describe('buildGraph without a run (no state.json yet)', () => {
       quiet: true,
     });
     expect(quiet(graph)).toHaveLength(28);
+  });
+});
+
+describe('buildGraph while Claude asks in the studio', () => {
+  // The human gate `review-inputs` and the agent step `get-transcript` both running.
+  const running = (): RunState => {
+    const state: RunState = kpState();
+    const steps: RunState['steps'] = Object.fromEntries(
+      Object.entries(state.steps).map(([slug, st]) => [
+        slug,
+        slug === 'review-inputs' || slug === 'get-transcript' ? { ...st, status: 'RUNNING' } : st,
+      ]),
+    ) as RunState['steps'];
+    return { ...state, status: 'RUNNING', steps };
+  };
+  const dataOf = (graph: GraphResult, slug: string): StepNodeData =>
+    graph.nodes.find((n) => n.id === slug)?.data as StepNodeData;
+
+  it('marks only the running human step, and only while a question waits', () => {
+    const asking: GraphResult = buildGraph(kpPipeline(), { detailed: false, asking: true })(
+      running(),
+    );
+    expect(dataOf(asking, 'review-inputs').needsYou).toBe(true);
+    expect(dataOf(asking, 'get-transcript').needsYou).toBe(false);
+    expect(dataOf(asking, 'approve-kp').needsYou).toBe(false);
+    expect(footerFor(dataOf(asking, 'review-inputs'))).toEqual({
+      left: 'needs you',
+      leftTone: 'needs-you',
+      right: '',
+    });
+
+    const quiet: GraphResult = buildGraph(kpPipeline(), { detailed: false })(running());
+    expect(dataOf(quiet, 'review-inputs').needsYou).toBe(false);
+    expect(footerFor(dataOf(quiet, 'review-inputs')).left).toBe('running');
   });
 });

@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { fakeTmux } from './helpers.js';
+import { fakeHerdr } from './helpers.js';
 import { buildTestApp, listen, makeWorkDir, type Listening, type WorkDir } from './work-dir.js';
 
 const API_KEY = 'test-key-0123456789abcdef';
@@ -14,9 +14,9 @@ describe('app', () => {
 
   beforeAll(async () => {
     work = await makeWorkDir();
-    open = await listen(buildTestApp(work, fakeTmux().client));
-    locked = await listen(buildTestApp(work, fakeTmux().client, { apiKey: API_KEY }));
-    bare = await listen(buildTestApp(work, fakeTmux().client, { webDist: null }));
+    open = await listen(buildTestApp(work, fakeHerdr().client));
+    locked = await listen(buildTestApp(work, fakeHerdr().client, { apiKey: API_KEY }));
+    bare = await listen(buildTestApp(work, fakeHerdr().client, { webDist: null }));
   });
   afterAll(async () => {
     await Promise.all([open.close(), locked.close(), bare.close()]);

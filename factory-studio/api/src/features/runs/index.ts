@@ -5,14 +5,28 @@ export {
   writeRunDocumentFactory,
 } from './usecases/index.js';
 export { collectRunRecordsFactory, locateRunDirFactory } from './services/index.js';
-export { costFileSchema, runPipelineFileSchema, runStateFileSchema } from './runs.schema.js';
-export { pipelinesById, runCreatedAt, sortRuns, statePipelineId } from './runs.utils.js';
+export {
+  costFileSchema,
+  runPipelineFileSchema,
+  runStateFileSchema,
+  sessionRunLinkSchema,
+} from './runs.schema.js';
+export {
+  findSessionRun,
+  pipelinesById,
+  runCreatedAt,
+  runSessionId,
+  sortRuns,
+  statePipelineId,
+} from './runs.utils.js';
 export type {
   CostFile,
   ReadRunDocumentResult,
   RunRecord,
   RunServices,
   RunStateFile,
+  SessionRunLink,
+  SessionRunQuery,
   RunUsecases,
   RunsPayload,
   WriteRunDocumentResult,

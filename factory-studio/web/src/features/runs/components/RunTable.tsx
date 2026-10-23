@@ -1,4 +1,4 @@
-import type { KeyboardEvent, MouseEvent, ReactNode } from 'react';
+import type { CSSProperties, KeyboardEvent, MouseEvent, ReactNode } from 'react';
 import type { RunOverview } from '../runs.types';
 import type { RunRef } from '../../../shared/lib/route';
 import { formatDay, formatDurationMs, formatUSD } from '../lib/format';
@@ -10,26 +10,17 @@ interface RunTableProps {
 
 const seconds = (s: number | null): string => (s === null ? '—' : formatDurationMs(s * 1000));
 
-/** The status word as a CSS token: `no state` → `no-state`. */
-const statusToken = (status: string): string => status.toLowerCase().replace(/\s+/g, '-');
+/** The status word in its colour; a run without state reads quietly, its dot grey. */
+const statusStyle = (run: RunOverview): CSSProperties | undefined =>
+  run.hasState ? { color: `var(${run.statusToken})` } : undefined;
 
-/** Every run, newest first; a row opens the run's graph. */
+/** The runs of one pipeline, newest first; a row opens the run's graph. */
 export const RunTable = ({ runs, onOpen }: RunTableProps): ReactNode => (
   <div className="grid-scroll">
-    <table className="grid">
-      <colgroup>
-        <col />
-        <col style={{ width: '170px' }} />
-        <col style={{ width: '150px' }} />
-        <col style={{ width: '70px' }} />
-        <col style={{ width: '80px' }} />
-        <col style={{ width: '80px' }} />
-        <col style={{ width: '110px' }} />
-      </colgroup>
+    <table className="grid grid--panel">
       <thead>
         <tr>
           <th>Run</th>
-          <th>Pipeline</th>
           <th>Status</th>
           <th className="numeric">Steps</th>
           <th className="numeric">Time</th>
@@ -40,6 +31,7 @@ export const RunTable = ({ runs, onOpen }: RunTableProps): ReactNode => (
       <tbody>
         {runs.map((run: RunOverview) => {
           const ref: RunRef = { pipelineId: run.pipelineId, runId: run.runId };
+          const dotStyle: CSSProperties = { background: `var(${run.statusToken})` };
           return (
             <tr
               key={`${run.pipelineId}/${run.runId}`}
@@ -66,23 +58,27 @@ export const RunTable = ({ runs, onOpen }: RunTableProps): ReactNode => (
                   <span className="mono">{run.runId}</span>
                 </button>
               </td>
-              <td className="mono muted">{run.pipelineId}</td>
-              <td>
-                <span className={`status status--${statusToken(run.status)}`}>{run.status}</span>
-                {run.stepsSkipped > 0 ? (
-                  <span className="chip chip--skipped">{run.stepsSkipped} skipped</span>
-                ) : null}
+              <td className="nowrap">
+                <span className="run-status">
+                  <span className="status-dot" style={dotStyle} aria-hidden="true" />
+                  <span className="run-status-word" style={statusStyle(run)}>
+                    {run.status}
+                  </span>
+                  {run.stepsSkipped > 0 ? (
+                    <span className="chip chip--skipped">{run.stepsSkipped} skipped</span>
+                  ) : null}
+                </span>
               </td>
-              <td className="numeric">{run.steps}</td>
+              <td className="numeric">{run.steps > 0 ? run.steps : '—'}</td>
               <td className="numeric muted">{seconds(run.durationSeconds)}</td>
-              <td className="numeric money">
+              <td className="numeric money mono">
                 {run.priced && run.costUsd !== null ? (
                   formatUSD(run.costUsd)
                 ) : (
                   <span className="muted">unpriced</span>
                 )}
               </td>
-              <td className="muted nowrap">{formatDay(run.startedAt)}</td>
+              <td className="muted nowrap">{formatDay(run.startedAt) || '—'}</td>
             </tr>
           );
         })}

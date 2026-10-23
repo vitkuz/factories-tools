@@ -1,5 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
-import { fakeTmux } from './helpers.js';
+import { fakeHerdr } from './helpers.js';
 import {
   buildTestApp,
   listen,
@@ -17,7 +17,7 @@ describe('scripts', () => {
 
   beforeAll(async () => {
     work = await makeWorkDir();
-    api = await listen(buildTestApp(work, fakeTmux().client));
+    api = await listen(buildTestApp(work, fakeHerdr().client));
     base = `${api.origin}/api/v1`;
   });
   afterAll(async () => {

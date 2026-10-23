@@ -1,47 +1,61 @@
-import { useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import type { RunsFeed } from '../hooks/use-runs-feed';
-import type { Overview, RunGroup, RunOverview } from '../runs.types';
-import { groupByPipeline, overviewOf } from '../runs.utils';
+import type { Overview, PipelineOverview, RunOverview } from '../runs.types';
+import { overviewOf, pickPipeline, runsOfPipeline, sortByLastRun } from '../runs.utils';
 import type { RunRef } from '../../../shared/lib/route';
 import { useNow } from '../../../shared/lib/polling';
+import { readJson, writeJson } from '../../../shared/lib/storage';
 import { TopbarContent } from '../../../shared/components/TopbarContent';
-import LiveStatus, { FeedFooter } from './LiveStatus';
+import { RunsFeedBar } from './LiveStatus';
 import NoRuns from './NoRuns';
-import { PipelineTable } from './PipelineTable';
-import { RunList } from './RunList';
-import { RunTable } from './RunTable';
+import { PipelineList } from './PipelineList';
+import { PipelineRuns } from './PipelineRuns';
 import { Totals } from './Totals';
+
+const STORAGE_KEY = 'studio.runs.home';
+
+interface HomePrefs {
+  pipelineId: string | null;
+}
 
 interface RunsIndexProps {
   feed: RunsFeed;
   onOpen: (run: RunRef) => void;
 }
 
-/** The index's line in the top bar: the Runs tab names the screen, so only the live indicator. */
+const readPrefs = (): HomePrefs => readJson<HomePrefs>(STORAGE_KEY, { pipelineId: null });
+
+/** The index's line in the top bar: when the list was read, the live indicator, Refresh. */
 const IndexBar = ({ feed }: { feed: RunsFeed }): ReactNode => (
   <TopbarContent>
     <div className="subbar">
-      <LiveStatus feed={feed} active={false} />
+      <RunsFeedBar feed={feed} active={false} />
     </div>
   </TopbarContent>
 );
 
-/** The index: totals, the per-pipeline and per-run tables, and the grouped list. */
+/**
+ * The index: the totals over two columns — the pipelines, newest last run first, and the
+ * runs of the one picked (the newest by default; the pick is remembered in localStorage).
+ */
 export const RunsIndex = ({ feed, onOpen }: RunsIndexProps): ReactNode => {
   const now: number = useNow(30_000);
-  const [filter, setFilter] = useState<string | null>(null);
+  const [wanted, setWanted] = useState<string | null>(() => readPrefs().pipelineId);
   const overview: Overview = useMemo((): Overview => overviewOf(feed.data, now), [feed.data, now]);
-  const groups: RunGroup[] = useMemo(
-    (): RunGroup[] => groupByPipeline(feed.data.runs),
-    [feed.data],
+  const pipelines: PipelineOverview[] = useMemo(
+    (): PipelineOverview[] => sortByLastRun(overview.pipelines),
+    [overview],
   );
+  const selected: PipelineOverview | null = pickPipeline(wanted)(pipelines);
   const runs: RunOverview[] = useMemo(
-    (): RunOverview[] =>
-      filter === null
-        ? overview.runs
-        : overview.runs.filter((run: RunOverview): boolean => run.pipelineId === filter),
-    [overview, filter],
+    (): RunOverview[] => (selected ? runsOfPipeline(selected.pipelineId)(overview.runs) : []),
+    [overview, selected],
   );
+
+  const select = useCallback((pipelineId: string): void => {
+    setWanted(pipelineId);
+    writeJson(STORAGE_KEY, { pipelineId });
+  }, []);
 
   if (feed.data.runs.length === 0 && feed.settled) {
     return (
@@ -57,22 +71,15 @@ export const RunsIndex = ({ feed, onOpen }: RunsIndexProps): ReactNode => {
       <IndexBar feed={feed} />
       <div className="runs-index">
         <Totals overview={overview} />
-        <section className="runs-section" aria-label="Pipelines">
-          <h3 className="panel-title">Pipelines</h3>
-          <PipelineTable pipelines={overview.pipelines} selected={filter} onFilter={setFilter} />
-        </section>
-        <section className="runs-section" aria-label="Runs table">
-          <h3 className="panel-title">
-            Runs{filter ? <span className="panel-note"> · {filter}</span> : null}
-          </h3>
-          <RunTable runs={runs} onOpen={onOpen} />
-        </section>
-        <section className="runs-section" aria-label="Runs by pipeline">
-          <h3 className="panel-title">By pipeline</h3>
-          <RunList groups={groups} onOpen={onOpen} />
-        </section>
+        <div className="runs-home">
+          <PipelineList
+            pipelines={pipelines}
+            selected={selected?.pipelineId ?? null}
+            onSelect={select}
+          />
+          {selected ? <PipelineRuns pipeline={selected} runs={runs} onOpen={onOpen} /> : null}
+        </div>
       </div>
-      <FeedFooter feed={feed} />
     </>
   );
 };

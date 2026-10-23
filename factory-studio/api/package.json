@@ -2,7 +2,7 @@
   "name": "@factory-studio/api",
   "private": true,
   "version": "0.1.0",
-  "description": "Factory Studio API: runs, run documents, read-only pipeline listing and knowledge, and tmux harness sessions over one local origin.",
+  "description": "Factory Studio API: runs, run documents, read-only pipeline listing and knowledge, and herdr harness sessions over one local origin.",
   "type": "module",
   "main": "dist/server.js",
   "scripts": {
@@ -12,8 +12,8 @@
     "start": "node dist/server.js",
     "dev": "tsx watch src/server.ts",
     "test": "vitest run",
-    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"*.json\"",
-    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"*.json\""
+    "format": "prettier --write \"src/**/*.ts\" \"tests/**/*.ts\" \"hooks/*.mjs\" \"*.json\"",
+    "format:check": "prettier --check \"src/**/*.ts\" \"tests/**/*.ts\" \"hooks/*.mjs\" \"*.json\""
   },
   "engines": {
     "node": ">=20.19"
@@ -23,11 +23,13 @@
     "express": "^5.1.0",
     "uuid": "^13.0.0",
     "winston": "^3.19.0",
+    "ws": "^8.22.0",
     "zod": "^4.1.0"
   },
   "devDependencies": {
     "@types/express": "^5.0.3",
     "@types/node": "^24.6.0",
+    "@types/ws": "^8.18.2",
     "prettier": "^3.6.2",
     "tsx": "^4.20.5",
     "typescript": "^5.9.2",

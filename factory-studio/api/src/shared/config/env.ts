@@ -14,7 +14,13 @@ const envSchema = z.object({
   HOST: z.string().min(1).default('127.0.0.1'),
   /** Optional. When set, every /api/v1 route needs a matching x-api-key (BR46). */
   API_KEY: z.string().min(16, 'API_KEY must be at least 16 characters').optional(),
-  TMUX_BIN: z.string().min(1).default('/usr/bin/tmux'),
+  /** The herdr binary that hosts the harness sessions. */
+  HERDR_BIN: z
+    .string()
+    .min(1)
+    .default(path.join(os.homedir(), '.local', 'bin', 'herdr')),
+  /** The named herdr session (its own headless server) every factory session lives in. */
+  HERDR_SESSION: z.string().min(1).default('factory-studio'),
   /** Where factories/, .claude/skills/ and run/ live and where harnesses start. */
   WORK_DIR: z.string().min(1).default(REPO_ROOT),
   /** Where each session's prompt is written for the harness to read. */

@@ -30,7 +30,7 @@ export default defineConfig(({ mode }: { mode: string }): UserConfig => {
       // project's port.
       port: webPort,
       strictPort: true,
-      proxy: { '/api': `http://127.0.0.1:${apiPort}` },
+      proxy: { '/api': { target: `http://127.0.0.1:${apiPort}`, ws: true } },
     },
     build: {
       outDir: 'dist',

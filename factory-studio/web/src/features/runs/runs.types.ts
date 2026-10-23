@@ -22,6 +22,8 @@ export interface RunOverview {
   runId: string;
   /** The run status word, or `no state` for a run without state.json. */
   status: string;
+  /** CSS custom property carrying the status colour (`--st-pending` for a run without state). */
+  statusToken: string;
   steps: number;
   stepsCompleted: number;
   stepsSkipped: number;

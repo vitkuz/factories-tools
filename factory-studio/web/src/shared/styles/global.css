@@ -177,7 +177,6 @@ select {
 }
 
 .live-status {
-  margin-left: auto;
   display: inline-flex;
   align-items: center;
   gap: 8px;
@@ -705,22 +704,38 @@ select {
   font-size: 12px;
 }
 
-/* ---- footer strip: updated N s ago + Refresh ---- */
-.feed-footer {
+/* ---- the feed group: updated N s ago, the live indicator, Refresh ---- */
+.feed-bar {
+  margin-left: auto;
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  padding: 10px 20px;
-  border-top: 1px solid var(--line);
-  font-size: 12px;
-  color: var(--ink-2);
+  gap: 16px;
   flex: 0 0 auto;
 }
 
 .feed-detail {
   min-width: 0;
   overflow-wrap: anywhere;
+}
+
+.feed-bar .feed-detail {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.feed-bar .feed-refresh {
+  height: 32px;
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+/* a badge before the group takes the free space itself, so the two stay together */
+.subbar .count-badge:has(+ .feed-bar) {
+  margin-left: auto;
+}
+
+.subbar .count-badge + .feed-bar {
+  margin-left: 0;
 }
 
 .feed-refresh {
@@ -974,6 +989,14 @@ select {
   outline-offset: -5px;
 }
 
+/* Claude's question for this step waits in the studio: the waiting tone, full strength */
+.step-node.is-needs-you {
+  border-color: var(--st-waiting);
+  background: color-mix(in srgb, var(--st-waiting) 10%, var(--raised));
+  outline-color: var(--st-waiting);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--st-waiting) 30%, transparent);
+}
+
 .step-head {
   display: flex;
   align-items: center;
@@ -1159,6 +1182,12 @@ select {
   color: var(--st-running);
 }
 
+.step-result--needs-you {
+  font-family: var(--sans);
+  font-weight: 700;
+  color: var(--st-waiting);
+}
+
 .step-result--skipped {
   font-family: var(--sans);
   font-weight: 500;
@@ -1338,6 +1367,10 @@ select {
     animation: pulse 1.6s ease-in-out infinite;
   }
 
+  .step-node.is-needs-you {
+    animation: needs-you-pulse 1.6s ease-in-out infinite;
+  }
+
   .edge-flow-overlay {
     animation: edge-flow 1s linear infinite;
   }
@@ -1354,6 +1387,16 @@ select {
   }
   50% {
     box-shadow: 0 0 0 6px color-mix(in srgb, var(--st-running) 0%, transparent);
+  }
+}
+
+@keyframes needs-you-pulse {
+  0%,
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--st-waiting) 55%, transparent);
+  }
+  50% {
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--st-waiting) 0%, transparent);
   }
 }
 
@@ -2574,10 +2617,6 @@ select {
     overflow: visible;
     padding: 0 16px;
   }
-
-  .feed-footer {
-    padding: 10px 16px;
-  }
 }
 
 @media (max-width: 600px) {
@@ -2664,49 +2703,18 @@ select {
   gap: 16px;
 }
 
-.subbar-note {
-  font-size: 12px;
-}
-
-.subbar .live-status {
-  margin-left: auto;
-}
-
-.subbar .feed-refresh {
-  margin-left: 0;
-}
-
-.subbar-back {
-  padding: 4px 10px;
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  background: var(--raised);
-  color: var(--ink);
-  font-size: 12px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.subbar-back:hover {
-  border-color: var(--ink-2);
-}
-
 /* ---------------------------------------------------------- runs index */
 
+/* The home: the totals, then two columns — the pipelines, and the runs of the one picked.
+   The columns wrap under each other when the screen is too narrow for both. */
 .runs-index {
   flex: 1;
   min-height: 0;
   overflow: auto;
-  padding: 20px;
+  padding: 20px 24px 24px;
   display: flex;
   flex-direction: column;
-  gap: 24px;
-}
-
-.runs-section {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  gap: 16px;
 }
 
 .screen-runs .panel-title,
@@ -2719,125 +2727,281 @@ select {
   color: var(--ink-2);
 }
 
-/* Run status words in the run table, coloured as the cards are. */
-.screen-runs .status {
-  color: var(--ink-2);
-  text-transform: lowercase;
-}
-.screen-runs .status--completed {
-  color: var(--st-completed);
-}
-.screen-runs .status--running,
-.screen-runs .status--paused {
-  color: var(--st-running);
-}
-.screen-runs .status--waiting {
-  color: var(--st-waiting);
-}
-.screen-runs .status--failed {
-  color: var(--st-failed);
-}
-.screen-runs .status--no-state {
-  color: var(--st-none);
-}
-
-/* The grouped list: one section per pipeline, one row per run, as the picker prints them. */
-.run-list {
+.runs-home {
   display: flex;
-  flex-direction: column;
+  flex-wrap: wrap;
+  align-items: flex-start;
   gap: 16px;
 }
 
-.run-list-label {
-  margin: 0 0 6px;
+.pipeline-panel,
+.pipeline-runs {
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+/* ---- left column: the pipelines ---- */
+.pipeline-panel {
+  flex: 1 1 340px;
+  max-width: 460px;
+}
+
+.pipeline-panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pipeline-panel .panel-title,
+.pipeline-runs .panel-title {
+  letter-spacing: 0.1em;
+}
+
+.pipeline-panel-note {
   font-size: 12px;
-  font-weight: 500;
   color: var(--ink-2);
 }
 
-.run-list-rows {
+.pipeline-rows {
   list-style: none;
   margin: 0;
-  padding: 0;
+  padding: 6px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
 
-.run-list-row {
-  display: flex;
-  align-items: center;
-  gap: 16px;
+.pipeline-row {
   width: 100%;
-  padding: 6px 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--panel);
+  min-height: 56px;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
   color: var(--ink);
-  font: inherit;
   text-align: left;
   cursor: pointer;
 }
 
-.run-list-row:hover {
+.pipeline-row:hover {
   background: var(--raised);
 }
 
-.run-list-id {
-  flex: 1;
-  min-width: 0;
-  overflow-wrap: anywhere;
+.pipeline-row:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
 }
 
-/* ------------------------------------------------------------ sessions */
-
-.sessions {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 20px;
-  display: grid;
-  grid-template-columns: minmax(280px, 420px) 1fr;
-  gap: 24px;
-  align-items: start;
+/* The picked pipeline: a blue-tinted tile, the one place the running hue marks a choice. */
+.pipeline-row[aria-pressed='true'] {
+  background: color-mix(in srgb, var(--st-running) 12%, var(--panel));
+  border-color: color-mix(in srgb, var(--st-running) 45%, var(--line));
 }
 
-.sessions-pane {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-width: 0;
-}
-
-.sessions-form {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-}
-
-.sessions-form .field {
+.pipeline-row-main,
+.pipeline-row-side {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-.sessions-form .field-label {
+.pipeline-row-main {
+  min-width: 0;
+}
+
+.pipeline-row-side {
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.pipeline-row-name {
+  font-size: 13px;
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.pipeline-row-meta {
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.pipeline-row-main .pipeline-row-meta {
+  white-space: normal;
+}
+
+.pipeline-row-cost {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+  color: var(--st-completed);
+}
+
+.pipeline-row-cost.is-unpriced {
+  color: var(--ink-2);
+}
+
+/* ---- right column: the runs of the picked pipeline ---- */
+.pipeline-runs {
+  flex: 999 1 560px;
+}
+
+.pipeline-runs-head {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  padding: 18px 20px;
+  border-bottom: 1px solid var(--line);
+}
+
+.pipeline-runs-title {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pipeline-runs-name {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.pipeline-runs-last {
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+/* The five sums: cells on a hairline grid. Each cell draws its right and bottom line; the
+   strip reaches 1px past the panel (which clips) on the right and under the table on the
+   bottom, so the outer lines vanish and a short last row leaves a plain cell, not a block of
+   line. The line under the strip is the table's own top border. */
+.pipeline-stats {
+  --stat-ground: color-mix(in srgb, var(--raised) 40%, var(--panel));
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  margin: 0 -1px -1px 0;
+  background: var(--stat-ground);
+}
+
+.pipeline-stat {
+  display: flex;
+  flex-direction: column;
+  padding: 12px 20px;
+  border-right: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+}
+
+.pipeline-runs .grid-scroll {
+  position: relative;
+  border-top: 1px solid var(--line);
+}
+
+.pipeline-stat-label {
   font-size: 11px;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-2);
 }
 
-.sessions-form .field-hint {
+.pipeline-stat-value {
+  margin-top: 4px;
+  font-size: 18px;
+  font-weight: 600;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.pipeline-stat-value.is-money {
+  color: var(--st-completed);
+}
+
+.pipeline-stat-value.is-absent {
+  color: var(--ink-2);
+}
+
+.pipeline-stat-note {
   font-size: 11px;
   color: var(--ink-2);
 }
 
-.sessions-form .input {
-  width: 100%;
-  padding: 7px 9px;
+.run-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.run-status-word {
+  color: var(--ink-2);
+}
+
+.run-status .chip {
+  margin-left: 0;
+}
+
+@media (max-width: 900px) {
+  .runs-index {
+    padding: 16px;
+  }
+
+  /* stacked, the pipelines take the full width like the runs under them */
+  .pipeline-panel {
+    max-width: none;
+  }
+}
+
+/* ------------------------------------------------------------ sessions */
+
+/* The start form across the top, then the board: three columns that wrap under each other
+   when the screen is too narrow for them. */
+.sessions {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 20px 24px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.sessions-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+/* The factory, the prompt or the factory's description, and Start. */
+.sessions-form-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.sessions-form .input {
+  min-width: 0;
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
   background: var(--ground);
   color: var(--ink);
   font: inherit;
@@ -2848,16 +3012,131 @@ select {
   border-color: var(--st-running);
 }
 
-.sessions-prompt {
-  resize: vertical;
-  min-height: 140px;
+.sessions-form .sessions-factory {
+  flex: 0 1 280px;
+  height: 44px;
+  padding: 0 12px;
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: 13px;
 }
 
-.sessions-actions {
+/* One line until the text needs more; it grows up to a few lines, then scrolls. */
+.sessions-form .sessions-prompt {
+  flex: 1 1 320px;
+  max-height: 220px;
+  padding: 11px 14px;
+  resize: vertical;
+  field-sizing: content;
+  line-height: 20px;
+}
+
+/* The factory's description beside the picker: two lines at most, the rest in the tooltip. */
+.sessions-form .sessions-hint {
+  flex: 1 1 320px;
+  min-width: 0;
+  margin: 0;
+  align-self: center;
+  color: var(--ink-2);
+  font-size: 13px;
+  line-height: 18px;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
+  overflow: hidden;
+}
+
+/* One field per param: as many columns as fit, free-text fields across the whole row. */
+.sessions-params {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 8px 10px;
+}
+
+.sessions-param {
   display: flex;
-  justify-content: flex-end;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.sessions-param.is-wide {
+  grid-column: 1 / -1;
+}
+
+.sessions-param-label,
+.sessions-param-check {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+  color: var(--ink-2);
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+.sessions-param-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.sessions-param-required {
+  color: var(--st-waiting);
+}
+
+.sessions-param-tag,
+.sessions-param-optional {
+  font-family: var(--sans);
+  font-size: 11px;
+  opacity: 0.8;
+}
+
+.sessions-param-tag {
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+}
+
+/* A checkbox sits on the inputs' line, its name beside it. */
+.sessions-param-check {
+  align-self: end;
+  align-items: center;
+  min-height: 36px;
+  color: var(--ink);
+  cursor: pointer;
+}
+
+.sessions-param-check input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: var(--st-running);
+}
+
+.sessions-form .sessions-param-input {
+  min-height: 36px;
+  height: 36px;
+  padding: 0 10px;
+  font-size: 13px;
+}
+
+.sessions-form .sessions-param-textarea {
+  height: auto;
+  max-height: 180px;
+  padding: 7px 10px;
+  resize: vertical;
+  field-sizing: content;
+  line-height: 20px;
+}
+
+.sessions-form .sessions-start {
+  height: 44px;
+  padding: 0 20px;
+  border: 0;
+  border-radius: 8px;
+  font-weight: 600;
 }
 
 .sessions .primary-button,
@@ -2881,10 +3160,13 @@ select {
 }
 
 .sessions .danger-button {
-  padding: 3px 10px;
+  flex-shrink: 0;
+  height: 34px;
+  padding: 0 12px;
   background: transparent;
-  border-color: var(--st-failed);
-  color: var(--st-failed);
+  border-color: color-mix(in srgb, var(--st-failed) 55%, var(--ground));
+  color: color-mix(in srgb, var(--st-failed) 70%, var(--ink));
+  font-weight: 600;
 }
 
 .sessions .danger-button:hover:not(:disabled) {
@@ -2894,15 +3176,6 @@ select {
 .sessions .danger-button:disabled {
   opacity: 0.5;
   cursor: default;
-}
-
-.sessions-table {
-  min-width: 520px;
-}
-
-.sessions-empty {
-  margin: 0;
-  font-size: 13px;
 }
 
 .sessions-notice {
@@ -2938,6 +3211,7 @@ select {
   padding-left: 18px;
   font-size: 12px;
   color: var(--ink-2);
+  overflow-wrap: anywhere;
 }
 
 .sessions-notice .icon-button {
@@ -2951,9 +3225,597 @@ select {
   cursor: pointer;
 }
 
-@media (max-width: 900px) {
+/* ---- the board: Needs you · Working · Idle ---- */
+
+.board {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
+  gap: 16px;
+  align-items: start;
+}
+
+.board-column {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+}
+
+.board-column.is-needs-you {
+  border-color: color-mix(in srgb, var(--st-waiting) 42%, var(--ground));
+  background: color-mix(in srgb, var(--st-waiting) 4%, var(--panel));
+}
+
+.board-column-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  border-bottom: 1px solid var(--line);
+}
+
+.board-column.is-needs-you .board-column-head {
+  border-bottom-color: color-mix(in srgb, var(--st-waiting) 18%, var(--line));
+}
+
+.board-column-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.board-column.is-needs-you .board-column-title {
+  color: var(--st-waiting);
+}
+
+.board-column.is-working .board-column-title {
+  color: color-mix(in srgb, var(--st-running) 70%, var(--ink));
+}
+
+.board-column-count {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.board-column-badge {
+  min-width: 24px;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: var(--st-waiting);
+  color: #000;
+  font-size: 12px;
+  font-weight: 700;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.board-column-body {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+}
+
+.board-column-empty {
+  margin: 0;
+  padding: 16px 4px;
+  color: var(--ink-2);
+  text-align: center;
+}
+
+.board-card {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--ground);
+}
+
+.board-card.is-row {
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.board-card-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.board-card-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.board-card-name {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.board-card-aside {
+  font-size: 12px;
+  color: var(--ink-2);
+  white-space: nowrap;
+}
+
+.board-card-factory {
+  font-size: 12px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.board-card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+.board-card-row.is-end {
+  justify-content: flex-end;
+}
+
+.board-card-preview {
+  min-width: 0;
+  font-size: 13px;
+  color: color-mix(in srgb, var(--ink) 80%, var(--ink-2));
+  overflow-wrap: anywhere;
+}
+
+.board-card-meta {
+  min-width: 0;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.board-card-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.board-card-status.is-working {
+  color: color-mix(in srgb, var(--st-running) 50%, var(--ink));
+}
+
+.board-card-dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--st-running);
+}
+
+.answer-button {
+  flex-shrink: 0;
+  height: 36px;
+  padding: 0 14px;
+  border: 0;
+  border-radius: 6px;
+  background: var(--st-waiting);
+  color: #000;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.answer-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+@media (max-width: 600px) {
   .sessions {
+    padding: 16px;
+  }
+
+  .sessions-form .sessions-factory,
+  .sessions-form .sessions-prompt,
+  .sessions-form .sessions-hint,
+  .sessions-form .sessions-start {
+    flex: 1 1 100%;
+  }
+
+  .sessions-params {
     grid-template-columns: 1fr;
+  }
+}
+
+/* ---- "Claude is asking": questions and replies waiting for a person ---- */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+.notice {
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 13px;
+}
+
+.notice--ok {
+  border-left-color: var(--st-completed);
+}
+
+.notice--refusal {
+  border-left-color: var(--st-failed);
+}
+
+.count-badge {
+  display: inline-block;
+  min-width: 20px;
+  margin-left: 8px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--st-waiting);
+  color: #000;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  letter-spacing: 0;
+}
+
+.ask-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.ask-error .notice {
+  flex: 1;
+}
+
+/* The run page's question box: on top of the inspector, the board's "Needs you" tone. */
+.run-ask {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.run-ask-title {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--st-waiting);
+}
+
+/* A "Needs you" card: a faint amber edge, a full one and a warmer ground once open. */
+.ask-card {
+  border-color: color-mix(in srgb, var(--st-waiting) 24%, var(--line));
+}
+
+.ask-card.is-open {
+  gap: 12px;
+  border-color: var(--st-waiting);
+  background: color-mix(in srgb, var(--st-waiting) 6%, var(--ground));
+}
+
+.ask-head {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.ask-title {
+  font-weight: 600;
+  color: var(--st-waiting);
+}
+
+.ask-session {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.ask-time {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.ask-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.ask-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  padding: 3px 10px 3px 4px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.ask-tab:hover:not(:disabled) {
+  color: var(--ink);
+  background: var(--raised);
+}
+
+.ask-tab[aria-selected='true'] {
+  border-color: var(--ink-2);
+  background: var(--raised);
+  color: var(--ink);
+}
+
+.ask-tab:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.ask-tab-mark {
+  flex: 0 0 auto;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1px solid var(--line);
+  font-size: 11px;
+  line-height: 18px;
+  text-align: center;
+}
+
+.ask-tab.is-answered .ask-tab-mark {
+  border-color: var(--st-completed);
+  background: color-mix(in srgb, var(--st-completed) 20%, transparent);
+  color: var(--st-completed);
+}
+
+.ask-tab-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ask-body {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ask-question {
+  padding: 0;
+  font-size: 15px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.ask-hint {
+  margin: -4px 0 2px;
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.ask-options {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.ask-option {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--ground);
+  cursor: pointer;
+}
+
+.ask-option:hover {
+  background: var(--raised);
+}
+
+.ask-option:has(input:checked) {
+  border-color: var(--st-waiting);
+  background: color-mix(in srgb, var(--st-waiting) 12%, var(--ground));
+}
+
+.ask-option:has(input:focus-visible) {
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.ask-option input {
+  flex: 0 0 auto;
+  margin: 3px 0 0;
+  accent-color: var(--st-waiting);
+}
+
+.ask-option-text {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ask-option-label {
+  font-weight: 500;
+  overflow-wrap: anywhere;
+}
+
+.ask-option-desc {
+  font-size: 12px;
+  color: var(--ink-2);
+  overflow-wrap: anywhere;
+}
+
+.ask-other {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ask-other-label {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.ask-input {
+  width: 100%;
+  min-width: 0;
+  padding: 7px 9px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--ground);
+  color: var(--ink);
+  font: inherit;
+}
+
+.ask-input:focus-visible {
+  outline: none;
+  border-color: var(--st-running);
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+.ask-foot {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.ask-progress {
+  font-size: 12px;
+}
+
+.ask-terminal-text {
+  margin: 0;
+  font-size: 13px;
+  color: var(--ink-2);
+}
+
+.ask-terminal-command {
+  margin: 0;
+  padding: 6px 10px;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  background: var(--raised);
+  font-size: 12px;
+  overflow-x: auto;
+  white-space: nowrap;
+}
+
+.ask-aside-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ask-actions {
+  margin-left: auto;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.ask-card .primary-button,
+.ghost-button {
+  padding: 6px 14px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.ask-card .primary-button {
+  background: var(--st-waiting);
+  color: #000;
+  font-weight: 600;
+}
+
+/* Until every question is answered it reads "1 / 3 answered" on a flat ground. */
+.ask-card .primary-button:disabled {
+  background: var(--raised);
+  color: var(--ink-2);
+  cursor: default;
+}
+
+.ghost-button {
+  background: transparent;
+  border-color: var(--line);
+  color: var(--ink);
+}
+
+.ghost-button:hover:not(:disabled) {
+  background: var(--raised);
+}
+
+.ask-card .primary-button,
+.ask-card .ghost-button,
+.ask-card .danger-button {
+  height: 36px;
+  padding: 0 14px;
+}
+
+.ghost-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.ask-card button:focus-visible,
+.ask-tab:focus-visible,
+.ghost-button:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 2px var(--ink);
+}
+
+@media (max-width: 600px) {
+  .ask-actions {
+    width: 100%;
+    margin-left: 0;
+    justify-content: stretch;
+  }
+
+  .ask-actions button {
+    flex: 1 1 auto;
   }
 }
 

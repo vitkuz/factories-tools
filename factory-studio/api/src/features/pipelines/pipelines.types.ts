@@ -1,8 +1,14 @@
 import type { z } from 'zod';
 import type { DocumentAnswer } from '../documents/documents.types.js';
-import type { discoveredPipelineSchema } from './pipelines.schema.js';
+import type {
+  discoveredPipelineSchema,
+  factoryParamSchema,
+  paramValueSchema,
+} from './pipelines.schema.js';
 
 export type DiscoveredPipeline = z.infer<typeof discoveredPipelineSchema>;
+export type ParamValue = z.infer<typeof paramValueSchema>;
+export type FactoryParam = z.infer<typeof factoryParamSchema>;
 
 /** One `factories/<id>/pipeline.json` as found on disk. */
 export interface PipelineSkill {
@@ -21,6 +27,10 @@ export interface PipelineListEntry {
   id: string;
   path: string;
   pipeline: DiscoveredPipeline;
+  /** `pipeline.params` in declaration order, typed for the start form. */
+  params: FactoryParam[];
+  /** `pipeline.description`, when it is a non-empty string. */
+  description?: string;
 }
 
 export interface PipelineListResponse {
@@ -40,6 +50,9 @@ export type ReadKnowledgeResult =
 export interface PipelineServices {
   listPipelineSkills: () => Promise<PipelineSkill[]>;
 }
+
+/** `null`: no pipeline with that id is listed. */
+export type ReadFactoryParams = (id: string) => Promise<FactoryParam[] | null>;
 
 /** What `server.ts` hands the routes. */
 export interface PipelineUsecases {

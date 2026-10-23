@@ -1,6 +1,8 @@
 import express, { Router, type Express, type Request, type Response } from 'express';
 import { createPipelinesRoutes } from './features/pipelines/index.js';
 import type { PipelineUsecases } from './features/pipelines/pipelines.types.js';
+import { createQuestionsRoutes } from './features/questions/index.js';
+import type { QuestionUsecases } from './features/questions/questions.types.js';
 import { createRunsRoutes } from './features/runs/index.js';
 import type { RunUsecases } from './features/runs/runs.types.js';
 import { createScriptsRoutes } from './features/scripts/index.js';
@@ -24,6 +26,7 @@ export interface AppSettings {
   runs: RunUsecases;
   scripts: ScriptUsecases;
   sessions: SessionUsecases;
+  questions: QuestionUsecases;
   logger: AppLogger;
 }
 
@@ -31,7 +34,7 @@ export const API_PREFIX = '/api/v1';
 
 /**
  * Express wiring, and nothing else. Everything the routes need arrives in `settings`, so a
- * test can build the whole app around a fake tmux client and a temp WORK_DIR. No CORS: the
+ * test can build the whole app around a fake herdr client and a temp WORK_DIR. No CORS: the
  * app and the API share one origin. No app-wide body parser: each route that takes a body
  * attaches its own (JSON on the session routes, raw text on the run document PUT), so a
  * JSON-typed document is never consumed before the text parser sees it.
@@ -43,6 +46,7 @@ export const createApp = ({
   runs,
   scripts,
   sessions,
+  questions,
   logger,
 }: AppSettings): Express => {
   const app: Express = express();
@@ -61,6 +65,7 @@ export const createApp = ({
   api.use(createRunsRoutes(runs));
   api.use(createScriptsRoutes(scripts));
   api.use(createSessionsRoutes(sessions));
+  api.use(createQuestionsRoutes(questions));
   app.use(API_PREFIX, api);
 
   // Every API route is registered above this line: a miss under /api is JSON, never a page.

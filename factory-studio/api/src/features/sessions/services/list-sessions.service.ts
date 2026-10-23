@@ -1,20 +1,35 @@
-import type { TmuxClient, TmuxSessionInfo } from '../../../clients/tmux/tmux.types.js';
-import type { FactorySession } from '../sessions.types.js';
-import { SESSION_LABELS, isFactorySession, toFactorySession } from '../sessions.utils.js';
+import type { HerdrClient, HerdrPane, HerdrWorkspace } from '../../../clients/herdr/herdr.types.js';
+import type { FactorySession, SessionMeta } from '../sessions.types.js';
+import { isFactorySession, toFactorySession } from '../sessions.utils.js';
 
 export interface ListSessionsSettings {
-  tmux: TmuxClient;
+  herdr: HerdrClient;
+  /** `null` when the session has no readable meta file. */
+  readMeta: (session: string) => Promise<SessionMeta | null>;
   now?: () => Date;
 }
 
-/** Every `factory-*` session on the tmux server, oldest first. Other sessions are not ours. */
+/** Every `factory-*` workspace on the herdr server, oldest first. Other workspaces are not ours. */
 export const listSessionsFactory =
-  ({ tmux, now = (): Date => new Date() }: ListSessionsSettings) =>
+  ({ herdr, readMeta, now = (): Date => new Date() }: ListSessionsSettings) =>
   async (): Promise<FactorySession[]> => {
-    const all: TmuxSessionInfo[] = await tmux.listSessions(SESSION_LABELS);
+    const [workspaces, panes]: [HerdrWorkspace[], HerdrPane[]] = await Promise.all([
+      herdr.listWorkspaces(),
+      herdr.listPanes(),
+    ]);
     const at: Date = now();
-    return all
-      .filter((info: TmuxSessionInfo): boolean => isFactorySession(info.name))
-      .map((info: TmuxSessionInfo): FactorySession => toFactorySession(info, at))
-      .sort((a: FactorySession, b: FactorySession): number => b.ageSeconds - a.ageSeconds);
+    const ours: HerdrWorkspace[] = workspaces.filter((workspace: HerdrWorkspace): boolean =>
+      isFactorySession(workspace.label),
+    );
+    const sessions: FactorySession[] = await Promise.all(
+      ours.map(async (workspace: HerdrWorkspace): Promise<FactorySession> => {
+        const pane: HerdrPane | undefined = panes.find(
+          (candidate: HerdrPane): boolean => candidate.workspaceId === workspace.workspaceId,
+        );
+        return toFactorySession(workspace, pane, await readMeta(workspace.label), at);
+      }),
+    );
+    return sessions.sort(
+      (a: FactorySession, b: FactorySession): number => b.ageSeconds - a.ageSeconds,
+    );
   };

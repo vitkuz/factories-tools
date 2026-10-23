@@ -7,11 +7,12 @@ import type { Express } from 'express';
 import { createApp } from '../src/app.js';
 import { createFsClient } from '../src/clients/fs/fs.client.js';
 import type { FsClient } from '../src/clients/fs/fs.types.js';
-import type { TmuxClient } from '../src/clients/tmux/tmux.types.js';
+import type { HerdrClient } from '../src/clients/herdr/herdr.types.js';
 import { readDocumentFactory, writeDocumentFactory } from '../src/features/documents/index.js';
 import {
   listPipelineSkillsFactory,
   listStartableFactoriesFactory,
+  readFactoryParamsFactory,
   listPipelinesFactory,
   readKnowledgeDocumentFactory,
 } from '../src/features/pipelines/index.js';
@@ -24,15 +25,28 @@ import {
   writeRunDocumentFactory,
 } from '../src/features/runs/index.js';
 import type { RunServices } from '../src/features/runs/runs.types.js';
+import {
+  answerQuestionFactory,
+  createQuestionStore,
+  dismissQuestionFactory,
+  registerQuestionFactory,
+  resolveQuestionFactory,
+} from '../src/features/questions/index.js';
+import type { QuestionStore, QuestionUsecases } from '../src/features/questions/questions.types.js';
 import { readScriptFactory } from '../src/features/scripts/index.js';
 import {
   listSessionsFactory,
+  readSessionMetaFactory,
+  replySessionFactory,
   startFactorySessionFactory,
   startSessionFactory,
   stopSessionFactory,
+  writeHookSettingsFactory,
   writePromptFileFactory,
+  writeSessionMetaFactory,
 } from '../src/features/sessions/index.js';
 import type { FactorySession } from '../src/features/sessions/sessions.types.js';
+import type { Broadcast } from '../src/features/questions/questions.types.js';
 import type { AppLogger } from '../src/shared/types.js';
 
 export const quiet: AppLogger = {
@@ -53,6 +67,7 @@ export const CANONICAL_PIPELINE: Record<string, unknown> = {
     format: 'markdown',
   },
   hooks: { after: ['bash {{rootPath}}/scripts/sync.sh {{outputDir}}'] },
+  params: { topic: '', sub_questions: 5, ratio: 0.5, deep: false, language: 'English' },
   outputDir: '{{rootPath}}/run/{{id}}/{{slug}}-{{date}}',
   START: ['one'],
   steps: {
@@ -174,12 +189,16 @@ export interface TestAppOptions {
   webDist?: string | null;
   newUuid?: () => string;
   now?: () => Date;
+  /** Shared with the test, so it can broadcast to and inspect the same question store. */
+  broadcast?: Broadcast;
+  questionStore?: QuestionStore;
+  questionTimeoutMs?: number;
 }
 
 /** The whole app over real services and a temp WORK_DIR, the way `server.ts` wires it. */
 export const buildTestApp = (
   work: WorkDir,
-  tmux: TmuxClient,
+  herdr: HerdrClient,
   options: TestAppOptions = {},
 ): Express => {
   const fs: FsClient = createFsClient({});
@@ -195,9 +214,23 @@ export const buildTestApp = (
     locateRunDir: locateRunDirFactory({ fs, workDir }),
   };
   const listSessions: () => Promise<FactorySession[]> = listSessionsFactory({
-    tmux,
+    herdr,
+    readMeta: readSessionMetaFactory({ fs, promptDir: work.promptDir }),
     now: options.now,
   });
+  const store: QuestionStore = options.questionStore ?? createQuestionStore();
+  const broadcast: Broadcast = options.broadcast ?? ((): void => {});
+  const questions: QuestionUsecases = {
+    registerQuestion: registerQuestionFactory({
+      store,
+      broadcast,
+      timeoutMs: options.questionTimeoutMs,
+    }),
+    answerQuestion: answerQuestionFactory({ store }),
+    dismissQuestion: dismissQuestionFactory({ store }),
+    resolveQuestion: resolveQuestionFactory({ store }),
+    listPending: store.list,
+  };
 
   return createApp({
     apiKey: options.apiKey,
@@ -228,14 +261,26 @@ export const buildTestApp = (
       startFactorySession: startFactorySessionFactory({
         workDir,
         listFactorySkills: listStartableFactoriesFactory({ fs, workDir, ...pipelineServices }),
+        readFactoryParams: readFactoryParamsFactory(pipelineServices),
         writePromptFile: writePromptFileFactory({ fs, promptDir: work.promptDir }),
-        startSession: startSessionFactory({ tmux, graceMs: 0 }),
+        writeHookSettings: writeHookSettingsFactory({
+          fs,
+          promptDir: work.promptDir,
+          nodePath: '/usr/bin/node',
+          hookScript: '/opt/studio/hooks/studio-question-hook.mjs',
+        }),
+        writeSessionMeta: writeSessionMetaFactory({ fs, promptDir: work.promptDir }),
+        hookEnv: { STUDIO_API_URL: 'http://127.0.0.1:3100' },
+        startSession: startSessionFactory({ herdr, graceMs: 0 }),
         logger: quiet,
         newUuid: options.newUuid,
+        now: options.now,
       }),
       listSessions,
-      stopSession: stopSessionFactory({ tmux, listSessions, logger: quiet }),
+      stopSession: stopSessionFactory({ herdr, listSessions, logger: quiet }),
+      replySession: replySessionFactory({ herdr, listSessions }),
     },
+    questions,
   });
 };
 

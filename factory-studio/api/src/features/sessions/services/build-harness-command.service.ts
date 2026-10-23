@@ -9,16 +9,17 @@ interface HarnessLaunch {
 }
 
 /**
- * Claude runs unattended in tmux: no permission prompts, and no tool that stops to ask the user
- * a question or to approve a plan. `--disallowedTools=` keeps the list to one argument (the flag
- * is variadic and would otherwise swallow the prompt).
+ * Claude runs with every approval prompt off. Plan mode stays off (nothing answers its
+ * approval); AskUserQuestion stays on: the studio's hook (`--settings`) shows it in the app
+ * and answers it. `--disallowedTools=` keeps the list to one argument (the flag is variadic and
+ * would otherwise swallow the prompt).
  */
-const CLAUDE_NO_QUESTIONS: string =
-  "--disallowedTools=AskUserQuestion,EnterPlanMode,ExitPlanMode --append-system-prompt 'You run unattended: nobody will answer questions. Never ask the user anything and never wait for confirmation; make the most reasonable decision, note the assumption, and carry on to the end.'";
+const CLAUDE_QUESTIONS_PROMPT: string =
+  "--disallowedTools=EnterPlanMode,ExitPlanMode --append-system-prompt 'You run inside Factory Studio and may run unattended. Prefer the most reasonable decision: note the assumption and carry on to the end. Use AskUserQuestion only when a decision truly cannot be made without the person; the question is shown in the studio app, so ask clearly, once, and wait for the answer.'";
 
 const LAUNCH: Readonly<Record<Harness, HarnessLaunch>> = {
   copilot: { base: 'copilot --allow-all', promptFlag: '-i ' },
-  claude: { base: `claude --dangerously-skip-permissions ${CLAUDE_NO_QUESTIONS}`, promptFlag: '' },
+  claude: { base: 'claude --dangerously-skip-permissions', promptFlag: '' },
   agy: { base: 'agy --dangerously-skip-permissions', promptFlag: '-i ' },
   codex: { base: 'codex --dangerously-bypass-approvals-and-sandbox', promptFlag: '' },
 };
@@ -28,9 +29,32 @@ const LAUNCH: Readonly<Record<Harness, HarnessLaunch>> = {
  * receives it as one argument via `"$(cat file)"`, so quotes, backticks or a `$(` inside the
  * prompt stay text. The only interpolated value is the file path, which the API chose.
  */
-export const buildHarnessCommand = (harness: Harness, promptFile: string): string => {
+export interface HarnessCommandOptions {
+  /** Claude only: the per-session settings file that wires the question hook. */
+  settingsFile?: string;
+}
+
+/** Flags that go between the base command and the prompt, per harness. */
+const extraFlags = (harness: Harness, { settingsFile }: HarnessCommandOptions): string =>
+  harness === 'claude'
+    ? [settingsFile ? `--settings ${shellQuote(settingsFile)}` : '', CLAUDE_QUESTIONS_PROMPT]
+        .filter((flag: string): boolean => flag !== '')
+        .join(' ')
+    : '';
+
+/**
+ * The shell command a session runs. The prompt itself never enters this string: the harness
+ * receives it as one argument via `"$(cat file)"`, so quotes, backticks or a `$(` inside the
+ * prompt stay text. The only interpolated values are file paths, which the API chose.
+ */
+export const buildHarnessCommand = (
+  harness: Harness,
+  promptFile: string,
+  options: HarnessCommandOptions = {},
+): string => {
   const { base, promptFlag }: HarnessLaunch = LAUNCH[harness];
-  return `${base} ${promptFlag}"$(cat ${shellQuote(promptFile)})"`;
+  const flags: string = extraFlags(harness, options);
+  return `${[base, flags].filter((part: string): boolean => part !== '').join(' ')} ${promptFlag}"$(cat ${shellQuote(promptFile)})"`;
 };
 
 export const harnessCommandBase = (harness: Harness): string => LAUNCH[harness].base;

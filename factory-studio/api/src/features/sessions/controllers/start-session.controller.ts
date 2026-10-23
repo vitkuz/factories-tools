@@ -8,7 +8,7 @@ import type {
 
 /**
  * Turns a start result into an HTTP response. Knows about status codes; knows nothing
- * about tmux. The validated body is on `res.locals.body`, put there by the route.
+ * about herdr. The validated body is on `res.locals.body`, put there by the route.
  */
 export const respondToStart = (res: Response, result: StartFactoryResult): void => {
   if (result.ok) {
@@ -18,9 +18,12 @@ export const respondToStart = (res: Response, result: StartFactoryResult): void 
   if (result.reason === 'unknown-factory') {
     throw httpError(404, 'no such factory skill on disk', { available: result.available });
   }
+  if (result.reason === 'invalid-params') {
+    throw httpError(400, 'invalid params', result.issues);
+  }
   throw httpError(
     502,
-    `the ${result.harness} session exited immediately — is ${result.harness} on the PATH of the API's tmux server?`,
+    `the ${result.harness} session exited immediately — is ${result.harness} on the PATH of the API's herdr server?`,
     { session: result.session, harness: result.harness },
   );
 };

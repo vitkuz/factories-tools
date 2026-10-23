@@ -96,6 +96,8 @@ export interface GraphOptions {
   detailed: boolean;
   /** The run's cost.json when it has one; step cards then print their cost. */
   cost?: Cost | null;
+  /** Claude's question for this run is waiting in the studio: its running human step needs you. */
+  asking?: boolean;
 }
 
 export interface StepNodeData extends StepCardData {
@@ -127,6 +129,8 @@ export interface StepNodeData extends StepCardData {
   current: boolean;
   /** The run is waiting for a human verdict on this step. */
   awaitingHuman: boolean;
+  /** A running human step while Claude's question for this run waits in the studio. */
+  needsYou: boolean;
   hasState: boolean;
   /** From cost.json: what this step's agent runs cost; null without a cost file or agent runs. */
   costUSD: number | null;
@@ -228,6 +232,8 @@ const stepNodeData =
       waitedMs: human ? lastWaitedMs(attempts, 0) : null,
       current: state?.status === 'RUNNING' && activeStepsOf(state).includes(slug),
       awaitingHuman: isWaitingStep(state, slug),
+      needsYou:
+        options.asking === true && human && (st?.status === 'RUNNING' || st?.status === 'RETRYING'),
       hasState: Boolean(state),
       detailed: options.detailed,
       stackIndex,

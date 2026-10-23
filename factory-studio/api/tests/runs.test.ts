@@ -2,7 +2,7 @@ import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 import type { RunRecord, RunsPayload } from '../src/features/runs/runs.types.js';
-import { fakeTmux } from './helpers.js';
+import { fakeHerdr } from './helpers.js';
 import {
   RUN_A_COST,
   RUN_A_STATE,
@@ -22,7 +22,7 @@ describe('runs', () => {
 
   beforeAll(async () => {
     work = await makeWorkDir();
-    api = await listen(buildTestApp(work, fakeTmux().client));
+    api = await listen(buildTestApp(work, fakeHerdr().client));
     base = `${api.origin}/api/v1`;
   });
   afterAll(async () => {

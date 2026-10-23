@@ -2,7 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { isApiError, toApiError, type ApiError } from '../../../adapters/http/api-error.utils';
 import { listSessions, startSession, stopSession } from '../../../adapters/http/studio-api.adapter';
 import { usePolling } from '../../../shared/lib/polling';
-import type { FactorySession, SessionList, SessionsState, StartedSession } from '../sessions.types';
+import type {
+  FactorySession,
+  SessionList,
+  SessionsState,
+  StartRequest,
+  StartedSession,
+} from '../sessions.types';
 import {
   describeRefusal,
   describeStarted,
@@ -10,20 +16,22 @@ import {
   sortOldestFirst,
 } from '../sessions.utils';
 
-const REFRESH_MS = 10_000;
+/** The list's own refresh: the fallback while the socket is closed, a slow sweep while it is open. */
+export const REFRESH_MS = 10_000;
+export const REFRESH_LIVE_MS = 60_000;
 
 export interface Sessions {
   state: SessionsState;
   refresh: () => void;
-  start: (id: string, prompt: string) => Promise<void>;
+  start: (request: StartRequest) => Promise<void>;
   stop: (session: string) => Promise<void>;
   dismiss: () => void;
 }
 
 const asApiError = (error: unknown): ApiError => (isApiError(error) ? error : toApiError(error));
 
-/** The running sessions: listed on mount and every 10 s, started and stopped from here. */
-export const useSessions = (): Sessions => {
+/** The running sessions: listed on mount and every `refreshMs` (10 s by default), started and stopped from here. */
+export const useSessions = (refreshMs: number = REFRESH_MS): Sessions => {
   const [state, setState] = useState<SessionsState>({
     sessions: [],
     updatedAt: Date.now(),
@@ -66,11 +74,11 @@ export const useSessions = (): Sessions => {
     return () => inflight.current?.abort();
   }, [refresh]);
 
-  usePolling(refresh, REFRESH_MS);
+  usePolling(refresh, refreshMs);
 
-  const start = useCallback(async (id: string, prompt: string): Promise<void> => {
+  const start = useCallback(async (request: StartRequest): Promise<void> => {
     try {
-      const started: StartedSession = await startSession({ id, prompt, harness: 'claude' });
+      const started: StartedSession = await startSession({ ...request, harness: 'claude' });
       const row: FactorySession = provisionalSession(started, Date.now());
       setState((s: SessionsState): SessionsState => ({
         ...s,

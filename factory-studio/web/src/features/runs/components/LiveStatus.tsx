@@ -1,21 +1,21 @@
+import type { ReactNode } from 'react';
 import type { RunsFeed } from '../hooks/use-runs-feed';
 import { useNow } from '../../../shared/lib/polling';
+import { FeedBar, type FeedTone } from '../../../shared/components/FeedBar';
 import { formatClock, formatRelative } from '../lib/format';
-
-type Tone = 'live' | 'unreachable';
 
 interface Copy {
   word: string;
   detail: string;
-  tone: Tone;
+  tone: FeedTone;
   refreshTitle: string;
 }
 
-/** "1 run with an invalid state.json (content-pipeline/x)" for the footer. */
+/** "1 run with an invalid state.json (content-pipeline/x)" for the bar. */
 const droppedNote = (dropped: string[]): string =>
   `${dropped.length} run${dropped.length === 1 ? '' : 's'} with an invalid state.json (${dropped.join(', ')})`;
 
-/** One word for the header, one sentence for the footer. Any error means Offline. */
+/** One word for the header, one sentence for the bar. Any error means Offline. */
 export const describeFeed = (feed: RunsFeed, now: number): Copy => {
   if (feed.error) {
     return {
@@ -46,47 +46,25 @@ export const describeFeed = (feed: RunsFeed, now: number): Copy => {
   };
 };
 
-interface Props {
+interface RunsFeedBarProps {
   feed: RunsFeed;
   /** True while the selected run is running or waiting — the dot pulses. */
   active: boolean;
 }
 
-/** Header indicator: a dot and one word. */
-export default function LiveStatus({ feed, active }: Props) {
-  const now: number = useNow(1000);
-  const copy: Copy = describeFeed(feed, now);
-  const dotClass: string = [
-    'live-dot',
-    `live-dot--${copy.tone}`,
-    copy.tone === 'live' && active ? 'is-active' : '',
-  ]
-    .filter(Boolean)
-    .join(' ');
-  return (
-    <div className="live-status" role="status" aria-live="polite" title={copy.detail}>
-      <span className={dotClass} aria-hidden="true" />
-      <span className="live-word">{copy.word}</span>
-    </div>
-  );
-}
-
-/** Footer strip under the inspector: the sentence and the Refresh button. */
-export function FeedFooter({ feed }: { feed: RunsFeed }) {
+/** The runs feed in the shared top-bar group: the sentence, the indicator, Refresh. */
+export const RunsFeedBar = ({ feed, active }: RunsFeedBarProps): ReactNode => {
   const now: number = useNow(1000);
   const copy: Copy = describeFeed(feed, now);
   return (
-    <footer className="feed-footer">
-      <span className="feed-detail">{copy.detail}</span>
-      <button
-        type="button"
-        className="feed-refresh"
-        onClick={feed.refresh}
-        disabled={feed.refreshing}
-        title={copy.refreshTitle}
-      >
-        {feed.refreshing ? 'Refreshing…' : 'Refresh'}
-      </button>
-    </footer>
+    <FeedBar
+      detail={copy.detail}
+      word={copy.word}
+      tone={copy.tone}
+      active={active}
+      refreshing={feed.refreshing}
+      refreshTitle={copy.refreshTitle}
+      onRefresh={feed.refresh}
+    />
   );
-}
+};

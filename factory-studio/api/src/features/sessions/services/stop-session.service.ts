@@ -1,10 +1,10 @@
-import type { TmuxClient } from '../../../clients/tmux/tmux.types.js';
+import type { HerdrClient } from '../../../clients/herdr/herdr.types.js';
 import type { AppLogger } from '../../../shared/types.js';
 import type { FactorySession, StopSessionResult } from '../sessions.types.js';
 import { matchesFactoryId } from '../sessions.utils.js';
 
 export interface StopSessionSettings {
-  tmux: TmuxClient;
+  herdr: HerdrClient;
   listSessions: () => Promise<FactorySession[]>;
   logger?: AppLogger;
 }
@@ -15,7 +15,7 @@ export interface StopSessionSettings {
  * picks one and sends its name.
  */
 export const stopSessionFactory =
-  ({ tmux, listSessions, logger }: StopSessionSettings) =>
+  ({ herdr, listSessions, logger }: StopSessionSettings) =>
   async (target: string): Promise<StopSessionResult> => {
     const running: FactorySession[] = await listSessions();
 
@@ -37,7 +37,8 @@ export const stopSessionFactory =
       };
     }
 
-    const killed: boolean = await tmux.killSession(chosen.session);
+    const killed: boolean =
+      chosen.workspaceId !== undefined && (await herdr.closeWorkspace(chosen.workspaceId));
     if (!killed) {
       // Gone between the list and the kill. Same outcome for the caller: it is not running.
       logger?.warn('session vanished before it could be stopped', { session: chosen.session });

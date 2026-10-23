@@ -1,6 +1,14 @@
 import { isSafeSegment } from '../documents/documents.utils.js';
 import type { DiscoveredPipeline, PipelineSkill } from '../pipelines/pipelines.types.js';
-import type { RunRecord, RunStateFile } from './runs.types.js';
+import type { ZodSafeParseResult } from 'zod';
+import { runSessionStampSchema } from './runs.schema.js';
+import type {
+  RunRecord,
+  RunSessionStamp,
+  RunStateFile,
+  SessionRunLink,
+  SessionRunQuery,
+} from './runs.types.js';
 
 export const RUN_DIR = 'run';
 export const STATE_FILE = 'state.json';
@@ -55,3 +63,81 @@ export const pipelinesById = (
     },
     {},
   );
+
+/* ---------------------------------------------------------------- run <-> session */
+
+/** A run that is over asks nobody anything. */
+const FINISHED_STATUSES: readonly string[] = ['COMPLETED', 'FAILED', 'ABORTED'];
+
+const isFinished = (record: RunRecord): boolean =>
+  FINISHED_STATUSES.includes(record.state?.status ?? '');
+
+/**
+ * The harness session that opened the run, as the recorder stamped it: the state's own
+ * `sessionId`, else the one on its `PIPELINE_INIT` entry. `''` when it has none (an older
+ * recorder, or a harness that sets no session id).
+ */
+export const runSessionId = (state: RunStateFile | null): string => {
+  if (state === null) return '';
+  const parsed: ZodSafeParseResult<RunSessionStamp> = runSessionStampSchema.safeParse(state);
+  if (!parsed.success) return '';
+  const own: string = parsed.data.sessionId ?? '';
+  if (own !== '') return own;
+  const init: RunSessionStamp['history'] = (parsed.data.history ?? []).filter(
+    (entry: NonNullable<RunSessionStamp['history']>[number]): boolean =>
+      entry.type === 'PIPELINE_INIT',
+  );
+  return init[0]?.details?.sessionId ?? '';
+};
+
+const toLink =
+  (match: SessionRunLink['match']) =>
+  (record: RunRecord): SessionRunLink => ({
+    pipelineId: record.pipelineId,
+    runId: record.runId,
+    match,
+  });
+
+const createdAtMs = (record: RunRecord): number => Date.parse(runCreatedAt(record));
+
+/**
+ * The run a session's question belongs to, or `null`.
+ *
+ * 1. `session` — the run the recorder stamped with the asking Claude session id. Exact: the
+ *    stamp is written by the `open` that created the run, in the session that asks. Of several
+ *    (one session that ran the factory twice) the newest wins.
+ * 2. `started-after` — only for a run with no stamp at all (an older recorder): the first
+ *    unfinished run of the session's factory created at or after the session started.
+ *
+ * A run stamped with another session is never taken by the fallback.
+ */
+export const findSessionRun = (
+  runs: readonly RunRecord[],
+  query: SessionRunQuery,
+): SessionRunLink | null => {
+  const claudeSessionId: string = query.claudeSessionId ?? '';
+  const stamped: RunRecord[] =
+    claudeSessionId === ''
+      ? []
+      : sortRuns(
+          runs.filter(
+            (record: RunRecord): boolean => runSessionId(record.state) === claudeSessionId,
+          ),
+        );
+  const exact: RunRecord | undefined = stamped[0];
+  if (exact !== undefined) return toLink('session')(exact);
+
+  const startedAt: number = Date.parse(query.startedAt ?? '');
+  if (query.factoryId === undefined || Number.isNaN(startedAt)) return null;
+  const candidates: RunRecord[] = runs
+    .filter(
+      (record: RunRecord): boolean =>
+        record.pipelineId === query.factoryId &&
+        runSessionId(record.state) === '' &&
+        !isFinished(record) &&
+        createdAtMs(record) >= startedAt,
+    )
+    .sort((a: RunRecord, b: RunRecord): number => createdAtMs(a) - createdAtMs(b));
+  const first: RunRecord | undefined = candidates[0];
+  return first === undefined ? null : toLink('started-after')(first);
+};

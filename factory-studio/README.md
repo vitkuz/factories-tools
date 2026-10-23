@@ -7,7 +7,7 @@ reads the factory data on disk (`factories/<id>/pipeline.json` — the shared ki
 or the project's own `factories.local/<id>/pipeline.json`, with the factory's own `knowledge/`
 beside it, the wrapper skills `.claude/skills/<id>/SKILL.md`, `run/<pipeline>/<run-id>/`, the hook
 scripts under `scripts/`), writes only run documents (the `input` documents of a `human` step), and
-starts, lists and stops a Claude harness in a tmux session from a prompt typed in the browser.
+starts, lists and stops a Claude harness in a herdr workspace from a prompt typed in the browser.
 
 Factory Studio never writes a pipeline: pipelines are edited as JSON (by Claude, or by hand), and a
 changed `pipeline.json` shows up on the next poll. The pipeline editor that used to live here was
@@ -52,7 +52,7 @@ ss -ltnp | grep ':3100 '
 
 The SIGTERM handler logs `shutting down`, closes the HTTP server and frees the port within about a
 second; the npm wrappers exit on their own; the second `ss` prints nothing. Stopping the API never
-stops a tmux session: sessions outlive it on purpose, and the next start lists them again.
+stops a herdr session: sessions outlive it on purpose, and the next start lists them again.
 
 To keep it running after the shell closes, with the log in a file:
 
@@ -72,8 +72,8 @@ npm test
 npm run build
 ```
 
-`npm test -w api` runs the vitest suite over HTTP against a fake tmux and temporary `WORK_DIR`s;
-it needs neither tmux nor `claude`. A rebuilt `web/dist` is served without restarting the API
+`npm test -w api` runs the vitest suite over HTTP against a fake herdr and temporary `WORK_DIR`s;
+it needs neither herdr nor `claude`. A rebuilt `web/dist` is served without restarting the API
 (reload the browser); a rebuilt `api/dist` needs a restart.
 
 ### Ports
@@ -114,7 +114,8 @@ Every variable has a default; nothing has to be set. Values come from `api/.env`
 | `HOST` | `127.0.0.1` | bind address; loopback unless set on purpose, because the harness it starts skips every approval prompt |
 | `WORK_DIR` | the repository root (two levels above `factories-tools/factory-studio`) | where `factories/` (the kit), `factories.local/`, `.claude/skills/` and `run/` live and where the harness starts |
 | `PROMPT_DIR` | `<tmpdir>/factory-studio` | where each session's `<session>.prompt` is written (dir `0700`, file `0600`) |
-| `TMUX_BIN` | `/usr/bin/tmux` | the tmux binary |
+| `HERDR_BIN` | `/home/kuzmenka/.local/bin/herdr` | the herdr binary |
+| `HERDR_SESSION` | `factory-studio` | the named herdr session (own headless server) that holds the harness workspaces |
 | `START_GRACE_MS` | `750` | how long a new session must stay alive before a start counts as started |
 | `LOG_LEVEL` | `info` | winston level: `error`, `warn`, `info`, `debug` |
 | `WEB_DIST` | `factories-tools/factory-studio/web/dist` | the built app served at `/` |
@@ -144,7 +145,7 @@ place.
 | `/` | the Runs index, as `/runs` (the address stays `/`). |
 | `/runs` | **Runs index**: totals, a per-pipeline table (a row filters the run table), a per-run table (a row opens the run), and every run grouped by pipeline with status, day and cost; a run without `state.json` shows `no state`; `Live` indicator, "Updated n s ago" footer and `Refresh`; a run with an invalid `state.json` is dropped and named in the footer while the rest still show. |
 | `/runs/<pipelineId>/<runId>[#view=detailed]` | **One run**: its row marked and kept in view in the sidebar, its header line in the top bar after the tabs (`All runs`, `pipeline /` id, status, day, duration, cost, `Live`), the status-coloured graph — one column per wave, result pills, the loops, escapes and jumps the run did not take drawn quiet until a card is hovered or pinned (click a card to pin its neighbourhood; the same card again, the empty canvas or `Escape` unpins), `All routes` (`a`) to draw them all — legend, `Details`, minimap, the inspector (overview, cost breakdown with a `stale` pill, step pane with attempts, per-step cost and prompt), the collapsible log whose step chips select a node, and the document viewer; refetches every 5 s while the run is `RUNNING`/`PAUSED`, every 30 s otherwise, pauses while the tab is hidden, and keeps viewport and selection across refreshes; `Offline` with the last data when the API stops answering; a stateless run shows the definition graph with "No state.json yet". |
-| `/sessions` | **Sessions**: a prompt text area, a factory picker, `Start` (disabled until both are filled) which starts a Claude harness in tmux and shows the new row within about a second; the list of running `factory-*` sessions (session, factory, harness, started, age) refreshed every 10 s, with `Stop` on each row; every refusal (`400`, `404`, `409`, `502`) is a notice on the screen. |
+| `/sessions` | **Sessions**: a prompt text area, a factory picker, `Start` (disabled until both are filled) which starts a Claude harness in herdr and shows the new row within about a second; the list of running `factory-*` sessions (session, factory, harness, started, age) refreshed every 10 s, with `Stop` on each row; every refusal (`400`, `404`, `409`, `502`) is a notice on the screen. |
 | anything else | the Runs index; the address is rewritten to `/runs` without a history entry, so an old `/editor` or `/editor/<id>` bookmark lands on Runs. |
 
 The document viewer opens from the run view: run documents (rendered and raw markdown, text,
@@ -172,7 +173,7 @@ only on E9 and E11, raw text (2 MB, any content type) only on E8.
 | E6 | GET | `/api/v1/runs` | — | `200 { "generatedAt", "pipelines": { <id>: pipeline }, "runs": [{ "runId", "pipelineId", "dir", "hasState", "state", "cost", "hasCost", "pipeline"? }] }` — walks `<WORK_DIR>/run/<pipelineId>/<runId>/` on every call; pipeline id from `state.pipelineName` (or the older `pipeline`) before the folder name; a run whose `state.json` does not parse is skipped (a warning is logged); no `state.json` → `hasState: false, state: null`; unreadable `cost.json` → `cost: null, hasCost: true`; a run's own `pipeline.json` is included as `pipeline` exactly as written — a snapshot from before prompts became line arrays (a string `prompt`, a `systemPrompt`) is served as it is and upgraded by the app, so every old run still draws; sorted newest `createdAt` first, then stateless runs, then by id; unknown fields pass through | `500` |
 | E7 | GET, HEAD | `/api/v1/runs/:pipelineId/:runId/<path>` | — | as E5, from `<WORK_DIR>/run/<pipelineId>/<runId>/<path>` | `400`, `403` as E5, `404 { "error": "run not found" }` (also when an id is not a single safe segment), `500` |
 | E8 | PUT | `/api/v1/runs/:pipelineId/:runId/<path>` | raw text, any content type (the app sends `text/plain; charset=utf-8`), ≤ 2 MB; a body sent as `application/json` lands byte for byte, valid or not; an empty body writes an empty file | `200 { "kind": "saved", "bytes" }` — parents created, written atomically | `400 { "error": "a folder cannot be written" \| "state.json belongs to the recorder" \| "cost.json belongs to the recorder" \| "not a file" \| path errors }`, `403`, `404 { "error": "run not found" }`, `413 { "error": "document too large" }`, `415 { "error": "only text documents can be edited" }` (extension not `text/*` or `application/json`), `500` |
-| E9 | POST | `/api/v1/sessions` | `{ "id", "prompt", "harness"? }` — `id` matches `^[a-z0-9-]+-factory$` and must be a listed pipeline (`factories/<id>/pipeline.json`) whose wrapper skill `.claude/skills/<id>/SKILL.md` exists; `prompt` 1–50 000 characters after trimming; `harness` one of `claude`, `copilot`, `agy`, `codex`, default `claude` (the app always sends `claude`) | `201 { "session", "factoryId", "harness", "prompt", "promptFile", "workDir" }` — `session` is `factory-<id without -factory>-<8 hex>`; the text `/<id> <prompt>` is written to `<PROMPT_DIR>/<session>.prompt` (`0600` in a `0700` folder) and left there; the harness starts in a detached tmux session with cwd `WORK_DIR` and the user options `@harness`, `@factory_id`; the same factory may be started any number of times | `400 { "error": "invalid request body", "details": issues }`, `400 { "error": "malformed JSON body: …" }`, `404 { "error": "no such factory skill on disk", "details": { "available": [ids] } }`, `502 { "error": "the <harness> session exited immediately — …", "details": { "session", "harness" } }` (after `START_GRACE_MS`), `500` |
+| E9 | POST | `/api/v1/sessions` | `{ "id", "prompt", "harness"? }` — `id` matches `^[a-z0-9-]+-factory$` and must be a listed pipeline (`factories/<id>/pipeline.json`) whose wrapper skill `.claude/skills/<id>/SKILL.md` exists; `prompt` 1–50 000 characters after trimming; `harness` one of `claude`, `copilot`, `agy`, `codex`, default `claude` (the app always sends `claude`) | `201 { "session", "factoryId", "harness", "prompt", "promptFile", "workDir" }` — `session` is `factory-<id without -factory>-<8 hex>`; the text `/<id> <prompt>` is written to `<PROMPT_DIR>/<session>.prompt` (`0600` in a `0700` folder) and left there; the harness starts in a herdr workspace with cwd `WORK_DIR` and the user options `@harness`, `@factory_id`; the same factory may be started any number of times | `400 { "error": "invalid request body", "details": issues }`, `400 { "error": "malformed JSON body: …" }`, `404 { "error": "no such factory skill on disk", "details": { "available": [ids] } }`, `502 { "error": "the <harness> session exited immediately — …", "details": { "session", "harness" } }` (after `START_GRACE_MS`), `500` |
 | E10 | GET | `/api/v1/sessions` | — | `200 { "count", "sessions": [{ "session", "factoryId", "harness", "startedAt", "ageSeconds", "age" }] }` — every tmux session named `factory-*`, oldest first, labels read back from tmux (so a session survives an API restart; a hand-made one shows `"harness": "unknown"`); `{ "count": 0, "sessions": [] }` with no tmux server | `500` |
 | E11 | POST | `/api/v1/sessions/stop` | `{ "session" }` — a full session name, or a factory id with or without `-factory` when exactly one of its sessions is live | `200 { "stopped": { "session", "factoryId", "harness", "startedAt", "ageSeconds", "age" } }` | `400`, `404 { "error": "no running factory session named \"…\"", "details": { "running": [session names] } }`, `409 { "error": "\"<id>\" is running n times — stop one by its session name", "details": { "sessions": [...] } }`, `500`; a session whose name does not start with `factory-` is never stopped |
 | E12 | GET, HEAD | `/api/v1/scripts/<path>` | — | `200` a text file under `<WORK_DIR>/scripts/` (≤ 1 MB, symlinks followed but kept inside that folder), with its content type | `400` path errors, `404 { "error": "not found" }` (also for a folder or an absent file), `413 { "error": "script too large" }`, `415 { "error": "only text scripts can be read" }`, `500` |
@@ -199,11 +200,11 @@ curl -s -X POST -H 'content-type: application/json' --data '{"session":"canonica
 ## How it fits together
 
 **Layout.** This folder is an npm workspace root with two packages. `api/` is the Express server:
-`src/server.ts` is the one composition root (env → logger → fs and tmux clients → services →
+`src/server.ts` is the one composition root (env → logger → fs and herdr clients → services →
 usecases → `createApp` → listen; SIGTERM/SIGINT close only the HTTP server). Each feature under
 `api/src/features/{pipelines,runs,scripts,sessions,documents}` (`pipelines` is read-only: the list E2 and knowledge E5) is layered
 `routes -> controllers -> usecases -> services`, every layer a function closing over its settings,
-with the IO clients under `api/src/clients/{fs,tmux}` and the middleware under
+with the IO clients under `api/src/clients/{fs,herdr}` and the middleware under
 `api/src/shared/middleware` (request log, API key, validation, `no-store`, JSON 404, static app,
 document sender, error edge). `web/` is a Vite + React 19 app organised as
 `src/features/{runs,sessions}` (components, hooks, `*.schema.ts`, `*.types.ts`, `*.utils.ts`,
@@ -231,11 +232,11 @@ message on screen, never partial data.
 The usecase checks the id against the pipelines listed on disk that have a wrapper skill, writes `/<id> <prompt>` to
 `<PROMPT_DIR>/<session>.prompt` with mode `0600`, builds the harness command by interpolating only
 the single-quoted prompt-file path (the prompt text never touches a shell; `$(touch /tmp/pwned)`
-arrives in the file as literal text), and runs `tmux new-session -d` with an argument list, cwd
+arrives in the file as literal text), and runs `herdr workspace create + pane run` with an argument list, cwd
 `WORK_DIR`, the name `factory-<id without -factory>-<8 hex>` and the labels `@harness` and
 `@factory_id`. After `START_GRACE_MS` it checks the session still exists (`502` if not) and answers
-`201`. `GET /api/v1/sessions` reads `tmux list-sessions` and the labels back every time, so the list
-is the truth even after an API restart; `Stop` posts the full name and tmux kills that one session.
+`201`. `GET /api/v1/sessions` reads `herdr workspace list` and the labels back every time, so the list
+is the truth even after an API restart; `Stop` posts the full name and herdr closes that workspace.
 The Sessions screen shows the `201` row at once and refreshes the list every 10 s.
 
 **How a run's state reaches the screen.** A running factory writes
@@ -262,3 +263,16 @@ event) is lit instead, as the Editor draws it. The same files are copied into
 `factory-editor/web/src/shared/graph/` and `factory-diagram/src/shared/studio-graph/`; both carry a
 test that fails when the copy drifts (`web/tests/` here covers the ranking, the layout, the focus
 overlay and the run decoration over a real 25-step factory).
+
+## Claude questions over WebSocket
+
+Claude sessions started by the studio get a per-session `--settings` file with a `PreToolUse` and a
+`PostToolUse` hook on `AskUserQuestion` (`api/hooks/studio-question-hook.mjs`). The PreToolUse hook
+posts the full `tool_input` (up to 4 questions) to `POST /api/v1/hooks/ask-user-question` and
+blocks; the API broadcasts `session.question` on `ws://<host>/api/v1/ws` (key via `?key=` or
+`x-api-key`). The UI answers with `session.answer` (one answer per question), the hook prints
+`permissionDecision: allow` plus `updatedInput.answers`, and Claude receives them without the
+terminal dialog. `session.dismiss` makes the hook exit silently so the normal terminal dialog opens;
+a hook timeout or crash does the same. `session.question.resolved` closes the box (answered,
+dismissed, timeout, terminal). `session.reply` types plain text plus Enter into a blocked session.
+Other messages: `hello` (pending questions on connect) and `session.status` (herdr agent status).

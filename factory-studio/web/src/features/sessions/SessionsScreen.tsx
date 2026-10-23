@@ -2,19 +2,35 @@ import { useEffect, useState, type ReactNode } from 'react';
 import { describeApiError, isApiError } from '../../adapters/http/api-error.utils';
 import { listPipelines } from '../../adapters/http/studio-api.adapter';
 import { useNow } from '../../shared/lib/polling';
+import { FeedBar } from '../../shared/components/FeedBar';
 import { TopbarContent } from '../../shared/components/TopbarContent';
 import { formatRelative } from '../runs/lib/format';
-import type { ListState, PipelineList, PipelineListEntry } from './sessions.types';
-import { useSessions, type Sessions } from './hooks/use-sessions';
+import type { ListState, PipelineList, PipelineListEntry, StartRequest } from './sessions.types';
+import { REFRESH_LIVE_MS, REFRESH_MS, useSessions, type Sessions } from './hooks/use-sessions';
+import type { SessionQuestions } from './hooks/use-session-questions';
+import { useQuestions } from './hooks/use-questions';
+import { useChime } from '../../shared/lib/use-chime';
+import questionChime from '../../assets/question-chime.wav';
+import { sessionsNeedingReply, titleWithCount } from './sessions.utils';
 import { StartForm } from './components/StartForm';
-import { SessionList } from './components/SessionList';
+import { SessionBoard } from './components/SessionBoard';
 import { SessionNotice } from './components/SessionNotice';
 
 const APP_NAME = 'Factory Studio';
 
-/** The Sessions screen: a prompt and a factory in, a tmux session out; the running ones listed and stoppable. */
+/** The Sessions screen: the start form across the top, then every herdr session on a board by what it needs. */
 export const SessionsScreen = (): ReactNode => {
-  const sessions: Sessions = useSessions();
+  const questions: SessionQuestions = useQuestions();
+  // The socket carries the live news; the list is polled fast only while the socket is down.
+  const sessions: Sessions = useSessions(
+    questions.connection === 'open' ? REFRESH_LIVE_MS : REFRESH_MS,
+  );
+  const terminalWaits: number = sessionsNeedingReply(
+    sessions.state.sessions,
+    questions.state,
+  ).length;
+  const waiting: number = questions.state.pending.length + terminalWaits;
+  const live: boolean = questions.connection === 'open' && !sessions.state.error;
   const [entries, setEntries] = useState<PipelineListEntry[]>([]);
   const [listState, setListState] = useState<ListState>('loading');
   const [starting, setStarting] = useState<boolean>(false);
@@ -22,10 +38,13 @@ export const SessionsScreen = (): ReactNode => {
   const now: number = useNow(1000);
 
   useEffect((): void => {
-    document.title = `Sessions — ${APP_NAME}`;
-  }, []);
+    document.title = titleWithCount(`Sessions — ${APP_NAME}`, waiting);
+  }, [waiting]);
+  // The app chimes for Claude's questions (QuestionsProvider); this screen adds the sessions
+  // whose dialog is open in the terminal, which only its session list knows about.
+  useChime(questionChime, terminalWaits);
 
-  // The factory picker needs only the ids; one fetch of the list on mount.
+  // The factory picker and its param fields; one fetch of the list on mount.
   useEffect((): (() => void) => {
     const controller: AbortController = new AbortController();
     listPipelines(controller.signal)
@@ -42,9 +61,9 @@ export const SessionsScreen = (): ReactNode => {
     return (): void => controller.abort();
   }, []);
 
-  const onStart = (id: string, prompt: string): void => {
+  const onStart = (request: StartRequest): void => {
     setStarting(true);
-    void sessions.start(id, prompt).finally((): void => setStarting(false));
+    void sessions.start(request).finally((): void => setStarting(false));
   };
 
   const onStop = (session: string): void => {
@@ -56,34 +75,37 @@ export const SessionsScreen = (): ReactNode => {
     <div className="screen screen-sessions">
       <TopbarContent>
         <div className="subbar">
-          <span className="muted subbar-note">
-            {sessions.state.error
-              ? `Can't reach the API (${sessions.state.error})`
-              : `Updated ${formatRelative(sessions.state.updatedAt, now)}`}
-          </span>
-          <button
-            type="button"
-            className="feed-refresh"
-            onClick={sessions.refresh}
-            disabled={sessions.state.refreshing}
-          >
-            {sessions.state.refreshing ? 'Refreshing…' : 'Refresh'}
-          </button>
+          {waiting > 0 ? (
+            <span className="count-badge" role="status">
+              {waiting} waiting for you
+            </span>
+          ) : null}
+          <FeedBar
+            detail={
+              sessions.state.error
+                ? `Can't reach the API (${sessions.state.error})`
+                : `Updated ${formatRelative(sessions.state.updatedAt, now)}`
+            }
+            word={live ? 'Live' : questions.connection === 'connecting' ? 'Connecting' : 'Offline'}
+            tone={live ? 'live' : 'unreachable'}
+            refreshing={sessions.state.refreshing}
+            onRefresh={sessions.refresh}
+          />
         </div>
       </TopbarContent>
       <div className="sessions">
-        <section className="sessions-pane" aria-label="Start a session">
-          <h3 className="panel-title">Start</h3>
-          <StartForm entries={entries} listState={listState} busy={starting} onStart={onStart} />
-        </section>
-        <section className="sessions-pane sessions-running" aria-label="Running sessions">
-          <h3 className="panel-title">
-            Running
-            {sessions.state.sessions.length > 0 ? ` · ${sessions.state.sessions.length}` : ''}
-          </h3>
-          <SessionNotice notice={sessions.state.notice} onDismiss={sessions.dismiss} />
-          <SessionList sessions={sessions.state.sessions} stopping={stopping} onStop={onStop} />
-        </section>
+        <StartForm entries={entries} listState={listState} busy={starting} onStart={onStart} />
+        <SessionNotice notice={sessions.state.notice} onDismiss={sessions.dismiss} />
+        <SessionBoard
+          sessions={sessions.state.sessions}
+          state={questions.state}
+          connection={questions.connection}
+          stopping={stopping}
+          now={now}
+          onAnswer={questions.answer}
+          onClearError={questions.clearError}
+          onStop={onStop}
+        />
       </div>
     </div>
   );

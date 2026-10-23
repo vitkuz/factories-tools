@@ -1,5 +1,5 @@
-import { runStatusWord } from './lib/run';
-import { formatDay } from './lib/format';
+import { RUN_STATUS_META, runStatusWord } from './lib/run';
+import { formatDay, formatTokens } from './lib/format';
 import type { PipelineStep, RunState } from './lib/types';
 import type {
   DashboardData,
@@ -63,6 +63,7 @@ export const runOverviewOf = (run: RunRecord, now: number): RunOverview => ({
   pipelineId: run.pipelineId,
   runId: run.runId,
   status: run.state ? runStatusWord(run.state.status) : 'no state',
+  statusToken: run.state ? RUN_STATUS_META[run.state.status].token : '--st-pending',
   steps: Object.keys(run.state?.steps ?? {}).length,
   stepsCompleted: countStatus(run, 'COMPLETED'),
   stepsSkipped: countStatus(run, 'SKIPPED'),
@@ -121,6 +122,50 @@ export const overviewOf = (data: DashboardData, now: number): Overview => {
   };
   return { pipelines, runs, totals };
 };
+
+/* ------------------------------------------------------------------ runs home */
+
+/** Newest first; an undated pipeline sorts after every dated one (no Infinity arithmetic). */
+const byLastRun = (a: PipelineOverview, b: PipelineOverview): number => {
+  const left: number | null = parseMs(a.lastRunAt);
+  const right: number | null = parseMs(b.lastRunAt);
+  if (left === null || right === null) return left === right ? 0 : left === null ? 1 : -1;
+  return right - left;
+};
+
+/** Pipelines newest last run first; a pipeline with no dated run goes last, list order kept on ties. */
+export const sortByLastRun = (pipelines: readonly PipelineOverview[]): PipelineOverview[] =>
+  [...pipelines].sort(byLastRun);
+
+/** The pipeline the home shows: the one asked for while it is listed, else the first one. */
+export const pickPipeline =
+  (wanted: string | null) =>
+  (pipelines: readonly PipelineOverview[]): PipelineOverview | null =>
+    pipelines.find((p: PipelineOverview): boolean => p.pipelineId === wanted) ??
+    pipelines[0] ??
+    null;
+
+/** The rows of one pipeline, in the order the list had them (newest first). */
+export const runsOfPipeline =
+  (pipelineId: string) =>
+  (runs: readonly RunOverview[]): RunOverview[] =>
+    runs.filter((run: RunOverview): boolean => run.pipelineId === pipelineId);
+
+const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
+
+/** "6 runs · 112 steps · 486.6M tok": the second line of a pipeline row; no tokens part without a cost.json. */
+export const pipelineSummary = (pipeline: PipelineOverview): string =>
+  [
+    plural(pipeline.runs, 'run'),
+    plural(pipeline.steps, 'step'),
+    pipeline.totalTokens === null ? null : `${formatTokens(pipeline.totalTokens)} tok`,
+  ]
+    .filter((part: string | null): part is string => part !== null)
+    .join(' · ');
+
+/** Absent is not zero: a pipeline whose every run lacks a cost.json has no cost to state. */
+export const isAllUnpriced = (pipeline: PipelineOverview): boolean =>
+  pipeline.runs > 0 && pipeline.unpriced === pipeline.runs;
 
 const startOfDay = (ms: number): number => {
   const d: Date = new Date(ms);
