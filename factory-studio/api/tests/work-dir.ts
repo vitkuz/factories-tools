@@ -20,8 +20,11 @@ import type { PipelineServices } from '../src/features/pipelines/pipelines.types
 import {
   collectRunRecordsFactory,
   listRunsFactory,
+  locateRemovableRunFactory,
   locateRunDirFactory,
+  moveRunToTrashFactory,
   readRunDocumentFactory,
+  removeRunFactory,
   writeRunDocumentFactory,
 } from '../src/features/runs/index.js';
 import type { RunServices } from '../src/features/runs/runs.types.js';
@@ -225,9 +228,12 @@ export const buildTestApp = (
   const pipelineServices: PipelineServices = {
     listPipelineSkills: listPipelineSkillsFactory({ fs, workDir, logger: quiet }),
   };
+  const locateRunDir = locateRunDirFactory({ fs, workDir });
   const runServices: RunServices = {
     collectRunRecords: collectRunRecordsFactory({ fs, workDir, logger: quiet }),
-    locateRunDir: locateRunDirFactory({ fs, workDir }),
+    locateRunDir,
+    locateRemovableRun: locateRemovableRunFactory({ fs, workDir, locateRunDir }),
+    moveRunToTrash: moveRunToTrashFactory({ fs, workDir, logger: quiet, now: options.now }),
   };
   const readLink = readTranscriptLinkFactory({
     fs,
@@ -289,6 +295,7 @@ export const buildTestApp = (
       }),
       readRunDocument: readRunDocumentFactory({ ...runServices, readDocument }),
       writeRunDocument: writeRunDocumentFactory({ ...runServices, writeDocument, logger: quiet }),
+      removeRun: removeRunFactory({ ...runServices, listSessions, workDir, logger: quiet }),
     },
     scripts: {
       readScript: readScriptFactory({ fs, workDir, readDocument }),
@@ -363,10 +370,14 @@ export interface RawResponse {
  * request leaves, so traversal attempts have to go through `node:http` to reach the server.
  */
 export const rawGet = (origin: string, rawPath: string): Promise<RawResponse> =>
+  rawRequest(origin, rawPath, 'GET');
+
+/** Any method with the path sent verbatim, as `rawGet` does it. */
+export const rawRequest = (origin: string, rawPath: string, method: string): Promise<RawResponse> =>
   new Promise<RawResponse>((resolve, reject): void => {
     const url: URL = new URL(origin);
     const req: ClientRequest = request(
-      { host: url.hostname, port: Number(url.port), path: rawPath, method: 'GET' },
+      { host: url.hostname, port: Number(url.port), path: rawPath, method },
       (res: IncomingMessage): void => {
         const chunks: Buffer[] = [];
         res.on('data', (chunk: Buffer): void => {

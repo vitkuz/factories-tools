@@ -1,5 +1,6 @@
 import { useCallback, useMemo, useState, type ReactNode } from 'react';
 import type { RunsFeed } from '../hooks/use-runs-feed';
+import { useRemoveRun, type RunRemover } from '../hooks/use-remove-run';
 import type { Overview, PipelineOverview, RunOverview } from '../runs.types';
 import { overviewOf, pickPipeline, runsOfPipeline, sortByLastRun } from '../runs.utils';
 import type { RunRef } from '../../../shared/lib/route';
@@ -40,6 +41,7 @@ const IndexBar = ({ feed }: { feed: RunsFeed }): ReactNode => (
  */
 export const RunsIndex = ({ feed, onOpen }: RunsIndexProps): ReactNode => {
   const now: number = useNow(30_000);
+  const remover: RunRemover = useRemoveRun(feed);
   const [wanted, setWanted] = useState<string | null>(() => readPrefs().pipelineId);
   const overview: Overview = useMemo((): Overview => overviewOf(feed.data, now), [feed.data, now]);
   const pipelines: PipelineOverview[] = useMemo(
@@ -77,7 +79,9 @@ export const RunsIndex = ({ feed, onOpen }: RunsIndexProps): ReactNode => {
             selected={selected?.pipelineId ?? null}
             onSelect={select}
           />
-          {selected ? <PipelineRuns pipeline={selected} runs={runs} onOpen={onOpen} /> : null}
+          {selected ? (
+            <PipelineRuns pipeline={selected} runs={runs} onOpen={onOpen} remover={remover} />
+          ) : null}
         </div>
       </div>
     </>

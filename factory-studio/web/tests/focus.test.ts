@@ -3,7 +3,7 @@ import type { Edge, Node } from '@xyflow/react';
 import { applyFocus, focusIdOf, type FocusedGraph } from '../src/shared/graph';
 
 type N = Node<{ label: string }>;
-type E = Edge<{ quiet: boolean; hushed?: boolean; dimmed?: boolean }>;
+type E = Edge<{ quiet: boolean; hushed?: boolean; dimmed?: boolean; hidden?: boolean }>;
 
 const node = (id: string): N => ({ id, position: { x: 0, y: 0 }, data: { label: id } });
 const edge = (source: string, target: string, quiet: boolean = false): E => ({
@@ -77,9 +77,9 @@ describe('applyFocus', () => {
     expect(c.d).toBe(''); // the escape b → d makes d a neighbour too
     expect(c['e:a->b']).toBe('');
     expect(c['e:b->c']).toBe('');
-    expect(c['e:c->d']).toBe('dimmed');
-    // the quiet retry c → a touches two neighbours but not b: dimmed and still quiet
-    expect(c['e:c->a']).toBe('dimmed edge-quiet');
+    expect(c['e:c->d']).toBe('edge-hidden');
+    // the quiet retry c → a touches two neighbours but not b: hidden and still quiet
+    expect(c['e:c->a']).toBe('edge-hidden edge-quiet');
     // the quiet escape out of b is revealed
     expect(c['e:b->d']).toBe('');
     expect(g.edges[4].data?.hushed).toBeUndefined();
@@ -98,7 +98,7 @@ describe('applyFocus', () => {
     expect(c.b).toBe('');
     expect(c.c).toBe('');
     expect(c.d).toBe('');
-    expect(g.edges.find((e: E): boolean => e.id === 'e:a->b')?.data?.dimmed).toBe(true);
+    expect(g.edges.find((e: E): boolean => e.id === 'e:a->b')?.data?.hidden).toBe(true);
   });
 
   it('hover overrides the pin and leaves the pinned card dimmed when it is no neighbour', () => {

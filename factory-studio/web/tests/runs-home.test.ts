@@ -35,6 +35,7 @@ const run = (pipelineId: string, runId: string): RunOverview => ({
   startedAt: '2026-10-20T10:00:00Z',
   priced: true,
   hasState: true,
+  active: false,
 });
 
 describe('runs home', () => {

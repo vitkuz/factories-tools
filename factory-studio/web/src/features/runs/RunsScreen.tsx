@@ -3,7 +3,8 @@ import { buildGraph, type GraphResult, type ViewMode } from './lib/graph';
 import { pickDefaultRun, resolvePipeline, type RunsFeed } from './hooks/use-runs-feed';
 import { isActiveRun } from './runs.utils';
 import type { DashboardData, Pipeline, RunRecord } from './runs.types';
-import { navigate, writeView, type RunRef } from '../../shared/lib/route';
+import { navigate, writeRunTab, writeView, type RunRef, type RunTab } from '../../shared/lib/route';
+import { readJson, writeJson } from '../../shared/lib/storage';
 import { usePolling } from '../../shared/lib/polling';
 import { questionsForRun, titleWithCount, useQuestions, type PendingQuestion } from '../sessions';
 import { isTypingTarget } from '../../shared/lib/keys';
@@ -15,6 +16,15 @@ const APP_NAME = 'Factory Studio';
 const FAST_POLL_MS = 5_000;
 const SLOW_POLL_MS = 30_000;
 const EMPTY_GRAPH: GraphResult = { nodes: [], edges: [] };
+/** The viewer's last chosen run tab: what a link without `?view=` opens on. */
+const TAB_STORAGE_KEY = 'factory-studio.run-tab';
+
+interface TabPrefs {
+  tab: RunTab;
+}
+
+const readDefaultTab = (): RunTab =>
+  readJson<TabPrefs>(TAB_STORAGE_KEY, { tab: 'graph' }).tab === 'timeline' ? 'timeline' : 'graph';
 
 interface RunsScreenProps {
   /** The run list, owned by the shell so the sidebar has it on every screen. */
@@ -22,6 +32,8 @@ interface RunsScreenProps {
   /** The run in the route, or `null` for the index. */
   run: RunRef | null;
   view: ViewMode;
+  /** The run tab the query names; null opens the viewer's default. */
+  tab: RunTab | null;
 }
 
 const sameRef = (a: RunRef | null, b: RunRef | null): boolean =>
@@ -32,7 +44,12 @@ const sameRef = (a: RunRef | null, b: RunRef | null): boolean =>
  * `/runs/<pipelineId>/<runId>`. The list is polled here — fast while the shown run is moving,
  * slowly otherwise — and a refresh never touches the viewport.
  */
-export const RunsScreen = ({ feed, run: requested, view }: RunsScreenProps): ReactNode => {
+export const RunsScreen = ({
+  feed,
+  run: requested,
+  view,
+  tab: requestedTab,
+}: RunsScreenProps): ReactNode => {
   const data: DashboardData = feed.data;
   const runs: RunRecord[] = data.runs;
 
@@ -62,19 +79,27 @@ export const RunsScreen = ({ feed, run: requested, view }: RunsScreenProps): Rea
     );
   }, [run, requested, pending, asked.length]);
 
+  const tab: RunTab = requestedTab ?? readDefaultTab();
+  const chooseTab = useCallback((next: RunTab): void => {
+    writeJson(TAB_STORAGE_KEY, { tab: next });
+    writeRunTab(next);
+  }, []);
+
   const toggleView = useCallback(
     (): void => writeView(view === 'detailed' ? 'compact' : 'detailed'),
     [view],
   );
 
+  // `d` flips the card mode, a Graph control: on Timeline it would change nothing visible.
   useEffect(() => {
+    if (requested === null || tab !== 'graph') return;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'd' || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
       toggleView();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [toggleView]);
+  }, [toggleView, requested, tab]);
 
   const openRun = useCallback((ref: RunRef): void => {
     navigate({ screen: 'runs', run: ref });
@@ -149,6 +174,8 @@ export const RunsScreen = ({ feed, run: requested, view }: RunsScreenProps): Rea
         view={view}
         asking={asking}
         onToggleView={toggleView}
+        tab={tab}
+        onTab={chooseTab}
       />
     </div>
   );

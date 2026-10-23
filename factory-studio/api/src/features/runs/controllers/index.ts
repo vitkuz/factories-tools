@@ -5,3 +5,4 @@ export {
   runDocRawPath,
 } from './read-run-document.controller.js';
 export { writeRunDocumentControllerFactory } from './write-run-document.controller.js';
+export { removeRunControllerFactory } from './remove-run.controller.js';

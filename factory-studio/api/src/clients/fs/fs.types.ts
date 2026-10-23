@@ -7,6 +7,11 @@ export interface FileInfo {
   size: number;
 }
 
+export interface LinkInfo {
+  isSymbolicLink: boolean;
+  isDirectory: boolean;
+}
+
 export interface DirEntryInfo {
   name: string;
   isFile: boolean;
@@ -25,6 +30,8 @@ export interface FsClientSettings {
 export interface FsClient {
   /** `null` when there is nothing at the path. */
   stat: (file: string) => Promise<FileInfo | null>;
+  /** The entry at the path itself, a symlink not followed; `null` when there is nothing. */
+  lstat: (file: string) => Promise<LinkInfo | null>;
   /** The path with every symlink resolved; `null` when there is nothing at the path. */
   realpath: (file: string) => Promise<string | null>;
   readText: (file: string) => Promise<string>;
@@ -40,4 +47,6 @@ export interface FsClient {
   writePrivateText: (dir: string, name: string, text: string) => Promise<string>;
   /** mkdir -p the parent of `link`, then a symbolic link `link` → `target` (kept as given, relative or not). */
   symlink: (target: string, link: string) => Promise<void>;
+  /** mkdir -p the parent of `to`, then rename `from` to `to` (same file system). */
+  move: (from: string, to: string) => Promise<void>;
 }

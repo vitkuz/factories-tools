@@ -508,25 +508,27 @@ export default function Inspector({
             </p>
           )}
           <div className="run-head">
+            <div className="run-head-bar">
+              {state && (
+                <Badge
+                  label={runStatusLabel(state.status)}
+                  token={RUN_STATUS_META[state.status].token}
+                  ariaLabel={`run status: ${runStatusLabel(state.status)}`}
+                />
+              )}
+              {cost && (
+                <span
+                  className={`run-cost${stale ? ' is-stale' : ''}`}
+                  title={costTitle ?? undefined}
+                  aria-label={`run cost: ${formatUSD(cost.totals.estimatedListPriceUsd)}${stale ? ' (stale)' : ''}`}
+                >
+                  {formatUSD(cost.totals.estimatedListPriceUsd)}
+                  {stale && <span className="run-cost-stale">stale</span>}
+                </span>
+              )}
+              <CollapseToggle expanded={true} side="right" label="run details" onToggle={toggle} />
+            </div>
             <h2>{run.runId}</h2>
-            {state && (
-              <Badge
-                label={runStatusLabel(state.status)}
-                token={RUN_STATUS_META[state.status].token}
-                ariaLabel={`run status: ${runStatusLabel(state.status)}`}
-              />
-            )}
-            {cost && (
-              <span
-                className={`run-cost${stale ? ' is-stale' : ''}`}
-                title={costTitle ?? undefined}
-                aria-label={`run cost: ${formatUSD(cost.totals.estimatedListPriceUsd)}${stale ? ' (stale)' : ''}`}
-              >
-                {formatUSD(cost.totals.estimatedListPriceUsd)}
-                {stale && <span className="run-cost-stale">stale</span>}
-              </span>
-            )}
-            <CollapseToggle expanded={true} side="right" label="run details" onToggle={toggle} />
           </div>
 
           <dl className="kv">

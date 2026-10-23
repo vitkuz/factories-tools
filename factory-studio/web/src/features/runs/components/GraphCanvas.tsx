@@ -147,9 +147,13 @@ export default function GraphCanvas({
   // What React Flow last reported as selected. A `selectedId` that differs from it came
   // from outside the canvas (a log chip, a run switch) and is written into the nodes;
   // one that matches is React Flow's own click/keyboard selection and is left alone.
+  // A canvas mounted with a selection (the Timeline tab sent a step here) applies it only once
+  // React Flow has measured the cards: writing it earlier loops React Flow's own store updates.
   const reported = useRef<string | null>(null);
+  const initializedRef = useRef<boolean>(initialized);
+  initializedRef.current = initialized;
   useEffect(() => {
-    if (reported.current === selectedId) return;
+    if (!initialized || reported.current === selectedId) return;
     reported.current = selectedId;
     setNodes((prev) =>
       prev.map((n) =>
@@ -158,11 +162,13 @@ export default function GraphCanvas({
           : ({ ...n, selected: n.id === selectedId } as GraphNode),
       ),
     );
-  }, [selectedId, setNodes]);
+  }, [selectedId, setNodes, initialized]);
 
   const onSelectionChange = useCallback(
     ({ nodes: selected }: OnSelectionChangeParams): void => {
       const id: string | null = selected[0]?.id ?? null;
+      // Before the cards are measured React Flow reports its empty start, not a click.
+      if (!initializedRef.current) return;
       reported.current = id;
       onSelect(id);
     },
@@ -194,8 +200,8 @@ export default function GraphCanvas({
   // node components skip re-rendering).
   const viewGraph = useMemo(
     (): { nodes: GraphNode[]; edges: GraphEdge[] } =>
-      applyFocus(nodes, edges, { hoveredId, pinnedId: selectedId }, allRoutes),
-    [nodes, edges, hoveredId, selectedId, allRoutes],
+      applyFocus(nodes, edges, { hoveredId, pinnedId: initialized ? selectedId : null }, allRoutes),
+    [nodes, edges, hoveredId, selectedId, allRoutes, initialized],
   );
 
   const enterNode = (id: string): void => {

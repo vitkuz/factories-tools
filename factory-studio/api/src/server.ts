@@ -29,8 +29,11 @@ import type { PipelineServices, PipelineUsecases } from './features/pipelines/pi
 import {
   collectRunRecordsFactory,
   listRunsFactory,
+  locateRemovableRunFactory,
   locateRunDirFactory,
+  moveRunToTrashFactory,
   readRunDocumentFactory,
+  removeRunFactory,
   writeRunDocumentFactory,
 } from './features/runs/index.js';
 import type { RunServices, RunUsecases } from './features/runs/runs.types.js';
@@ -96,14 +99,12 @@ const pipelines: PipelineUsecases = {
   }),
 };
 
+const locateRunDir = locateRunDirFactory({ fs, workDir });
 const runServices: RunServices = {
   collectRunRecords: collectRunRecordsFactory({ fs, workDir, logger }),
-  locateRunDir: locateRunDirFactory({ fs, workDir }),
-};
-const runs: RunUsecases = {
-  listRuns: listRunsFactory({ ...pipelineServices, ...runServices, logger }),
-  readRunDocument: readRunDocumentFactory({ ...runServices, readDocument }),
-  writeRunDocument: writeRunDocumentFactory({ ...runServices, writeDocument, logger }),
+  locateRunDir,
+  locateRemovableRun: locateRemovableRunFactory({ fs, workDir, locateRunDir }),
+  moveRunToTrash: moveRunToTrashFactory({ fs, workDir, logger }),
 };
 
 const scripts: ScriptUsecases = {
@@ -122,6 +123,14 @@ const listSessions: () => Promise<FactorySession[]> = listSessionsFactory({
     return link?.claudeSessionId ?? null;
   },
 });
+const runs: RunUsecases = {
+  listRuns: listRunsFactory({ ...pipelineServices, ...runServices, logger }),
+  readRunDocument: readRunDocumentFactory({ ...runServices, readDocument }),
+  writeRunDocument: writeRunDocumentFactory({ ...runServices, writeDocument, logger }),
+  // A run a live session is still in stays: the same session list GET /sessions answers with.
+  removeRun: removeRunFactory({ ...runServices, listSessions, workDir, logger }),
+};
+
 const sessions: SessionUsecases = {
   startFactorySession: startFactorySessionFactory({
     workDir,

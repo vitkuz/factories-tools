@@ -113,6 +113,7 @@ function FlowEdge({
     d.loop ? 'edge-label--loop' : '',
     d.kind === 'max' ? 'edge-label--max' : '',
     d.dimmed || d.bypassed ? 'edge-label--dimmed' : '',
+    d.hidden ? 'edge-label--hidden' : '',
   ]
     .filter(Boolean)
     .join(' ');

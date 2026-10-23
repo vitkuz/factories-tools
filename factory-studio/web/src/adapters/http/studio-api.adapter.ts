@@ -8,6 +8,7 @@ import {
   knowledgeDocPath,
   pipelinesPath,
   runDocPath,
+  runPath,
   runsPath,
   scriptPath,
   sessionsPath,
@@ -28,6 +29,9 @@ import type {
   StopSessionPayload,
   Stopped,
 } from '../../features/sessions/sessions.types';
+import { removedRunSchema } from '../../features/runs/runs.schema';
+import type { RemovedRun } from '../../features/runs/runs.types';
+import type { RunRef } from '../../shared/lib/route';
 import {
   directoryListingSchema,
   missingNoticeSchema,
@@ -152,6 +156,16 @@ export const readRunDocument = async (
 ): Promise<DocContent> => {
   try {
     return await readDocument(runDocPath(ref.pipelineId, ref.runId, ref.path), signal);
+  } catch (error: unknown) {
+    return failWith(error);
+  }
+};
+
+/** E15: moves the run to `run/.trash`; a live session in it answers 409. */
+export const removeRun = async (ref: RunRef): Promise<RemovedRun> => {
+  try {
+    const { data }: AxiosResponse<unknown> = await http.delete(runPath(ref.pipelineId, ref.runId));
+    return removedRunSchema.parse(data).removed;
   } catch (error: unknown) {
     return failWith(error);
   }

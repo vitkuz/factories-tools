@@ -97,6 +97,8 @@ export type EdgeData = {
   quiet: boolean;
   /** Focus is on other nodes: the edge and its label are dimmed (set by the canvas). */
   dimmed?: boolean;
+  /** Focus is on other nodes (Runs): the edge, its arrowhead and its label are not drawn (set by the canvas). */
+  hidden?: boolean;
   /** Drawn quiet right now — thin, faded, no pills (set by the canvas). */
   hushed?: boolean;
 };

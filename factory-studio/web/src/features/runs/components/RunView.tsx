@@ -5,7 +5,7 @@ import type { GraphResult, ViewMode } from '../lib/graph';
 import type { Pipeline, RunRecord } from '../runs.types';
 import { runRelativePath } from '../runs.utils';
 import { isTypingTarget } from '../../../shared/lib/keys';
-import type { RunRef } from '../../../shared/lib/route';
+import type { RunRef, RunTab } from '../../../shared/lib/route';
 import {
   DocOpenContext,
   LazyDocModal,
@@ -17,8 +17,9 @@ import {
 import GraphCanvas from './GraphCanvas';
 import Inspector from './Inspector';
 import NoPipeline from './NoPipeline';
-import { PlainView } from './PlainView';
 import { RunHeader } from './RunHeader';
+import { RunTabs } from './RunTabs';
+import { TimelineView } from './TimelineView';
 import { RunQuestionPanel } from '../../sessions';
 import { LiveSessionPanel } from '../../chat';
 
@@ -36,12 +37,16 @@ export interface RunViewProps {
   /** Claude's question for this run waits in the studio: the inspector opens with it on top. */
   asking: boolean;
   onToggleView: () => void;
+  /** The main area's tab: the canvas, or the steps in run order. */
+  tab: RunTab;
+  onTab: (tab: RunTab) => void;
 }
 
 /**
- * One run: its header line in the top bar, then the graph with the plain view under it, the
- * inspector and the document modal. The run is chosen in the app's sidebar; a different run
- * arrives as new props, and the selection and any open document are dropped with the old one.
+ * One run: its header line in the top bar, then the Graph and Timeline tabs (only the active
+ * one is drawn), the inspector and the document modal. The selection is shared by both tabs
+ * and the inspector. The run is chosen in the app's sidebar; a different run arrives as new
+ * props, and the selection and any open document are dropped with the old one.
  */
 export const RunView = ({
   feed,
@@ -52,6 +57,8 @@ export const RunView = ({
   view,
   asking,
   onToggleView,
+  tab,
+  onTab,
 }: RunViewProps): ReactNode => {
   const wrapRef = useRef<HTMLDivElement | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -59,14 +66,25 @@ export const RunView = ({
   // survives a run switch (unlike the selection) and is not written anywhere.
   const [allRoutes, setAllRoutes] = useState<boolean>(false);
   const toggleAllRoutes = useCallback((): void => setAllRoutes((on: boolean): boolean => !on), []);
+  // `a` toggles All routes while the canvas is on show; on Timeline it would change nothing visible.
   useEffect(() => {
+    if (tab !== 'graph') return;
     const onKey = (e: KeyboardEvent): void => {
       if (e.key !== 'a' || e.metaKey || e.ctrlKey || e.altKey || isTypingTarget(e.target)) return;
       toggleAllRoutes();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [toggleAllRoutes]);
+  }, [toggleAllRoutes, tab]);
+
+  // A step title on Timeline: the canvas, with that card selected (its focus pinned).
+  const showInGraph = useCallback(
+    (slug: string): void => {
+      setSelectedId(slug);
+      onTab('graph');
+    },
+    [onTab],
+  );
 
   // The document modal: a stack so a link inside one doc opens on top of it (Back pops).
   const [docStack, setDocStack] = useState<DocRef[]>([]);
@@ -103,11 +121,6 @@ export const RunView = ({
     },
     [],
   );
-  // A ref the plain view built itself (a hook script, an inline prompt): a fresh, read-only stack.
-  const openRef = useCallback((ref: DocRef): void => {
-    setEditable(false);
-    setDocStack([ref]);
-  }, []);
   const pushDoc = useCallback((ref: DocRef): void => setDocStack((s) => [...s, ref]), []);
   const backDoc = useCallback((): void => setDocStack((s) => s.slice(0, -1)), []);
   const closeDoc = useCallback((): void => setDocStack([]), []);
@@ -120,41 +133,60 @@ export const RunView = ({
       <DocOpenContext.Provider value={openDoc}>
         <main className="main">
           <div className="run-column">
-            <div
-              className={withClass('graph-wrap', view === 'detailed' ? 'is-detailed' : '')}
-              ref={wrapRef}
-            >
-              {pipeline ? (
-                <ReactFlowProvider>
-                  <GraphCanvas
-                    graph={graph}
-                    runKey={runKey}
-                    view={view}
-                    onToggleView={onToggleView}
-                    allRoutes={allRoutes}
-                    onToggleAllRoutes={toggleAllRoutes}
-                    stateless={!run.state}
-                    selectedId={selectedId}
-                    onSelect={setSelectedId}
-                    wrapRef={wrapRef}
+            <RunTabs tab={tab} onTab={onTab} />
+            {tab === 'graph' ? (
+              <div
+                id="run-panel-graph"
+                role="tabpanel"
+                aria-labelledby="run-tab-graph"
+                className={withClass('graph-wrap', view === 'detailed' ? 'is-detailed' : '')}
+                ref={wrapRef}
+              >
+                {pipeline ? (
+                  <ReactFlowProvider>
+                    <GraphCanvas
+                      graph={graph}
+                      runKey={runKey}
+                      view={view}
+                      onToggleView={onToggleView}
+                      allRoutes={allRoutes}
+                      onToggleAllRoutes={toggleAllRoutes}
+                      stateless={!run.state}
+                      selectedId={selectedId}
+                      onSelect={setSelectedId}
+                      wrapRef={wrapRef}
+                    />
+                  </ReactFlowProvider>
+                ) : (
+                  <NoPipeline
+                    pipelineId={run.pipelineId}
+                    knownPipelineIds={Object.keys(feed.data.pipelines)}
                   />
-                </ReactFlowProvider>
-              ) : (
-                <NoPipeline
-                  pipelineId={run.pipelineId}
-                  knownPipelineIds={Object.keys(feed.data.pipelines)}
-                />
-              )}
-            </div>
-            {pipeline && (
-              <PlainView
-                pipeline={pipeline}
-                run={run}
-                graph={graph}
-                selectedId={selectedId}
-                onSelectStep={setSelectedId}
-                onOpenRef={openRef}
-              />
+                )}
+              </div>
+            ) : (
+              <div
+                id="run-panel-timeline"
+                role="tabpanel"
+                aria-labelledby="run-tab-timeline"
+                className="timeline-wrap"
+              >
+                {pipeline ? (
+                  <TimelineView
+                    pipeline={pipeline}
+                    run={run}
+                    graph={graph}
+                    selectedId={selectedId}
+                    onSelectStep={setSelectedId}
+                    onShowInGraph={showInGraph}
+                  />
+                ) : (
+                  <NoPipeline
+                    pipelineId={run.pipelineId}
+                    knownPipelineIds={Object.keys(feed.data.pipelines)}
+                  />
+                )}
+              </div>
             )}
           </div>
           <Inspector

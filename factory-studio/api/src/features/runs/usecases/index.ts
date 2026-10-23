@@ -7,3 +7,4 @@ export {
   writeRunDocumentFactory,
   type WriteRunDocumentSettings,
 } from './write-run-document.usecase.js';
+export { removeRunFactory, type RemoveRunSettings } from './remove-run.usecase.js';

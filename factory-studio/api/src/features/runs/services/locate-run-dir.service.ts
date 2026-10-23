@@ -3,7 +3,7 @@ import type { ZodSafeParseResult } from 'zod';
 import type { FileInfo, FsClient, JsonRead } from '../../../clients/fs/fs.types.js';
 import { runStateFileSchema } from '../runs.schema.js';
 import type { RunStateFile } from '../runs.types.js';
-import { RUN_DIR, STATE_FILE, isRunSegment, statePipelineId } from '../runs.utils.js';
+import { RUN_DIR, STATE_FILE, isRunFolder, isRunSegment, statePipelineId } from '../runs.utils.js';
 
 export interface LocateRunDirSettings {
   fs: FsClient;
@@ -34,9 +34,9 @@ export const locateRunDirFactory =
     if (!isRunSegment(pipelineId) || !isRunSegment(runId)) return null;
     const runRoot: string = path.join(workDir, RUN_DIR);
     const direct: string = path.join(runRoot, pipelineId, runId);
-    if (await isDirectory(fs, direct)) return direct;
+    if (isRunFolder(pipelineId) && (await isDirectory(fs, direct))) return direct;
 
-    const folders: string[] = await fs.subdirectories(runRoot);
+    const folders: string[] = (await fs.subdirectories(runRoot)).filter(isRunFolder);
     const matches: (string | null)[] = await Promise.all(
       folders.map(async (folder: string): Promise<string | null> => {
         const candidate: string = path.join(runRoot, folder, runId);

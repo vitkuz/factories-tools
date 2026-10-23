@@ -2,11 +2,18 @@ export { createRunsRoutes } from './routes/runs.routes.js';
 export {
   listRunsFactory,
   readRunDocumentFactory,
+  removeRunFactory,
   writeRunDocumentFactory,
 } from './usecases/index.js';
-export { collectRunRecordsFactory, locateRunDirFactory } from './services/index.js';
+export {
+  collectRunRecordsFactory,
+  locateRemovableRunFactory,
+  locateRunDirFactory,
+  moveRunToTrashFactory,
+} from './services/index.js';
 export {
   costFileSchema,
+  runParamsSchema,
   runPipelineFileSchema,
   runStateFileSchema,
   sessionRunLinkSchema,
@@ -22,6 +29,8 @@ export {
 export type {
   CostFile,
   ReadRunDocumentResult,
+  RemoveRunResult,
+  RemovedRun,
   RunRecord,
   RunServices,
   RunStateFile,

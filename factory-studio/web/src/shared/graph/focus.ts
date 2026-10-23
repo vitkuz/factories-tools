@@ -22,7 +22,9 @@ export const focusIdOf = (sources: FocusSources): string | null =>
 /**
  * The focus overlay the Runs screen draws: the focused card and its direct neighbours (over
  * every edge kind, terminals included) stay, every other card steps back (`dimmed`); only
- * the edges touching the focused card stay, the rest are dimmed too. Quiet edges (untaken
+ * the edges touching the focused card stay, the rest are hidden outright (`edge-hidden`,
+ * `data.hidden`: stroke, arrowhead and label gone — translucent strokes would stack where
+ * they overlap). Quiet edges (untaken
  * loops, escapes, jumps) are `hushed` — thin, faded, no label — unless they touch the focused
  * card or `showAllRoutes` asks for every route. A thin overlay over the arrays: untouched
  * nodes and edges keep their object identity (memoised node components skip re-rendering);
@@ -61,10 +63,13 @@ export const applyFocus = <N extends Node, E extends Edge>(
       if (!dim && !hush) return e;
       return {
         ...e,
-        className: withClass(withClass(e.className, dim ? 'dimmed' : ''), hush ? 'edge-quiet' : ''),
+        className: withClass(
+          withClass(e.className, dim ? 'edge-hidden' : ''),
+          hush ? 'edge-quiet' : '',
+        ),
         data: {
           ...(e.data as Record<string, unknown>),
-          ...(dim ? { dimmed: true } : {}),
+          ...(dim ? { hidden: true } : {}),
           ...(hush ? { hushed: true } : {}),
         },
       } as E;

@@ -214,3 +214,151 @@
   width: 14px;
   color: var(--ink-2);
 }
+
+/* ---- remove a run: the bin at the row's end, the confirm under the row ---- */
+
+.screen-runs .grid th.row-actions,
+.screen-runs .grid td.row-actions {
+  width: 1%;
+  padding-left: 0;
+  text-align: right;
+  white-space: nowrap;
+}
+
+/* Quiet until the row is pointed at or reached by keyboard; always there without a hover. */
+.screen-runs .row-remove {
+  display: inline-grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: none;
+  color: var(--ink-2);
+  cursor: pointer;
+  opacity: 0;
+  transition:
+    opacity 120ms ease,
+    color 120ms ease;
+}
+
+.screen-runs .grid tr:hover .row-remove,
+.screen-runs .grid tr:focus-within .row-remove,
+.screen-runs .grid tr.is-confirming .row-remove,
+.screen-runs .row-remove:focus-visible {
+  opacity: 1;
+}
+
+.screen-runs .row-remove:hover,
+.screen-runs .row-remove[aria-expanded='true'] {
+  color: var(--st-failed);
+  border-color: color-mix(in srgb, var(--st-failed) 45%, var(--panel));
+  background: color-mix(in srgb, var(--st-failed) 12%, transparent);
+}
+
+.screen-runs .row-remove:focus-visible {
+  outline: 2px solid var(--st-running);
+  outline-offset: 1px;
+}
+
+@media (hover: none), (max-width: 760px) {
+  .screen-runs .row-remove {
+    opacity: 1;
+  }
+}
+
+.screen-runs .grid tr.is-confirming td {
+  background: var(--raised);
+  border-bottom-color: transparent;
+}
+
+.screen-runs .grid tr.run-remove-row td {
+  padding-top: 0;
+  background: var(--raised);
+  cursor: default;
+}
+
+.run-remove-confirm {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--st-failed) 40%, var(--line));
+  border-left-width: 3px;
+  border-left-color: var(--st-failed);
+  border-radius: 6px;
+  background: var(--panel);
+  font-size: 13px;
+}
+
+.run-remove-text {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.run-remove-text p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.run-remove-text p + p {
+  margin-top: 6px;
+}
+
+.run-remove-warning {
+  color: var(--st-waiting);
+}
+
+.run-remove-error {
+  color: var(--st-failed);
+  font-weight: 500;
+}
+
+.run-remove-actions {
+  display: flex;
+  gap: 8px;
+}
+
+.run-remove-actions .danger-button,
+.run-remove-actions .ghost-button {
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.run-remove-actions .danger-button {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--st-failed) 55%, var(--ground));
+  color: color-mix(in srgb, var(--st-failed) 70%, var(--ink));
+}
+
+.run-remove-actions .danger-button:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--st-failed) 18%, transparent);
+}
+
+.run-remove-actions .ghost-button {
+  border-color: var(--line);
+  color: var(--ink);
+  font-weight: 500;
+}
+
+.run-remove-actions button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.pipeline-runs-notice {
+  padding: 12px 20px 0;
+  overflow-wrap: anywhere;
+}
+
+.pipeline-runs-notice + .grid-scroll {
+  margin-top: 12px;
+}

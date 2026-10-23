@@ -6,7 +6,9 @@ export type { ViewMode };
 /**
  * Screens and ids live in the path — `/runs`, `/runs/<pipelineId>/<runId>`, `/sessions`,
  * `/sessions/<session>` (that session's live chat over the board) —
- * and the card detail mode stays in the hash as the dashboard wrote it (`#view=detailed`).
+ * the run page's tab in the query (`?view=graph|timeline`), and the card detail mode in the
+ * hash (`#cards=detailed`; the dashboard's older `#view=detailed` is still read, and rewritten
+ * the next time the mode is toggled).
  * The API answers `index.html` for every non-`/api` path, so a reload of any of these lands
  * on the same screen. `/` and every other path (an old `/editor/<id>` bookmark, say) open
  * the runs list.
@@ -21,7 +23,16 @@ export interface RunRef {
 export type Route =
   { screen: 'runs'; run: RunRef | null } | { screen: 'sessions'; chat?: string | null };
 
-const VIEW_KEY = 'view';
+/** The run page's main area: the canvas, or the steps as a list in run order. */
+export type RunTab = 'graph' | 'timeline';
+
+export const RUN_TABS: readonly RunTab[] = ['graph', 'timeline'];
+
+/** Query key of the run tab. */
+const TAB_KEY = 'view';
+/** Hash key of the card mode, and the one the dashboard used before the tabs took `view`. */
+const CARDS_KEY = 'cards';
+const LEGACY_CARDS_KEY = 'view';
 
 const segmentsOf = (pathname: string): string[] =>
   pathname
@@ -55,25 +66,48 @@ export const buildPath = (route: Route): string => {
   }
 };
 
+const paramsOf = (text: string, lead: string): URLSearchParams =>
+  new URLSearchParams(text.startsWith(lead) ? text.slice(1) : text);
+
+/** The card mode from the hash: `#cards=detailed`, or an old link's `#view=detailed`. */
 export const readView = (hash: string): ViewMode => {
-  const params: URLSearchParams = new URLSearchParams(hash.startsWith('#') ? hash.slice(1) : hash);
-  return params.get(VIEW_KEY) === 'detailed' ? 'detailed' : 'compact';
+  const params: URLSearchParams = paramsOf(hash, '#');
+  const value: string | null = params.get(CARDS_KEY) ?? params.get(LEGACY_CARDS_KEY);
+  return value === 'detailed' ? 'detailed' : 'compact';
 };
 
-export const buildHash = (view: ViewMode): string => (view === 'detailed' ? '#view=detailed' : '');
+export const buildHash = (view: ViewMode): string =>
+  view === 'detailed' ? `#${CARDS_KEY}=detailed` : '';
 
-/** A tiny listener set: `navigate` and `writeView` tell every `useRoute` to re-read the location. */
+/** The run tab the query names (`?view=timeline`); null when it names none or an unknown one. */
+export const readRunTab = (search: string): RunTab | null => {
+  const value: string | null = paramsOf(search, '?').get(TAB_KEY);
+  return RUN_TABS.find((tab: RunTab): boolean => tab === value) ?? null;
+};
+
+/** `search` with the run tab set (other keys kept, in order), `?` included. */
+export const buildSearch = (search: string, tab: RunTab): string => {
+  const params: URLSearchParams = paramsOf(search, '?');
+  params.set(TAB_KEY, tab);
+  return `?${params.toString()}`;
+};
+
+/** A tiny listener set: `navigate`, `writeView` and `writeRunTab` tell every `useRoute` to re-read the location. */
 const listeners: Set<() => void> = new Set();
 
 const notify = (): void => listeners.forEach((listen: () => void): void => listen());
 
 const sameScreen = (a: Route, b: Route): boolean => a.screen === b.screen;
 
-/** Go to a route: a new history entry when the screen changes, a replacement otherwise. The hash is kept. */
+/**
+ * Go to a route: a new history entry when the screen changes, a replacement otherwise. The
+ * hash is kept; the query (the run tab) only from one run to another.
+ */
 export const navigate = (route: Route): void => {
   const current: Route = parseRoute(window.location.pathname);
   const path: string = buildPath(route);
-  const url: string = `${path}${window.location.hash}`;
+  const search: string = route.screen === 'runs' && route.run ? window.location.search : '';
+  const url: string = `${path}${search}${window.location.hash}`;
   if (path === window.location.pathname) return;
   if (sameScreen(current, route)) window.history.replaceState(null, '', url);
   else window.history.pushState(null, '', url);
@@ -88,9 +122,20 @@ export const writeView = (view: ViewMode): void => {
   notify();
 };
 
+/** Write the run tab into the query without a history entry; the hash is kept. */
+export const writeRunTab = (tab: RunTab): void => {
+  const { pathname, search, hash }: Location = window.location;
+  const next: string = buildSearch(search, tab);
+  if (next === search) return;
+  window.history.replaceState(null, '', `${pathname}${next}${hash}`);
+  notify();
+};
+
 export interface RouteState {
   route: Route;
   view: ViewMode;
+  /** The run tab the query names; null leaves it to the viewer's default. */
+  tab: RunTab | null;
 }
 
 /** `/` is the runs list as it is; any other path the routes do not name is rewritten in place. */
@@ -110,9 +155,10 @@ const canonicalise = (): void => {
 const readLocation = (): RouteState => ({
   route: parseRoute(window.location.pathname),
   view: readView(window.location.hash),
+  tab: readRunTab(window.location.search),
 });
 
-/** The current route and view, updated on back/forward, hash edits and `navigate`/`writeView`. */
+/** The current route, card mode and run tab, updated on back/forward, hash edits and the writers above. */
 export const useRoute = (): RouteState => {
   const [state, setState] = useState<RouteState>(readLocation);
   useEffect(() => {

@@ -1,6 +1,8 @@
 import type { ReactNode } from 'react';
-import type { PipelineOverview, RunOverview } from '../runs.types';
-import { isAllUnpriced } from '../runs.utils';
+import type { PipelineOverview, RemoveRunOutcome, RunOverview } from '../runs.types';
+import { isAllUnpriced, removedNotice } from '../runs.utils';
+import type { RunRemover } from '../hooks/use-remove-run';
+import { Notice } from '../../../shared/components/Notice';
 import type { RunRef } from '../../../shared/lib/route';
 import { formatDay, formatDurationMs, formatTokens, formatUSD } from '../lib/format';
 import { RunTable } from './RunTable';
@@ -9,6 +11,8 @@ interface PipelineRunsProps {
   pipeline: PipelineOverview;
   runs: readonly RunOverview[];
   onOpen: (run: RunRef) => void;
+  /** Remove = move to trash; its last success is the notice over the table. */
+  remover?: RunRemover;
 }
 
 interface StatProps {
@@ -36,7 +40,7 @@ const Stat = ({ label, value, money, absent, note }: StatProps): ReactNode => (
 );
 
 /** The right column of the home: the picked pipeline's name, its five sums and its runs. */
-export const PipelineRuns = ({ pipeline, runs, onOpen }: PipelineRunsProps): ReactNode => {
+export const PipelineRuns = ({ pipeline, runs, onOpen, remover }: PipelineRunsProps): ReactNode => {
   // Absent is not zero: with no cost.json behind any run there is no cost to state.
   const cost: number | null = isAllUnpriced(pipeline) ? null : pipeline.costUsd;
   const lastRun: string = formatDay(pipeline.lastRunAt);
@@ -76,7 +80,18 @@ export const PipelineRuns = ({ pipeline, runs, onOpen }: PipelineRunsProps): Rea
           absent={pipeline.durationSeconds === null}
         />
       </div>
-      <RunTable runs={runs} onOpen={onOpen} />
+      {remover?.removed ? (
+        <div className="pipeline-runs-notice">
+          <Notice tone="ok">{removedNotice(remover.removed)}</Notice>
+        </div>
+      ) : null}
+      <RunTable
+        runs={runs}
+        onOpen={onOpen}
+        onRemove={
+          remover ? (ref: RunRef): Promise<RemoveRunOutcome> => remover.remove(ref) : undefined
+        }
+      />
     </section>
   );
 };

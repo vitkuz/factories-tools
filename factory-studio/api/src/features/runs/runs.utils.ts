@@ -14,6 +14,24 @@ export const RUN_DIR = 'run';
 export const STATE_FILE = 'state.json';
 export const COST_FILE = 'cost.json';
 export const PIPELINE_SNAPSHOT_FILE = 'pipeline.json';
+/** Removed runs: `run/.trash/<folder>/<runId>-<stamp>`. Out of the feed, back by one `mv`. */
+export const TRASH_DIR = '.trash';
+
+/**
+ * A folder under `run/` that holds runs: never a hidden one, so `.trash` (and any other
+ * dot-folder) is not read as a pipeline.
+ */
+export const isRunFolder = (name: string): boolean => !name.startsWith('.');
+
+/** `2026-10-24T10:15:30.123Z` -> `20261024T101530123Z`: sortable, one path segment. Pure. */
+export const trashStamp = (at: Date): string => at.toISOString().replace(/[-:.]/g, '');
+
+/** Where a removed run goes, relative to the run root. Pure. */
+export const trashSegments = (folder: string, runId: string, at: Date): string[] => [
+  TRASH_DIR,
+  folder,
+  `${runId}-${trashStamp(at)}`,
+];
 
 /** A `:pipelineId` or `:runId` is one folder name, never a path. */
 export const isRunSegment = (value: string): boolean => isSafeSegment(value);

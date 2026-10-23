@@ -11,6 +11,7 @@ import {
   PIPELINE_SNAPSHOT_FILE,
   RUN_DIR,
   STATE_FILE,
+  isRunFolder,
   sortRuns,
   statePipelineId,
 } from '../runs.utils.js';
@@ -132,7 +133,8 @@ export const collectRunRecordsFactory =
   (settings: CollectRunRecordsSettings) => async (): Promise<RunRecord[]> => {
     const { fs, workDir }: CollectRunRecordsSettings = settings;
     const runRoot: string = path.join(workDir, RUN_DIR);
-    const folders: string[] = await fs.subdirectories(runRoot);
+    // `.trash` holds removed runs; they are out of the feed.
+    const folders: string[] = (await fs.subdirectories(runRoot)).filter(isRunFolder);
     const perFolder: (RunRecord | null)[][] = await Promise.all(
       folders.map(async (folderId: string): Promise<(RunRecord | null)[]> => {
         const runIds: string[] = await fs.subdirectories(path.join(runRoot, folderId));

@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import {
+  lstat,
   mkdir,
   readdir,
   readFile,
@@ -13,7 +14,14 @@ import {
 import path from 'node:path';
 import type { Readable } from 'node:stream';
 import { v4 as uuidv4 } from 'uuid';
-import type { DirEntryInfo, FileInfo, FsClient, FsClientSettings, JsonRead } from './fs.types.js';
+import type {
+  DirEntryInfo,
+  FileInfo,
+  FsClient,
+  FsClientSettings,
+  JsonRead,
+  LinkInfo,
+} from './fs.types.js';
 
 const errorCode = (error: unknown): string | undefined =>
   typeof error === 'object' && error !== null ? (error as { code?: string }).code : undefined;
@@ -33,6 +41,19 @@ const statFactory =
     try {
       const info: fs.Stats = await stat(file);
       return { isFile: info.isFile(), isDirectory: info.isDirectory(), size: info.size };
+    } catch (error: unknown) {
+      if (isAbsent(error)) return null;
+      throw error;
+    }
+  };
+
+/** Like `stat`, but the path itself: a symlink is reported as one, never followed. */
+const lstatFactory =
+  (_settings: FsClientSettings) =>
+  async (file: string): Promise<LinkInfo | null> => {
+    try {
+      const info: fs.Stats = await lstat(file);
+      return { isSymbolicLink: info.isSymbolicLink(), isDirectory: info.isDirectory() };
     } catch (error: unknown) {
       if (isAbsent(error)) return null;
       throw error;
@@ -154,8 +175,18 @@ const symlinkFactory =
     settings.logger?.debug('link made', { link, target });
   };
 
+/** mkdir -p the parent of `to`, then one rename: the folder is never half moved. */
+const moveFactory =
+  (settings: FsClientSettings) =>
+  async (from: string, to: string): Promise<void> => {
+    await mkdir(path.dirname(to), { recursive: true });
+    await rename(from, to);
+    settings.logger?.debug('moved', { from, to });
+  };
+
 export const createFsClient = (settings: FsClientSettings): FsClient => ({
   stat: statFactory(settings),
+  lstat: lstatFactory(settings),
   realpath: realpathFactory(settings),
   readText: readTextFactory(settings),
   readJson: readJsonFactory(settings),
@@ -165,4 +196,5 @@ export const createFsClient = (settings: FsClientSettings): FsClient => ({
   writeTextAtomic: writeTextAtomicFactory(settings),
   writePrivateText: writePrivateTextFactory(settings),
   symlink: symlinkFactory(settings),
+  move: moveFactory(settings),
 });

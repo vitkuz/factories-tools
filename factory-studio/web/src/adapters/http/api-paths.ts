@@ -26,6 +26,10 @@ export const knowledgeDocPath = (id: string, path: string): string =>
 
 export const runsPath = (): string => `${API_PREFIX}/runs`;
 
+/** One run as a whole (E15 removes it). */
+export const runPath = (pipelineId: string, runId: string): string =>
+  `${API_PREFIX}/runs/${encodeURIComponent(pipelineId)}/${encodeURIComponent(runId)}`;
+
 export const runDocPath = (pipelineId: string, runId: string, path: string): string =>
   `${API_PREFIX}/runs/${encodeURIComponent(pipelineId)}/${encodeURIComponent(runId)}/${encodeDocPath(path)}`;
 

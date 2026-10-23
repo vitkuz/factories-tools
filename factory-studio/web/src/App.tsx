@@ -13,7 +13,7 @@ import { QuestionsProvider, SessionsScreen } from './features/sessions';
  * here too, once, so a question can be answered on Sessions or on its run's page.
  */
 export default function App(): ReactNode {
-  const { route, view }: RouteState = useRoute();
+  const { route, view, tab }: RouteState = useRoute();
   const feed: RunsFeed = useRunsFeed();
   const [slot, setSlot] = useState<HTMLElement | null>(null);
 
@@ -21,7 +21,7 @@ export default function App(): ReactNode {
 
   const screen: ReactNode =
     route.screen === 'runs' ? (
-      <RunsScreen feed={feed} run={route.run} view={view} />
+      <RunsScreen feed={feed} run={route.run} view={view} tab={tab} />
     ) : (
       <SessionsScreen chat={route.chat ?? null} />
     );

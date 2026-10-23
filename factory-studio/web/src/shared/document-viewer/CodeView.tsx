@@ -28,8 +28,8 @@ interface CodeViewProps {
 }
 
 /**
- * A file as code: one numbered row per line, long lines scroll inside the box (the modal
- * never widens). The numbers are not selectable, so a drag-select copies the text alone.
+ * A file as code: one numbered row per line, long lines soft-wrap under the text column
+ * (the modal never widens). The numbers are not selectable, so a drag-select copies the text alone.
  */
 export const CodeView = ({ text, language }: CodeViewProps): ReactNode => {
   const lines: Token[][] = useMemo(

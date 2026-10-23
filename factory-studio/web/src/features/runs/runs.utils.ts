@@ -1,10 +1,13 @@
 import { RUN_STATUS_META, runStatusWord } from './lib/run';
-import { formatDay, formatTokens } from './lib/format';
-import type { PipelineStep, RunState } from './lib/types';
+import { attemptSpanMs, attemptsOf, type Attempt } from './lib/attempts';
+import { formatDay, formatDurationMs, formatTokens } from './lib/format';
+import type { StepStatusKey } from './lib/graph';
+import { END_ID } from '../../shared/graph';
+import { describeApiError, isApiError } from '../../adapters/http/api-error.utils';
+import type { PipelineStep, RunState, StepState } from './lib/types';
 import type {
   DashboardData,
   DayGroup,
-  HookSegment,
   Overview,
   OverviewTotals,
   PipelineOverview,
@@ -12,7 +15,10 @@ import type {
   RunFilter,
   RunGroup,
   RunOverview,
+  RemoveRunOutcome,
+  RemovedRun,
   RunRecord,
+  TimelineRow,
 } from './runs.types';
 
 /** Groups in first-seen order, so the list reads like the run/ folder. */
@@ -74,6 +80,7 @@ export const runOverviewOf = (run: RunRecord, now: number): RunOverview => ({
   startedAt: run.state?.createdAt ?? null,
   priced: run.cost !== null && run.cost !== undefined,
   hasState: run.hasState,
+  active: isActiveRun(run),
 });
 
 const sumOrNull = (values: (number | null)[]): number | null => {
@@ -239,6 +246,22 @@ export const firstSentence = (text: string): string => {
   return sentence.length > SENTENCE_MAX ? `${sentence.slice(0, SENTENCE_MAX - 1)}…` : sentence;
 };
 
+export interface PromptPreview {
+  /** The collapsed line: the text's first sentence, capped. */
+  preview: string;
+  /** The full text, trimmed, shown when expanded. */
+  full: string;
+  /** More than the preview to show: the toggle only appears then. */
+  expandable: boolean;
+}
+
+/** Splits a prompt into its collapsed preview line and its full text. */
+export const promptPreview = (text: string): PromptPreview => {
+  const full: string = text.trim();
+  const preview: string = firstSentence(full);
+  return { preview, full, expandable: full !== preview };
+};
+
 export const isGlobPath = (path: string): boolean => /[*?]/.test(path);
 
 const escapeRegExp = (text: string): string => text.replace(/[.+^${}()|[\]\\]/g, '\\$&');
@@ -303,25 +326,128 @@ export const transitionsOf = (
     };
   });
 
-/** A script path inside a hook command: `scripts/x.sh`, with or without a `{{rootPath}}/` or `./` in front. */
-const HOOK_SCRIPT =
-  /(?:\{\{rootPath\}\}\/|\.\/)?scripts\/[\w./-]*\.(?:sh|bash|mjs|cjs|js|ts|py)\b/g;
+/* ------------------------------------------------------------------ timeline */
 
-/** A hook command split into text and the script paths it names (relative to `scripts/`). */
-export const hookSegments = (command: string): HookSegment[] => {
-  const segments: HookSegment[] = [];
-  const push = (text: string, script: string | null): void => {
-    if (text !== '') segments.push({ text, script });
-  };
-  const end: number = [...command.matchAll(HOOK_SCRIPT)].reduce(
-    (from: number, match: RegExpMatchArray): number => {
-      const at: number = match.index ?? from;
-      push(command.slice(from, at), null);
-      push(match[0], match[0].replace(/^.*?scripts\//, ''));
-      return at + match[0].length;
-    },
-    0,
-  );
-  push(command.slice(end), null);
-  return segments;
+const STARTED: ReadonlySet<string> = new Set(['RUNNING', 'RETRYING', 'COMPLETED', 'FAILED']);
+
+const msOf = (iso: string | null | undefined): number | null => {
+  const ms: number = iso ? Date.parse(iso) : Number.NaN;
+  return Number.isFinite(ms) ? ms : null;
 };
+
+/** When an attempt list ends: its last finish, or `now` while one is still open. */
+const lastEndMs = (attempts: readonly Attempt[], now: number): number | null =>
+  attempts.reduce((end: number | null, a: Attempt): number | null => {
+    const start: number | null = msOf(a.startedAt);
+    const span: number | null = attemptSpanMs(a, now);
+    if (start === null || span === null) return end;
+    return Math.max(end ?? 0, start + span);
+  }, null);
+
+/** One step's row before it is placed (curried over the state). */
+const timelineRow =
+  (state: RunState | null) =>
+  (slug: string): TimelineRow => {
+    const st: StepState | undefined = state?.steps?.[slug];
+    const attempts: Attempt[] = attemptsOf(state)(slug);
+    const first: Attempt | undefined = attempts.find((a: Attempt): boolean => a.startedAt !== null);
+    const startedAt: string | null = first?.startedAt ?? null;
+    return {
+      slug,
+      startedAt,
+      passes: Math.max(st?.passes ?? 0, attempts.length, startedAt !== null ? 1 : 0),
+      attempts,
+      parallel: false,
+      ran: startedAt !== null || (st !== undefined && STARTED.has(st.status)),
+      skipReason: st?.skipReason ?? null,
+    };
+  };
+
+/**
+ * The steps in the order the run reached them: every step with a start time by its first
+ * start (the graph order breaks ties), then the ones without — never run, skipped, or run
+ * before the recorder kept timestamps — in the graph order. A row whose first start falls
+ * before the row above finished is flagged `parallel` (pure, curried).
+ */
+export const timelineRows =
+  (state: RunState | null, now: number) =>
+  (order: readonly string[]): TimelineRow[] => {
+    const rows: TimelineRow[] = order.map(timelineRow(state));
+    const timed: TimelineRow[] = rows
+      .filter((r: TimelineRow): boolean => msOf(r.startedAt) !== null)
+      .sort(
+        (a: TimelineRow, b: TimelineRow): number =>
+          (msOf(a.startedAt) ?? 0) - (msOf(b.startedAt) ?? 0),
+      );
+    const untimed: TimelineRow[] = rows.filter(
+      (r: TimelineRow): boolean => msOf(r.startedAt) === null,
+    );
+    return [
+      ...timed.map((row: TimelineRow, i: number): TimelineRow => {
+        const prev: TimelineRow | undefined = timed[i - 1];
+        const prevEnd: number | null = prev ? lastEndMs(prev.attempts, now) : null;
+        const start: number | null = msOf(row.startedAt);
+        return prevEnd !== null && start !== null && start < prevEnd
+          ? { ...row, parallel: true }
+          : row;
+      }),
+      ...untimed,
+    ];
+  };
+
+/** What a step's time cell needs from its card data. */
+export interface StepTiming {
+  status: StepStatusKey;
+  human: boolean;
+  workingMs: number | null;
+  attemptCount: number;
+  waitedMs: number | null;
+}
+
+/**
+ * The time cell of a step: `skipped`, `waiting for you`, `waited 4 min`, `running`, `2 min`,
+ * `5 min ×3` over a loop whose passes were all timed, `last pass 40 s` when the step ran
+ * more often than the state kept timings for; '' when there is nothing to say.
+ */
+export const stepTimeLabel =
+  (passes: number) =>
+  (t: StepTiming): string => {
+    if (t.status === 'SKIPPED') return 'skipped';
+    if (t.status === 'waiting') return 'waiting for you';
+    if (t.status === 'none' || t.status === 'PENDING') return '';
+    if (t.human) return t.waitedMs === null ? '' : `waited ${formatDurationMs(t.waitedMs)}`;
+    if (t.workingMs === null) return t.status === 'RUNNING' ? 'running' : '';
+    const total: string = formatDurationMs(t.workingMs);
+    if (t.attemptCount > 1) return `${total} ×${t.attemptCount}`;
+    return passes > 1 ? `last pass ${total}` : total;
+  };
+
+/** What a transition target jumps to: a step's card, the END marker, or nowhere. */
+export type JumpKind = 'step' | 'end' | 'none';
+
+/** Classifies a transition target against the steps that have a card in the Timeline (pure, curried). */
+export const jumpKindOf =
+  (stepSlugs: readonly string[]) =>
+  (name: string): JumpKind =>
+    name === END_ID ? 'end' : stepSlugs.includes(name) ? 'step' : 'none';
+
+/* ---------------------------------------------------------------- remove a run */
+
+/** A failed remove as the confirm shows it: a 409 is a live session, its message the API's. */
+export const removeFailureOf = (error: unknown): RemoveRunOutcome => {
+  if (!isApiError(error))
+    return {
+      ok: false,
+      live: false,
+      message: error instanceof Error ? error.message : String(error),
+    };
+  return {
+    ok: false,
+    live: error.kind === 'http' && error.status === 409,
+    message: describeApiError(error),
+  };
+};
+
+/** The line after a remove: what went where, and how to bring it back. */
+export const removedNotice = (removed: RemovedRun): string =>
+  `Moved ${removed.runId} to ${removed.trashedTo}. To restore it, move that folder back to ${removed.from}.`;

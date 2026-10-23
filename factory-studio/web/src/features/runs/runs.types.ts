@@ -1,5 +1,17 @@
 export type { DashboardData, RunRecord, Pipeline, RunState, Cost } from './lib/types';
+import type { z } from 'zod';
+import type { Attempt } from './lib/attempts';
 import type { RunRecord } from './lib/types';
+import type { removedRunSchema } from './runs.schema';
+
+/** E15's answer: the run that went, and where (`run/.trash/<folder>/<runId>-<stamp>`). */
+export type RemovedRun = z.infer<typeof removedRunSchema>['removed'];
+
+/** How one remove ended, as the table shows it. */
+export type RemoveRunOutcome =
+  | { ok: true; removed: RemovedRun }
+  /** `live`: a session is still in the run (409); the message is the API's own. */
+  | { ok: false; live: boolean; message: string };
 
 /** One row of the per-pipeline table: sums over every run of that pipeline. */
 export interface PipelineOverview {
@@ -34,6 +46,8 @@ export interface RunOverview {
   startedAt: string | null;
   priced: boolean;
   hasState: boolean;
+  /** The state says RUNNING or PAUSED: live, or dead if its session is gone. */
+  active: boolean;
 }
 
 export interface OverviewTotals {
@@ -63,11 +77,41 @@ export interface PlainTransition {
   onMaxTaken: number;
 }
 
+/** One step on the run page's Timeline tab, in the order the run reached it. */
+export interface TimelineRow {
+  slug: string;
+  /** When the step's first recorded pass started; null when it never ran (or ran without timestamps). */
+  startedAt: string | null;
+  /** How many times the step was entered: 2 for a step a loop sent back once. */
+  passes: number;
+  /**
+   * The passes the state has timings for, oldest first: every one when it kept a history,
+   * only the latest when it kept just the step's own timestamps.
+   */
+  attempts: Attempt[];
+  /** Its first pass started before the row above finished: the two ran side by side. */
+  parallel: boolean;
+  /** The step was started at least once; false for a pending or skipped one. */
+  ran: boolean;
+  /** Why a skipped step never ran, as the state recorded it. */
+  skipReason: string | null;
+}
+
 /** A piece of a hook command: plain text, or a script path that opens in the viewer. */
 export interface HookSegment {
   text: string;
-  /** The path under `scripts/`, when this piece names a script. */
-  script: string | null;
+  /** Where the chip opens, when this piece is a path token that resolves to a file or folder. */
+  target: HookTarget | null;
+}
+
+/**
+ * A path in a hook command, resolved the way the runner substitutes it: a file of the run
+ * folder (`run`, the path relative to it) or a file under the studio's work dir (`knowledge`,
+ * the `{{rootPath}}/…` form the knowledge endpoint expands and guards).
+ */
+export interface HookTarget {
+  scope: 'run' | 'knowledge';
+  path: string;
 }
 
 /** The runs of one pipeline, in the order the list had them. */

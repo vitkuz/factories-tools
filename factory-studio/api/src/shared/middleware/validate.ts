@@ -20,3 +20,16 @@ export const validateBody =
     res.locals.raw = req.body;
     next();
   };
+
+/** Parses the route params with the schema and leaves the typed result on `res.locals.params`. */
+export const validateParams =
+  <T>(schema: ZodType<T>): RequestHandler =>
+  (req: Request, res: Response, next: NextFunction): void => {
+    const parsed: ZodSafeParseResult<T> = schema.safeParse(req.params);
+    if (!parsed.success) {
+      next(httpError(400, 'invalid run id', parsed.error.issues));
+      return;
+    }
+    res.locals.params = parsed.data;
+    next();
+  };

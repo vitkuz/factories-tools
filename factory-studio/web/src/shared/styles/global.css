@@ -220,14 +220,13 @@ select {
   min-height: 0;
 }
 
-/* the graph and, under it, the plain view: one column that scrolls; the inspector stays put */
+/* the tab bar over the active tab: Graph fills the column, Timeline scrolls in it; the inspector stays put */
 .run-column {
   flex: 1;
   min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  overflow: auto;
 }
 
 .graph-wrap {
@@ -238,11 +237,54 @@ select {
   z-index: 0;
 }
 
-/* on the runs screen the graph fills the visible column; the plain view is reached by scrolling */
 .run-column > .graph-wrap {
-  flex: 0 0 100%;
+  flex: 1 1 auto;
   height: auto;
   min-height: 360px;
+}
+
+.timeline-wrap {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  overflow: auto;
+}
+
+.run-tabs {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  gap: 4px;
+  padding: 0 16px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.run-tab {
+  margin: 0 0 -1px;
+  padding: 9px 12px 8px;
+  background: none;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--ink-2);
+  cursor: pointer;
+}
+
+.run-tab:hover {
+  color: var(--ink);
+}
+
+.run-tab[aria-selected='true'] {
+  color: var(--ink);
+  border-bottom-color: var(--st-running);
+}
+
+.run-tab:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: -2px;
+  border-radius: 4px;
 }
 
 .inspector {
@@ -273,8 +315,14 @@ select {
 
 .run-head {
   display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* row 1: status, cost, fold button; row 2: the run id, at the inspector's full width */
+.run-head-bar {
+  display: flex;
   align-items: flex-start;
-  justify-content: space-between;
   gap: 12px;
 }
 
@@ -284,15 +332,11 @@ select {
   font-size: 16px;
   font-weight: 600;
   line-height: 1.25;
-  overflow-wrap: anywhere;
+  overflow-wrap: break-word; /* breaks after "-" first */
 }
 
 .run-head .status-badge {
   margin-top: 1px;
-}
-
-.run-head h2 {
-  margin-right: auto;
 }
 
 /* the run's total cost, a quiet pill next to the status; amber edge when older than the state */
@@ -1254,6 +1298,16 @@ select {
   stroke-width: 1;
 }
 
+/* focus on a card: edges outside it are not drawn at all (stroke, arrowhead; the label below) */
+.react-flow__edge.edge-hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.react-flow__edge.edge-hidden * {
+  pointer-events: none;
+}
+
 /* ------------------------------------------------------------------ */
 /* Edges                                                                 */
 /* ------------------------------------------------------------------ */
@@ -1346,6 +1400,11 @@ select {
 
 .edge-label--dimmed {
   opacity: var(--dim-opacity);
+}
+
+.edge-label.edge-label--hidden {
+  opacity: 0;
+  pointer-events: none;
 }
 
 .edge-count {
@@ -1760,7 +1819,7 @@ select {
   text-overflow: ellipsis;
 }
 
-/* ---- code view: numbered lines, long lines scroll inside the box ---- */
+/* ---- code view: numbered lines, long lines soft-wrap under the text column ---- */
 .doc-modal-body:has(.doc-code) {
   padding: 16px 20px 20px;
 }
@@ -1774,18 +1833,20 @@ select {
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.6;
-  white-space: pre;
-  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  overflow-x: hidden;
   tab-size: 2;
 }
 
 .doc-code code {
   display: block;
-  min-width: max-content;
+  min-width: 0;
 }
 
 .doc-code-line {
   display: flex;
+  align-items: flex-start;
 }
 
 .doc-code-ln {
@@ -1799,7 +1860,8 @@ select {
 }
 
 .doc-code-text {
-  flex: 0 0 auto;
+  flex: 1 1 0;
+  min-width: 0;
   padding-right: 16px;
 }
 
@@ -2140,14 +2202,12 @@ select {
 }
 
 /* ------------------------------------------------------------------ */
-/* Plain view: the graph as a list under the canvas                      */
+/* Timeline: the steps in run order on a rail                          */
 /* ------------------------------------------------------------------ */
 
-.plain-view {
-  flex: 0 0 auto;
+.timeline {
   max-width: 980px;
   padding: 20px 24px 28px;
-  border-top: 1px solid var(--line);
 }
 
 .pv-head {
@@ -2182,45 +2242,167 @@ select {
   min-width: 0;
 }
 
-.pv-list {
+.tl-list {
   list-style: none;
   margin: 0;
   padding: 0;
 }
 
-.pv-step {
+/* a row: the dot on the rail, then the step; the rail is a line through every dot */
+.tl-item {
+  position: relative;
   display: grid;
   grid-template-columns: 28px minmax(0, 1fr);
   gap: 14px;
-  padding: 14px 0;
-  border-top: 1px solid var(--line);
+  padding: 12px 10px 14px 0;
+  border-radius: 6px;
+  scroll-margin: 16px;
 }
 
-.pv-step.is-terminal {
-  background: linear-gradient(90deg, rgb(90 169 255 / 0.06), transparent 60%);
+.tl-item::before {
+  content: '';
+  position: absolute;
+  left: 13px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: color-mix(in srgb, var(--line) 65%, var(--ink-2));
 }
 
-.pv-num {
+.tl-list > .tl-item:first-child::before {
+  top: 24px;
+}
+
+.tl-item.is-last::before {
+  bottom: auto;
+  height: 24px;
+}
+
+.tl-item.is-selected {
+  background: color-mix(in srgb, var(--raised) 70%, transparent);
+  box-shadow: inset 0 0 0 1px var(--line);
+}
+
+.tl-dot {
+  --dot: var(--st-none);
+  position: relative;
+  z-index: 1;
+  justify-self: center;
+  margin-top: 6px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--dot);
+  box-shadow: 0 0 0 3px var(--ground);
+}
+
+.tl-item.is-selected .tl-dot {
+  box-shadow:
+    0 0 0 3px var(--ground),
+    0 0 0 5px var(--ink-2);
+}
+
+/* never ran: a hollow dot; skipped: a dashed one */
+.tl-item.is-idle .tl-dot {
+  background: var(--ground);
+  border: 2px solid var(--dot);
+}
+
+.tl-item.is-SKIPPED .tl-dot {
+  border-style: dashed;
+}
+
+.tl-item.is-idle > .pv-body {
+  opacity: 0.62;
+}
+
+.tl-item.is-idle.is-selected > .pv-body {
+  opacity: 1;
+}
+
+.tl-dot.is-terminal {
+  margin-top: 0;
   width: 26px;
   height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--line);
-  border-radius: 50%;
+  font-family: var(--mono);
+  font-size: 11px;
+  border: 1px solid rgb(90 169 255 / 0.5);
+  color: var(--st-running);
+  background: color-mix(in srgb, var(--st-running) 12%, var(--ground));
+}
+
+.tl-item.is-terminal {
+  background: linear-gradient(90deg, rgb(90 169 255 / 0.06), transparent 60%);
+}
+
+.tl-n {
+  font-size: 11px;
+  color: var(--ink-2);
+  min-width: 1.5em;
+}
+
+.tl-loop {
+  padding: 1px 8px;
+  font-size: 10px;
+  color: var(--st-running);
+  border: 1px solid color-mix(in srgb, var(--st-running) 50%, transparent);
+  border-radius: 10px;
+  white-space: nowrap;
+}
+
+.tl-result {
+  font-size: 10px;
+  letter-spacing: 0.04em;
+  color: var(--ink);
+}
+
+.pv-row > .tl-result {
+  padding: 1px 6px;
+  background: var(--raised);
+  border-radius: 4px;
+}
+
+.tl-when {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
   font-size: 11px;
   color: var(--ink-2);
 }
 
-.pv-step.is-selected .pv-num {
-  border-color: var(--ink);
+.tl-parallel {
+  color: var(--ink-2);
+}
+
+.tl-skip {
+  margin: 0;
+  font-size: 12px;
+  color: var(--st-skipped);
+}
+
+.tl-passes {
+  list-style: none;
+  margin: 0;
+  padding: 6px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  font-size: 11px;
+  color: var(--ink-2);
+  border-left: 2px solid color-mix(in srgb, var(--st-running) 50%, transparent);
+  background: color-mix(in srgb, var(--raised) 45%, transparent);
+  border-radius: 0 4px 4px 0;
+}
+
+.tl-pass-n {
   color: var(--ink);
 }
 
-.pv-step.is-terminal .pv-num {
-  border-color: rgb(90 169 255 / 0.5);
+.tl-passes .is-open {
   color: var(--st-running);
-  background: rgb(90 169 255 / 0.1);
 }
 
 .pv-body {
@@ -2436,6 +2618,26 @@ select {
   color: var(--st-waiting);
 }
 
+button.pv-target-link {
+  margin: 0;
+  padding: 0;
+  background: none;
+  border: 0;
+  border-radius: 2px;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.pv-target-link:hover {
+  text-decoration: underline;
+}
+
+button.pv-target-link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
 .pv-max {
   color: var(--ink-2);
 }
@@ -2471,33 +2673,110 @@ select {
   outline-offset: 1px;
 }
 
-.pv-prompts {
+.pv-prompt-toggle {
   display: flex;
-  gap: 14px;
-  flex-wrap: wrap;
-}
-
-.pv-link {
+  align-items: baseline;
+  gap: 6px;
+  width: 100%;
   margin: 0;
-  padding: 2px 0;
+  padding: 0;
   background: none;
   border: 0;
   border-radius: 2px;
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: left;
+}
+
+button.pv-prompt-toggle {
+  cursor: pointer;
+}
+
+.pv-prompt-toggle.is-static {
+  padding-left: 14px;
+}
+
+button.pv-prompt-toggle:hover .pv-prompt-chevron {
+  color: var(--ink);
+}
+
+button.pv-prompt-toggle:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
+.pv-prompt-chevron {
+  flex: none;
+  width: 8px;
+  color: var(--ink-2);
+  font-size: 11px;
+}
+
+.pv-prompt-line {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.pv-prompt.is-muted .pv-prompt-toggle {
+  color: var(--ink-2);
+  font-size: 12.5px;
+}
+
+.pv-prompt-label {
+  flex: none;
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.pv-prompt.is-muted .pv-prompt-line {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pv-prompt.is-open .pv-prompt-line {
+  white-space: normal;
+}
+
+.pv-prompt-full {
+  position: relative;
+  margin-top: 6px;
+}
+
+.pv-prompt-text {
+  margin: 0;
+  padding: 12px 14px;
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  font-family: var(--mono);
+  font-size: 12px;
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.pv-prompt-copy {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 2px 8px;
+  background: var(--ground);
+  border: 1px solid var(--line);
+  border-radius: 4px;
   color: var(--ink-2);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 11.5px;
   cursor: pointer;
-  text-decoration: underline;
-  text-decoration-color: var(--line);
-  text-underline-offset: 3px;
 }
 
-.pv-link:hover {
+.pv-prompt-copy:hover {
   color: var(--ink);
-  text-decoration-color: var(--ink-2);
 }
 
-.pv-link:focus-visible {
+.pv-prompt-copy:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: 2px;
 }
@@ -2536,12 +2815,13 @@ select {
 }
 
 @media (max-width: 640px) {
-  .plain-view {
+  .timeline {
     padding: 16px 16px 24px;
   }
 
-  .pv-step {
+  .tl-item {
     gap: 10px;
+    padding-right: 6px;
   }
 
   .pv-facts {
@@ -2593,6 +2873,12 @@ select {
 
   .main {
     flex-direction: column;
+  }
+
+  /* the page scrolls as one here: the timeline takes its own height, no scroll inside a scroll */
+  .timeline-wrap {
+    flex: none;
+    overflow: visible;
   }
 
   .graph-wrap,
@@ -4096,7 +4382,7 @@ select {
 /* in the inspector the fold button closes the title row, after the status and cost */
 .run-head .runs-sidebar-toggle {
   flex: 0 0 auto;
-  margin-left: 0;
+  margin-left: auto;
 }
 
 /* ---- the run header: back, pipeline / id, status, day · duration · cost, live ---- */

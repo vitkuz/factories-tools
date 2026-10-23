@@ -9,6 +9,7 @@ import {
 } from '../runs.schema';
 import type { DashboardData, Pipeline, RunRecord } from '../runs.types';
 import type { DataSource } from '../lib/types';
+import type { RunRef } from '../../../shared/lib/route';
 
 /**
  * The live run list.
@@ -35,6 +36,8 @@ export interface RunsFeed {
   /** Runs (`pipelineId/runId`, or `#index`) in the last good payload whose record was invalid and is hidden. */
   dropped: string[];
   refresh: () => void;
+  /** Drop one run from the data on screen now (it was removed); the next fetch confirms it. */
+  forget: (ref: RunRef) => void;
 }
 
 export const EMPTY_DATA: DashboardData = {
@@ -46,6 +49,14 @@ export const EMPTY_DATA: DashboardData = {
 const sameJson = (a: unknown, b: unknown): boolean => JSON.stringify(a) === JSON.stringify(b);
 
 const runKey = (r: RunRecord): string => `${r.pipelineId}/${r.runId}`;
+
+/** The data without one run; the same object when the run is not in it. */
+export const withoutRun = (data: DashboardData, ref: RunRef): DashboardData => {
+  const runs: RunRecord[] = data.runs.filter(
+    (r: RunRecord): boolean => !(r.pipelineId === ref.pipelineId && r.runId === ref.runId),
+  );
+  return runs.length === data.runs.length ? data : { ...data, runs };
+};
 
 /** Reuse unchanged run and pipeline objects from `prev`; return `prev` itself if nothing moved. */
 export const mergeStable = (prev: DashboardData, next: DashboardData): DashboardData => {
@@ -216,13 +227,19 @@ export const useRunsFeed = (): RunsFeed => {
     });
   }, []);
 
+  const forget = useCallback((ref: RunRef): void => {
+    const next: DashboardData = withoutRun(dataRef.current, ref);
+    dataRef.current = next;
+    setData(next);
+  }, []);
+
   // First fetch on mount.
   useEffect(() => {
     refresh();
     return () => inflight.current?.abort();
   }, [refresh]);
 
-  return { data, ...meta, refresh };
+  return { data, ...meta, refresh, forget };
 };
 
 /** Newest run that has state and a known pipeline; else the newest with state; else the first. */

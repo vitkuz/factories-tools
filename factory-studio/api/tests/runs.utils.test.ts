@@ -2,11 +2,14 @@ import { describe, expect, it } from 'vitest';
 import type { PipelineSkill } from '../src/features/pipelines/pipelines.types.js';
 import type { RunRecord } from '../src/features/runs/runs.types.js';
 import {
+  TRASH_DIR,
   findSessionRun,
+  isRunFolder,
   pipelinesById,
   runSessionId,
   sortRuns,
   statePipelineId,
+  trashSegments,
 } from '../src/features/runs/runs.utils.js';
 
 const run = (runId: string, state: RunRecord['state']): RunRecord => ({
@@ -151,5 +154,20 @@ describe('findSessionRun', () => {
     expect(findSessionRun(runs, {})).toBeNull();
     expect(findSessionRun(runs, { factoryId: 'other-factory', startedAt: STARTED })).toBeNull();
     expect(findSessionRun(runs, { factoryId: 'ask-factory', startedAt: 'not a date' })).toBeNull();
+  });
+});
+
+describe('trash', () => {
+  it('a hidden folder under run/ is not a pipeline folder', () => {
+    expect(isRunFolder('canonical-factory')).toBe(true);
+    expect(isRunFolder(TRASH_DIR)).toBe(false);
+    expect(isRunFolder('.anything')).toBe(false);
+  });
+  it('a removed run lands at .trash/<folder>/<runId>-<stamp>', () => {
+    expect(trashSegments('kp-factory', 'run-1', new Date('2026-10-24T10:15:30.123Z'))).toEqual([
+      '.trash',
+      'kp-factory',
+      'run-1-20261024T101530123Z',
+    ]);
   });
 });
