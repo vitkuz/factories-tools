@@ -26,7 +26,6 @@ import type { DocScope } from '../../../shared/document-viewer';
 import type { RunRef } from '../../../shared/lib/route';
 import {
   formatAttempts,
-  formatClock,
   formatDurationMs,
   formatParam,
   formatShare,
@@ -38,9 +37,7 @@ import {
   type FormattedSpan,
 } from '../lib/format';
 import {
-  costCertainty,
   costShare,
-  isCostStale,
   modelsByCost,
   orchestratorCost,
   stepCost,
@@ -49,7 +46,6 @@ import {
   tokenSummary,
   unaccountedUSD,
 } from '../lib/cost';
-import { RUN_STATUS_META, runStatusLabel } from '../lib/run';
 import { displayDocPath, pathSegments } from '../../../shared/graph/text';
 import type {
   Cost,
@@ -62,7 +58,7 @@ import type {
   RunRecord,
   StepState,
 } from '../lib/types';
-import StatusBadge, { Badge } from './StatusBadge';
+import StatusBadge from './StatusBadge';
 import LogList from './LogList';
 import { DocLink } from '../../../shared/document-viewer';
 import { readJson, writeJson } from '../../../shared/lib/storage';
@@ -403,6 +399,35 @@ function CostBreakdown({ cost }: { cost: Cost }) {
   );
 }
 
+interface RunDescriptionProps {
+  text: string;
+}
+
+/** The pipeline description, collapsed to a short preview until opened (it can run long). */
+const RunDescription = ({ text }: RunDescriptionProps): ReactNode => {
+  const [open, setOpen] = useState<boolean>(false);
+  return (
+    <div className={`pv-prompt run-description-block${open ? ' is-open' : ''}`}>
+      <button
+        type="button"
+        className="pv-prompt-toggle"
+        aria-expanded={open}
+        aria-controls="run-description-full"
+        title={open ? 'Hide the description' : 'Show the full description'}
+        onClick={() => setOpen((o: boolean): boolean => !o)}
+      >
+        <span className="pv-prompt-chevron" aria-hidden="true">
+          {open ? '▾' : '▸'}
+        </span>
+        <span className="pv-prompt-label">Description</span>
+      </button>
+      <p className={`run-description${open ? '' : ' is-clamped'}`} id="run-description-full">
+        {text}
+      </p>
+    </div>
+  );
+};
+
 export default function Inspector({
   pipeline,
   run,
@@ -483,18 +508,8 @@ export default function Inspector({
   const looped: boolean = attempts.length > 1;
   const anchor: string | null = state?.createdAt ?? null;
   const cost: Cost | null = run.cost ?? null;
-  const stale: boolean = cost ? isCostStale(cost, state ?? null) : false;
   const selectedCost: CostStep | null = selectedId ? stepCost(cost)(selectedId) : null;
   const selectedShare: number | null = selectedId ? costShare(cost)(selectedId) : null;
-  const costTitle: string | null = cost
-    ? stale
-      ? `cost.json was generated ${formatClock(cost.generatedAt)}, before the run last moved — run factory-cost again`
-      : `${cost.totals.requestCount} requests · ${costCertainty(cost) ?? 'unknown pricing'}` +
-        (unaccountedUSD(cost) > 0
-          ? ` · ${formatUSD(unaccountedUSD(cost))} unaccounted in session`
-          : '')
-    : null;
-
   return (
     <aside className="inspector">
       <div className="inspector-scroll">
@@ -509,23 +524,6 @@ export default function Inspector({
           )}
           <div className="run-head">
             <div className="run-head-bar">
-              {state && (
-                <Badge
-                  label={runStatusLabel(state.status)}
-                  token={RUN_STATUS_META[state.status].token}
-                  ariaLabel={`run status: ${runStatusLabel(state.status)}`}
-                />
-              )}
-              {cost && (
-                <span
-                  className={`run-cost${stale ? ' is-stale' : ''}`}
-                  title={costTitle ?? undefined}
-                  aria-label={`run cost: ${formatUSD(cost.totals.estimatedListPriceUsd)}${stale ? ' (stale)' : ''}`}
-                >
-                  {formatUSD(cost.totals.estimatedListPriceUsd)}
-                  {stale && <span className="run-cost-stale">stale</span>}
-                </span>
-              )}
               <CollapseToggle expanded={true} side="right" label="run details" onToggle={toggle} />
             </div>
             <h2>{run.runId}</h2>
@@ -572,7 +570,6 @@ export default function Inspector({
               </>
             )}
           </dl>
-          {pipeline?.description && <p className="run-description">{pipeline.description}</p>}
           {!state && (
             <p className="hint">No state.json yet. Step details show the pipeline definition.</p>
           )}
@@ -587,6 +584,7 @@ export default function Inspector({
               </dl>
             </>
           )}
+          {pipeline?.description && <RunDescription text={pipeline.description} />}
           {state && !selectedId && (
             <>
               <h4 className="sub-title">Cost</h4>

@@ -319,10 +319,11 @@ select {
   gap: 8px;
 }
 
-/* row 1: status, cost, fold button; row 2: the run id, at the inspector's full width */
+/* row 1: fold button; row 2: the run id, at the inspector's full width */
 .run-head-bar {
   display: flex;
   align-items: flex-start;
+  justify-content: flex-end;
   gap: 12px;
 }
 
@@ -371,6 +372,22 @@ select {
   font-size: 13px;
   line-height: 1.5;
   color: var(--ink-2);
+}
+
+.run-description-block {
+  margin-top: 12px;
+}
+
+.run-description-block .run-description {
+  margin-top: 6px;
+  padding-left: 14px;
+}
+
+.run-description.is-clamped {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .pane-title {
