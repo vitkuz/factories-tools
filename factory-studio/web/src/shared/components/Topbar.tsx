@@ -26,7 +26,8 @@ interface TopbarProps {
 
 /**
  * The bar over the content, to the right of the sidebar: a link per screen, the current one
- * marked, the workspace picker (on every screen, it filters what they list), then the slot the
+ * marked, the workspace picker (only on the Runs home and Sessions, the lists it filters; a run
+ * page shows one run whatever the workspace), then the slot the
  * screen on show fills with its own line (the run's header, the live indicator, Refresh). The
  * brand lives at the top of the sidebar.
  */
@@ -55,7 +56,7 @@ export const Topbar = ({ route, onNavigate, onSlot, data }: TopbarProps): ReactN
         </a>
       ))}
     </nav>
-    <WorkspacePicker data={data} />
+    {route.screen === 'sessions' || route.run === null ? <WorkspacePicker data={data} /> : null}
     <div className="topbar-slot" ref={onSlot} />
   </header>
 );
