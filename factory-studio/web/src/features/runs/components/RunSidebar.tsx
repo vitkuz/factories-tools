@@ -43,6 +43,8 @@ const FILTERS: FilterChip[] = [
 
 interface RunSidebarProps {
   runs: RunRecord[];
+  /** The chosen workspace's name, shown by the title; `null` for All. */
+  workspaceName?: string | null;
   /** The run on screen — its row is marked and kept in view; `null` on the index and on Sessions. */
   current: RunRef | null;
   onChoose: (ref: RunRef) => void;
@@ -120,7 +122,12 @@ const Brand = (): ReactNode => (
  * folds it to a rail that keeps the mark and the button that brings it back, remembered in
  * localStorage.
  */
-export const RunSidebar = ({ runs, current, onChoose }: RunSidebarProps): ReactNode => {
+export const RunSidebar = ({
+  runs,
+  workspaceName = null,
+  current,
+  onChoose,
+}: RunSidebarProps): ReactNode => {
   const now: number = useNow(60_000);
   const [collapsed, setCollapsed] = useState<boolean>(() => readPrefs().collapsed);
   const [query, setQuery] = useState<string>('');
@@ -190,6 +197,11 @@ export const RunSidebar = ({ runs, current, onChoose }: RunSidebarProps): ReactN
       <div className="runs-sidebar-head">
         <div className="runs-sidebar-title-row">
           <h2 className="runs-sidebar-title">Latest runs</h2>
+          {workspaceName !== null ? (
+            <span className="runs-sidebar-workspace muted" title={`Workspace ${workspaceName}`}>
+              {workspaceName}
+            </span>
+          ) : null}
           <span className="runs-sidebar-count mono" aria-label={`${shown.length} runs shown`}>
             {shown.length}
           </span>
@@ -243,7 +255,11 @@ export const RunSidebar = ({ runs, current, onChoose }: RunSidebarProps): ReactN
         ))}
         {shown.length === 0 && (
           <p className="runs-empty muted">
-            {runs.length === 0 ? 'No runs yet.' : 'No runs match.'}
+            {runs.length === 0
+              ? workspaceName !== null
+                ? 'No runs in this workspace.'
+                : 'No runs yet.'
+              : 'No runs match.'}
           </p>
         )}
       </nav>

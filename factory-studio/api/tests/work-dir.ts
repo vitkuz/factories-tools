@@ -61,6 +61,15 @@ import {
 } from '../src/features/chat/index.js';
 import type { ChatHub } from '../src/features/chat/index.js';
 import type { Broadcast } from '../src/features/questions/questions.types.js';
+import {
+  createWorkspaceFactory,
+  listWorkspacesFactory,
+  readWorkspacesFactory,
+  removeWorkspaceFactory,
+  updateWorkspaceFactory,
+  writeWorkspacesFactory,
+} from '../src/features/workspaces/index.js';
+import type { WorkspaceServices } from '../src/features/workspaces/workspaces.types.js';
 import type { AppLogger } from '../src/shared/types.js';
 
 export const quiet: AppLogger = {
@@ -273,6 +282,10 @@ export const buildTestApp = (
     resolveQuestion: resolveQuestionFactory({ store }),
     listPending: store.list,
   };
+  const workspaceServices: WorkspaceServices = {
+    readWorkspaces: readWorkspacesFactory({ fs, workDir, logger: quiet }),
+    writeWorkspaces: writeWorkspacesFactory({ fs, workDir, logger: quiet }),
+  };
 
   return createApp({
     apiKey: options.apiKey,
@@ -336,6 +349,12 @@ export const buildTestApp = (
       }),
       history: chatHub.history,
       readItem: chatHub.readItem,
+    },
+    workspaces: {
+      listWorkspaces: listWorkspacesFactory(workspaceServices),
+      createWorkspace: createWorkspaceFactory(workspaceServices),
+      updateWorkspace: updateWorkspaceFactory(workspaceServices),
+      removeWorkspace: removeWorkspaceFactory(workspaceServices),
     },
   });
 };

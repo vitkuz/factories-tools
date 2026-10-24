@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
 import { navigate } from '../../shared/lib/route';
 import { ChatDrawer } from '../chat';
 import { describeApiError, isApiError } from '../../adapters/http/api-error.utils';
@@ -7,6 +7,9 @@ import { useNow } from '../../shared/lib/polling';
 import { FeedBar } from '../../shared/components/FeedBar';
 import { TopbarContent } from '../../shared/components/TopbarContent';
 import { formatRelative } from '../runs/lib/format';
+import { useWorkspacesContext } from '../workspaces/hooks/use-workspaces';
+import { inWorkspace } from '../workspaces/workspaces.utils';
+import type { Workspace } from '../workspaces/workspaces.types';
 import type {
   FactorySession,
   ListState,
@@ -52,6 +55,13 @@ export const SessionsScreen = ({ chat }: SessionsScreenProps): ReactNode => {
   const [starting, setStarting] = useState<boolean>(false);
   const [stopping, setStopping] = useState<string | null>(null);
   const now: number = useNow(1000);
+  // The start form offers the chosen workspace's factories only.
+  const workspace: Workspace | null = useWorkspacesContext().selected;
+  const offered: PipelineListEntry[] = useMemo(
+    (): PipelineListEntry[] =>
+      entries.filter((entry: PipelineListEntry): boolean => inWorkspace(workspace)(entry.id)),
+    [entries, workspace],
+  );
 
   useEffect((): void => {
     document.title = titleWithCount(`Sessions — ${APP_NAME}`, waiting);
@@ -116,7 +126,13 @@ export const SessionsScreen = ({ chat }: SessionsScreenProps): ReactNode => {
         </div>
       </TopbarContent>
       <div className="sessions">
-        <StartForm entries={entries} listState={listState} busy={starting} onStart={onStart} />
+        <StartForm
+          entries={offered}
+          outsideWorkspace={offered.length === 0 && entries.length > 0}
+          listState={listState}
+          busy={starting}
+          onStart={onStart}
+        />
         <SessionNotice notice={sessions.state.notice} onDismiss={sessions.dismiss} />
         <SessionBoard
           sessions={sessions.state.sessions}

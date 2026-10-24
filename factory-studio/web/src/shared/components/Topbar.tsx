@@ -1,5 +1,7 @@
 import type { MouseEvent, ReactNode } from 'react';
 import { buildPath, type Route } from '../lib/route';
+import type { DashboardData } from '../../features/runs/runs.types';
+import { WorkspacePicker } from '../../features/workspaces';
 
 interface NavLink {
   screen: Route['screen'];
@@ -18,14 +20,17 @@ interface TopbarProps {
   onNavigate: (route: Route) => void;
   /** Receives the slot element the screens fill (see `TopbarContent`). */
   onSlot: (element: HTMLElement | null) => void;
+  /** The run list's data, for the factories the workspace dialog offers. */
+  data: DashboardData;
 }
 
 /**
  * The bar over the content, to the right of the sidebar: a link per screen, the current one
- * marked, then the slot the screen on show fills with its own line (the run's header, the live
- * indicator, Refresh). The brand lives at the top of the sidebar.
+ * marked, the workspace picker (on every screen, it filters what they list), then the slot the
+ * screen on show fills with its own line (the run's header, the live indicator, Refresh). The
+ * brand lives at the top of the sidebar.
  */
-export const Topbar = ({ route, onNavigate, onSlot }: TopbarProps): ReactNode => (
+export const Topbar = ({ route, onNavigate, onSlot, data }: TopbarProps): ReactNode => (
   <header className="topbar">
     <nav className="nav" aria-label="Screens">
       {LINKS.map((link: NavLink) => (
@@ -50,6 +55,7 @@ export const Topbar = ({ route, onNavigate, onSlot }: TopbarProps): ReactNode =>
         </a>
       ))}
     </nav>
+    <WorkspacePicker data={data} />
     <div className="topbar-slot" ref={onSlot} />
   </header>
 );

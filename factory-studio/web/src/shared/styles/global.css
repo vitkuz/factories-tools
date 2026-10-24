@@ -112,6 +112,56 @@ select {
   border-left: 1px solid var(--line);
 }
 
+/* The workspace picker, between the tabs and the slot, set off the tabs by a hairline. */
+.workspace-picker {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  align-self: stretch;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+}
+
+.workspace-select {
+  height: 28px;
+  max-width: 200px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--ground);
+  color: var(--ink);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.workspace-select:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.workspace-select:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.workspace-flag {
+  font-size: 12px;
+  color: var(--st-waiting);
+  white-space: nowrap;
+  cursor: help;
+}
+
+/* The sidebar's title names the chosen workspace. */
+.runs-sidebar-workspace {
+  min-width: 0;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* The wordmark: the favicon mark, the house name in the ink, and the tool's own word in a white tile. */
 .brand {
   margin: 0;
@@ -5024,5 +5074,303 @@ button.pv-prompt-toggle:focus-visible {
     flex-basis: 100%;
     order: 5;
     white-space: normal;
+  }
+}
+
+/* ------------------------------------------------------------------ */
+/* Workspaces dialog: the document modal's frame, a list and a form     */
+/* ------------------------------------------------------------------ */
+
+.ws-dialog {
+  width: min(820px, calc(100vw - 40px));
+  height: fit-content;
+  max-height: min(86vh, 760px);
+  max-width: none;
+  margin: auto;
+  padding: 0;
+  background: var(--panel);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
+  overflow: hidden;
+}
+
+.ws-dialog[open] {
+  display: flex;
+  flex-direction: column;
+}
+
+.ws-dialog::backdrop {
+  background: rgb(21 27 38 / 0.7);
+}
+
+.ws-modal {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.ws-modal-title {
+  margin: 0;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.ws-modal-hint {
+  flex: 1 1 auto;
+  min-width: 0;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-problem {
+  margin: 12px 16px 0;
+  padding: 8px 12px;
+  border: 1px solid var(--line);
+  border-left: 3px solid var(--st-waiting);
+  border-radius: 6px;
+  font-size: 13px;
+}
+
+.ws-modal-body {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 220px 1fr;
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.ws-list {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  border-right: 1px solid var(--line);
+  overflow: auto;
+}
+
+.ws-list-rows {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.ws-list-row {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 6px 8px;
+  border: 1px solid transparent;
+  border-radius: 5px;
+  background: none;
+  color: var(--ink);
+  text-align: left;
+  cursor: pointer;
+}
+
+.ws-list-row:hover:not(:disabled) {
+  background: var(--raised);
+}
+
+.ws-list-row[aria-current='true'] {
+  background: var(--raised);
+  border-color: var(--ink-2);
+}
+
+.ws-list-row:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.ws-list-row:disabled {
+  cursor: default;
+}
+
+.ws-list-name {
+  max-width: 100%;
+  font-size: 13px;
+  font-weight: 500;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ws-list-count {
+  font-size: 11px;
+  color: var(--ink-2);
+}
+
+.ws-new {
+  align-self: flex-start;
+}
+
+.ws-empty {
+  margin: 0;
+  font-size: 12px;
+}
+
+.ws-form {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 16px 14px;
+  overflow: auto;
+}
+
+.ws-form-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.ws-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ws-field-label {
+  font-size: 12px;
+  color: var(--ink-2);
+}
+
+.ws-name {
+  height: 32px;
+  padding: 0 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--ground);
+  color: var(--ink);
+  font: inherit;
+  font-size: 13px;
+}
+
+.ws-name:focus {
+  outline: none;
+  border-color: var(--st-running);
+}
+
+.ws-factories {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.ws-factories legend {
+  padding: 0;
+  margin-bottom: 4px;
+}
+
+.ws-factory-rows {
+  margin: 0;
+  padding: 6px;
+  list-style: none;
+  max-height: 320px;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--ground);
+}
+
+.ws-factory {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 3px 4px;
+  border-radius: 4px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.ws-factory:hover {
+  background: var(--raised);
+}
+
+.ws-factory input {
+  width: 14px;
+  height: 14px;
+  margin: 0;
+  accent-color: var(--st-running);
+}
+
+.ws-factory.is-gone .mono {
+  color: var(--ink-2);
+}
+
+.ws-tag {
+  padding: 0 6px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: 11px;
+  line-height: 16px;
+  color: var(--ink-2);
+}
+
+.ws-error {
+  margin: 0;
+  padding: 6px 10px;
+  border-left: 3px solid var(--st-failed);
+  border-radius: 4px;
+  background: var(--ground);
+  font-size: 13px;
+}
+
+.ws-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ws-delete {
+  margin-right: auto;
+}
+
+.ws-confirm {
+  margin-right: auto;
+  font-size: 13px;
+}
+
+.doc-modal-btn.ws-danger {
+  color: color-mix(in srgb, var(--st-failed) 70%, var(--ink));
+  border-color: color-mix(in srgb, var(--st-failed) 55%, var(--ground));
+}
+
+.doc-modal-btn.ws-danger:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--st-failed) 18%, transparent);
+}
+
+@media (max-width: 600px) {
+  .ws-dialog {
+    width: 100vw;
+    max-height: 100dvh;
+    border: 0;
+    border-radius: 0;
+  }
+
+  .ws-modal-hint {
+    display: none;
+  }
+
+  .ws-modal-body {
+    grid-template-columns: 1fr;
+  }
+
+  .ws-list {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
   }
 }

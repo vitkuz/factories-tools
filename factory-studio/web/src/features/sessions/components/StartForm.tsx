@@ -17,6 +17,8 @@ import { buildStartRequest, initialParamDraft, paramWidget, startBlocker } from 
 
 interface StartFormProps {
   entries: PipelineListEntry[];
+  /** Every factory is outside the chosen workspace: the list is empty because of the filter. */
+  outsideWorkspace?: boolean;
   listState: ListState;
   busy: boolean;
   onStart: (request: StartRequest) => void;
@@ -105,11 +107,20 @@ const ParamField = ({ param, value, onChange }: ParamFieldProps): ReactNode => {
  * params keeps the single free-text prompt in the row. What is typed is kept per factory while
  * the screen is open. Ctrl/⌘+Enter starts.
  */
-export const StartForm = ({ entries, listState, busy, onStart }: StartFormProps): ReactNode => {
+export const StartForm = ({
+  entries,
+  outsideWorkspace = false,
+  listState,
+  busy,
+  onStart,
+}: StartFormProps): ReactNode => {
   const [prompt, setPrompt] = useState<string>('');
   const [id, setId] = useState<string>('');
   const [drafts, setDrafts] = useState<Record<string, ParamDraft>>({});
-  const chosen: string = id !== '' ? id : (entries[0]?.id ?? '');
+  // The kept pick holds while it is offered; a workspace that hides it falls back to the first.
+  const chosen: string = entries.some((item: PipelineListEntry): boolean => item.id === id)
+    ? id
+    : (entries[0]?.id ?? '');
   const entry: PipelineListEntry | undefined = entries.find(
     (candidate: PipelineListEntry): boolean => candidate.id === chosen,
   );
@@ -173,7 +184,11 @@ export const StartForm = ({ entries, listState, busy, onStart }: StartFormProps)
         >
           {listState === 'loading' ? <option value="">loading…</option> : null}
           {listState === 'failed' ? <option value="">could not list pipelines</option> : null}
-          {listState === 'ready' && entries.length === 0 ? <option value="">none</option> : null}
+          {listState === 'ready' && entries.length === 0 ? (
+            <option value="" disabled={outsideWorkspace}>
+              {outsideWorkspace ? 'no factories in this workspace' : 'none'}
+            </option>
+          ) : null}
           {entries.map((item: PipelineListEntry) => (
             <option key={item.id} value={item.id}>
               {item.id}

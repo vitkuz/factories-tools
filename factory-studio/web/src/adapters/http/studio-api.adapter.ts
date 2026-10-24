@@ -13,6 +13,8 @@ import {
   scriptPath,
   sessionsPath,
   stopSessionPath,
+  workspacePath,
+  workspacesPath,
 } from './api-paths';
 import {
   pipelineListSchema,
@@ -29,6 +31,17 @@ import type {
   StopSessionPayload,
   Stopped,
 } from '../../features/sessions/sessions.types';
+import {
+  createdWorkspaceSchema,
+  removedWorkspaceSchema,
+  workspacePayloadSchema,
+  workspacesListSchema,
+} from '../../features/workspaces/workspaces.schema';
+import type {
+  Workspace,
+  WorkspacePayload,
+  WorkspacesList,
+} from '../../features/workspaces/workspaces.types';
 import { removedRunSchema } from '../../features/runs/runs.schema';
 import type { RemovedRun } from '../../features/runs/runs.types';
 import type { RunRef } from '../../shared/lib/route';
@@ -241,6 +254,51 @@ export const readChatItem = async (
       signal,
     });
     return chatItemResponseSchema.parse(data).item;
+  } catch (error: unknown) {
+    return failWith(error);
+  }
+};
+
+/** The workspaces; `problem` set means the file is there but cannot be read. */
+export const listWorkspaces = async (signal?: AbortSignal): Promise<WorkspacesList> => {
+  try {
+    const { data }: AxiosResponse<unknown> = await http.get(workspacesPath(), { signal });
+    return workspacesListSchema.parse(data);
+  } catch (error: unknown) {
+    return failWith(error);
+  }
+};
+
+/** A new workspace; the API derives its id from the name (409 when taken). */
+export const createWorkspace = async (payload: WorkspacePayload): Promise<Workspace> => {
+  try {
+    const body: WorkspacePayload = workspacePayloadSchema.parse(payload);
+    const { data }: AxiosResponse<unknown> = await http.post(workspacesPath(), body);
+    return createdWorkspaceSchema.parse(data).workspace;
+  } catch (error: unknown) {
+    return failWith(error);
+  }
+};
+
+/** A new name and set of factories for one workspace; its id is kept. */
+export const updateWorkspace = async (
+  id: string,
+  payload: WorkspacePayload,
+): Promise<Workspace> => {
+  try {
+    const body: WorkspacePayload = workspacePayloadSchema.parse(payload);
+    const { data }: AxiosResponse<unknown> = await http.put(workspacePath(id), body);
+    return createdWorkspaceSchema.parse(data).workspace;
+  } catch (error: unknown) {
+    return failWith(error);
+  }
+};
+
+/** Removes one workspace from the file; its factories and runs are untouched. */
+export const removeWorkspace = async (id: string): Promise<Workspace> => {
+  try {
+    const { data }: AxiosResponse<unknown> = await http.delete(workspacePath(id));
+    return removedWorkspaceSchema.parse(data).removed;
   } catch (error: unknown) {
     return failWith(error);
   }

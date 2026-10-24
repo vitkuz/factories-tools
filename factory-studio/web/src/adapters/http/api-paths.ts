@@ -50,3 +50,10 @@ export const stopSessionPath = (): string => `${API_PREFIX}/sessions/stop`;
 
 /** The WebSocket of the API (path only; the scheme and host come from the page). */
 export const socketPath = (): string => `${API_PREFIX}/ws`;
+
+/** The workspaces (`run/workspaces.json`): list and create. */
+export const workspacesPath = (): string => `${API_PREFIX}/workspaces`;
+
+/** One workspace: update and remove. */
+export const workspacePath = (id: string): string =>
+  `${API_PREFIX}/workspaces/${encodeURIComponent(id)}`;

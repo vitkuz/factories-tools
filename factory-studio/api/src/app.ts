@@ -11,6 +11,8 @@ import { createScriptsRoutes } from './features/scripts/index.js';
 import type { ScriptUsecases } from './features/scripts/scripts.types.js';
 import { createSessionsRoutes } from './features/sessions/index.js';
 import type { SessionUsecases } from './features/sessions/sessions.types.js';
+import { createWorkspacesRoutes } from './features/workspaces/index.js';
+import type { WorkspaceUsecases } from './features/workspaces/workspaces.types.js';
 import { apiKeyMiddleware } from './shared/middleware/api-key.js';
 import { errorMiddleware } from './shared/middleware/error.js';
 import { noStoreMiddleware } from './shared/middleware/no-store.js';
@@ -30,6 +32,7 @@ export interface AppSettings {
   sessions: SessionUsecases;
   questions: QuestionUsecases;
   chat: ChatUsecases;
+  workspaces: WorkspaceUsecases;
   logger: AppLogger;
 }
 
@@ -39,8 +42,8 @@ export const API_PREFIX = '/api/v1';
  * Express wiring, and nothing else. Everything the routes need arrives in `settings`, so a
  * test can build the whole app around a fake herdr client and a temp WORK_DIR. No CORS: the
  * app and the API share one origin. No app-wide body parser: each route that takes a body
- * attaches its own (JSON on the session routes, raw text on the run document PUT), so a
- * JSON-typed document is never consumed before the text parser sees it.
+ * attaches its own (JSON on the session and workspace routes, raw text on the run document
+ * PUT), so a JSON-typed document is never consumed before the text parser sees it.
  */
 export const createApp = ({
   apiKey,
@@ -51,6 +54,7 @@ export const createApp = ({
   sessions,
   questions,
   chat,
+  workspaces,
   logger,
 }: AppSettings): Express => {
   const app: Express = express();
@@ -71,6 +75,7 @@ export const createApp = ({
   api.use(createSessionsRoutes(sessions));
   api.use(createQuestionsRoutes(questions));
   api.use(createChatRoutes(chat));
+  api.use(createWorkspacesRoutes(workspaces));
   app.use(API_PREFIX, api);
 
   // Every API route is registered above this line: a miss under /api is JSON, never a page.

@@ -8,6 +8,8 @@ import { readJson, writeJson } from '../../shared/lib/storage';
 import { usePolling } from '../../shared/lib/polling';
 import { questionsForRun, titleWithCount, useQuestions, type PendingQuestion } from '../sessions';
 import { isTypingTarget } from '../../shared/lib/keys';
+import { filterFeed } from '../workspaces/workspaces.utils';
+import type { Workspace } from '../workspaces/workspaces.types';
 import ErrorScreen from './components/ErrorScreen';
 import { RunView } from './components/RunView';
 import { RunsIndex } from './components/RunsIndex';
@@ -29,6 +31,8 @@ const readDefaultTab = (): RunTab =>
 interface RunsScreenProps {
   /** The run list, owned by the shell so the sidebar has it on every screen. */
   feed: RunsFeed;
+  /** The chosen workspace (`null` for All): it narrows the index, never the run page. */
+  workspace: Workspace | null;
   /** The run in the route, or `null` for the index. */
   run: RunRef | null;
   view: ViewMode;
@@ -46,11 +50,17 @@ const sameRef = (a: RunRef | null, b: RunRef | null): boolean =>
  */
 export const RunsScreen = ({
   feed,
+  workspace,
   run: requested,
   view,
   tab: requestedTab,
 }: RunsScreenProps): ReactNode => {
   const data: DashboardData = feed.data;
+  // The index lists the workspace's runs; a run opened by link is found in the full list.
+  const indexFeed: RunsFeed = useMemo(
+    (): RunsFeed => filterFeed(workspace)(feed),
+    [workspace, feed],
+  );
   const runs: RunRecord[] = data.runs;
 
   // The run the link asked for is kept until the person picks another one (or it turns up).
@@ -135,7 +145,12 @@ export const RunsScreen = ({
   if (requested === null) {
     return (
       <div className="screen screen-runs">
-        <RunsIndex feed={feed} onOpen={openRun} />
+        <RunsIndex
+          feed={indexFeed}
+          workspace={workspace}
+          totalRuns={runs.length}
+          onOpen={openRun}
+        />
       </div>
     );
   }
@@ -154,7 +169,12 @@ export const RunsScreen = ({
     // The link named a run and there are no runs at all: the index says so.
     return (
       <div className="screen screen-runs">
-        <RunsIndex feed={feed} onOpen={openRun} />
+        <RunsIndex
+          feed={indexFeed}
+          workspace={workspace}
+          totalRuns={runs.length}
+          onOpen={openRun}
+        />
       </div>
     );
   }

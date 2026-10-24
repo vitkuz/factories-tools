@@ -62,6 +62,18 @@ import {
   writeSessionMetaFactory,
 } from './features/sessions/index.js';
 import type { FactorySession, SessionUsecases } from './features/sessions/sessions.types.js';
+import {
+  createWorkspaceFactory,
+  listWorkspacesFactory,
+  readWorkspacesFactory,
+  removeWorkspaceFactory,
+  updateWorkspaceFactory,
+  writeWorkspacesFactory,
+} from './features/workspaces/index.js';
+import type {
+  WorkspaceServices,
+  WorkspaceUsecases,
+} from './features/workspaces/workspaces.types.js';
 import env from './shared/config/env.js';
 import { HOOK_SCRIPT } from './shared/config/paths.js';
 import { logger } from './shared/utils/logger.js';
@@ -200,6 +212,17 @@ const chat: ChatUsecases = {
   readItem: chatHub.readItem,
 };
 
+const workspaceServices: WorkspaceServices = {
+  readWorkspaces: readWorkspacesFactory({ fs, workDir, logger }),
+  writeWorkspaces: writeWorkspacesFactory({ fs, workDir, logger }),
+};
+const workspaces: WorkspaceUsecases = {
+  listWorkspaces: listWorkspacesFactory(workspaceServices),
+  createWorkspace: createWorkspaceFactory(workspaceServices),
+  updateWorkspace: updateWorkspaceFactory(workspaceServices),
+  removeWorkspace: removeWorkspaceFactory(workspaceServices),
+};
+
 const server: Server = createApp({
   apiKey: env.API_KEY,
   webDist: env.WEB_DIST,
@@ -209,6 +232,7 @@ const server: Server = createApp({
   sessions,
   questions,
   chat,
+  workspaces,
   logger,
 }).listen(env.PORT, env.HOST, (): void => {
   logger.info('factory-studio-api listening', {
