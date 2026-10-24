@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
-import { buildGraph, type GraphResult, type ViewMode } from './lib/graph';
+import { buildGraph, EMPTY_BOUNDS, type GraphResult, type ViewMode } from './lib/graph';
 import { pickDefaultRun, resolvePipeline, type RunsFeed } from './hooks/use-runs-feed';
 import { isActiveRun } from './runs.utils';
 import type { DashboardData, Pipeline, RunRecord } from './runs.types';
@@ -15,7 +15,7 @@ import { RunsIndex } from './components/RunsIndex';
 const APP_NAME = 'Factory Studio';
 const FAST_POLL_MS = 5_000;
 const SLOW_POLL_MS = 30_000;
-const EMPTY_GRAPH: GraphResult = { nodes: [], edges: [] };
+const EMPTY_GRAPH: GraphResult = { nodes: [], edges: [], bounds: EMPTY_BOUNDS, focusId: null };
 /** The viewer's last chosen run tab: what a link without `?view=` opens on. */
 const TAB_STORAGE_KEY = 'factory-studio.run-tab';
 

@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { buildGraph, type GraphResult, type StepNodeData } from '../src/features/runs/lib/graph';
+import {
+  buildGraph,
+  focusStepOf,
+  type GraphResult,
+  type StepNodeData,
+} from '../src/features/runs/lib/graph';
 import type { RunState } from '../src/features/runs/lib/types';
 import { footerFor } from '../src/features/runs/components/nodes/StepNode';
 import { isOffRow, type EdgeData, type GraphEdge } from '../src/shared/graph';
@@ -111,5 +116,33 @@ describe('buildGraph while Claude asks in the studio', () => {
     const quiet: GraphResult = buildGraph(kpPipeline(), { detailed: false })(running());
     expect(dataOf(quiet, 'review-inputs').needsYou).toBe(false);
     expect(footerFor(dataOf(quiet, 'review-inputs')).left).toBe('running');
+  });
+});
+
+describe('painting order and the focal step', () => {
+  it('paints quiet edges first, taken ones over them, the live one last', () => {
+    const graph: GraphResult = buildGraph(kpPipeline())(kpState());
+    const order: number[] = graph.edges.map((e: GraphEdge): number => {
+      const d: EdgeData = e.data as EdgeData;
+      return d.live ? 3 : d.taken ? 2 : d.quiet ? 0 : 1;
+    });
+    expect(order).toEqual([...order].sort((a: number, b: number): number => a - b));
+    expect(graph.focusId).toBeNull();
+  });
+
+  it('opens on the step a paused run waits for, else on what is running', () => {
+    const paused: RunState = {
+      ...kpState(),
+      status: 'PAUSED',
+      pause: { status: 'AWAITING_INPUT', step: 'approve-kp' },
+    } as RunState;
+    expect(focusStepOf(paused)).toBe('approve-kp');
+    const running: RunState = {
+      ...kpState(),
+      status: 'RUNNING',
+      frontier: ['build-landing'],
+    } as RunState;
+    expect(focusStepOf(running)).toBe('build-landing');
+    expect(focusStepOf(null)).toBeNull();
   });
 });

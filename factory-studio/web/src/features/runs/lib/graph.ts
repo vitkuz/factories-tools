@@ -3,21 +3,20 @@ import { attemptsOf, closedAttempts, lastWaitedMs, workingTimeMs, type Attempt }
 import { shortModel, stepCostUSD, stepModel } from './cost';
 import type { Cost, Pipeline, PipelineStep, RunState, StepState, StepStatus } from './types';
 import {
-  assignLanes,
-  buildEdges,
   highlightHappyPath,
   HUMAN_AGENT,
   isOffRow,
-  layoutNodes,
+  layoutGraph,
   markQuiet,
   rankPipeline,
-  stackedIds,
   stepMax,
   stepNodeHeight as cardHeight,
   structuralEdgeClass,
+  type Box,
   type EdgeData,
   type GraphEdge,
   type GraphNodeOf,
+  type LaidOutGraph,
   type PipelineRanks,
   type StepCardData,
   type StepNodeOf,
@@ -142,7 +141,13 @@ export type GraphNode = GraphNodeOf<StepNodeData>;
 export interface GraphResult {
   nodes: GraphNode[];
   edges: GraphEdge[];
+  /** The box the drawing occupies: cards and the lanes around them. */
+  bounds: Box;
+  /** The step the view should open on when the whole graph is too small to read: the one that needs attention. */
+  focusId: string | null;
 }
+
+export const EMPTY_BOUNDS: Box = { x: 0, y: 0, width: 0, height: 0 };
 
 export const DEFAULT_MODEL = 'default';
 
@@ -310,6 +315,31 @@ export const decorateEdges =
   };
 
 /**
+ * Where the eye should go when the graph is too wide to read at once: the step the run is
+ * paused on, else what is running, else what failed; null for a run with nothing happening.
+ */
+export const focusStepOf = (state: RunState | null): string | null => {
+  if (!state) return null;
+  if (state.status === 'PAUSED' && state.pause?.status === 'AWAITING_INPUT')
+    return state.pause.step;
+  const active: string[] = state.status === 'RUNNING' ? activeStepsOf(state) : [];
+  if (active.length > 0) return active[0];
+  const failed: string | undefined = Object.entries(state.steps).find(
+    ([, st]: [string, StepState]): boolean => st.status === 'FAILED',
+  )?.[0];
+  return failed ?? null;
+};
+
+/** Painting order: quiet and untaken edges first, taken ones over them, the live one on top — bundled lanes share pixels. */
+const paintOrder = (e: GraphEdge): number => {
+  const data: EdgeData = e.data as EdgeData;
+  return data.live ? 3 : data.taken ? 2 : data.quiet ? 0 : 1;
+};
+
+export const sortForPainting = (edges: readonly GraphEdge[]): GraphEdge[] =>
+  [...edges].sort((a: GraphEdge, b: GraphEdge): number => paintOrder(a) - paintOrder(b));
+
+/**
  * Pure and curried: `buildGraph(pipeline, options)(state)`. With a state the edges carry what
  * the run did; without one (no state.json yet) the happy path is lit, as the Editor draws it,
  * and every other loop, escape and jump is quiet.
@@ -318,20 +348,21 @@ export const buildGraph =
   (pipeline: Pipeline, options: GraphOptions = { detailed: false }) =>
   (state: RunState | null): GraphResult => {
     const ranks: PipelineRanks = rankPipeline(pipeline);
-    const nodes: GraphNode[] = layoutNodes(
+    const laid: LaidOutGraph<StepNodeData> = layoutGraph(
       pipeline,
       ranks,
       stepNodeData(pipeline, state, options),
       stepNodeHeight,
     );
-    const laned: GraphEdge[] = assignLanes(
-      nodes,
-      ranks,
-    )(buildEdges(pipeline, ranks, stackedIds(nodes)));
     const edges: GraphEdge[] = state
-      ? decorateEdges(deriveTraversals(pipeline)(state), state)(laned)
-      : markQuiet(highlightHappyPath(pipeline, ranks)(laned));
-    return { nodes, edges };
+      ? decorateEdges(deriveTraversals(pipeline)(state), state)(laid.edges)
+      : markQuiet(highlightHappyPath(pipeline, ranks)(laid.edges));
+    return {
+      nodes: laid.nodes,
+      edges: sortForPainting(edges),
+      bounds: laid.bounds,
+      focusId: focusStepOf(state),
+    };
   };
 
 /** Statuses present in a graph, in legend order (for the canvas legend panel). */

@@ -1,5 +1,6 @@
 export * from './graph.types';
 export * from './layout';
+export * from './route';
 export * from './rank';
 export * from './text';
 export * from './fit';

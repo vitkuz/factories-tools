@@ -1406,6 +1406,17 @@ select {
   pointer-events: none;
 }
 
+/* a pill row wider than the segment it sits on wraps into rows (max-width set by the layout);
+   the block gets the canvas colour so the line it sits on is cut cleanly between the rows */
+.edge-label--wrap {
+  flex-wrap: wrap;
+  justify-content: center;
+  row-gap: 1px;
+  padding: 2px 0;
+  border-radius: 4px;
+  background: var(--ground);
+}
+
 /* one pill per result, side by side; the canvas colour behind each pill cuts the line */
 .edge-pill {
   padding: 2px 6px;

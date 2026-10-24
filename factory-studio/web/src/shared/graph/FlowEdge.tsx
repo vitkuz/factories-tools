@@ -1,30 +1,20 @@
 import { memo, type CSSProperties } from 'react';
-import {
-  BaseEdge,
-  EdgeLabelRenderer,
-  getSmoothStepPath,
-  Position,
-  type EdgeProps,
-} from '@xyflow/react';
-import { LANE_ABOVE, LANE_BELOW } from './layout';
-import type { EdgeData, GraphEdge } from './graph.types';
+import { BaseEdge, EdgeLabelRenderer, type EdgeProps } from '@xyflow/react';
+import { lastHeading, roundedPath, type Heading } from './route';
+import type { EdgeData, GraphEdge, Point } from './graph.types';
 
 const ARROW = 9;
+const CORNER = 6;
 
-interface Point {
-  x: number;
-  y: number;
-}
-
-/** A filled triangle at the target end, pointing along the arriving direction. */
-const arrowPoints = (tip: Point, position: Position): string => {
+/** A filled triangle at the tip, pointing the way the line arrives. */
+const arrowPoints = (tip: Point, heading: Heading): string => {
   const h: number = ARROW / 2;
-  switch (position) {
-    case Position.Top:
+  switch (heading) {
+    case 'down':
       return `${tip.x},${tip.y} ${tip.x - h},${tip.y - ARROW} ${tip.x + h},${tip.y - ARROW}`;
-    case Position.Bottom:
+    case 'up':
       return `${tip.x},${tip.y} ${tip.x - h},${tip.y + ARROW} ${tip.x + h},${tip.y + ARROW}`;
-    case Position.Right:
+    case 'left':
       return `${tip.x},${tip.y} ${tip.x + ARROW},${tip.y - h} ${tip.x + ARROW},${tip.y + h}`;
     default:
       return `${tip.x},${tip.y} ${tip.x - ARROW},${tip.y - h} ${tip.x - ARROW},${tip.y + h}`;
@@ -60,49 +50,31 @@ const pillsFor = (data: EdgeData): Pill[] => {
   });
 };
 
+/**
+ * The edge as the layout routed it: `data.points` is the polyline (drawn with rounded
+ * corners), `data.label` where its pills sit. Without points (a graph laid out elsewhere)
+ * it falls back to a straight line between the handles.
+ */
 function FlowEdge({
   id,
   sourceX,
   sourceY,
-  sourcePosition,
   targetX,
   targetY,
-  targetPosition,
   interactionWidth,
   data,
 }: EdgeProps<GraphEdge>) {
   const d: EdgeData = data as EdgeData;
-  const above: boolean = d.lane === 'above';
-  const below: boolean = d.lane === 'below';
-
-  // Lane edges get the offset that puts their horizontal segment on the allocated lane y.
-  const offset: number = above
-    ? d.laneY !== undefined
-      ? Math.max(16, Math.min(sourceY, targetY) - d.laneY)
-      : LANE_ABOVE
-    : below
-      ? d.laneY !== undefined
-        ? Math.max(16, d.laneY - Math.max(sourceY, targetY))
-        : LANE_BELOW
-      : 20;
-
-  const [path, midX, midY] = getSmoothStepPath({
-    sourceX,
-    sourceY,
-    sourcePosition,
-    targetX,
-    targetY,
-    targetPosition,
-    borderRadius: 6,
-    offset,
-  });
-
-  // Lane labels sit on the horizontal segment (the canvas colour behind them cuts the line).
-  const laneY: number = above
-    ? Math.min(sourceY, targetY) - offset
-    : Math.max(sourceY, targetY) + offset;
-  const label: Point =
-    above || below ? { x: (sourceX + targetX) / 2, y: laneY } : { x: midX, y: midY };
+  const points: Point[] = d.points ?? [
+    { x: sourceX, y: sourceY },
+    { x: targetX, y: targetY },
+  ];
+  const path: string = roundedPath(points, CORNER);
+  const tip: Point = points[points.length - 1];
+  const label: Point = d.label ?? {
+    x: (points[0].x + tip.x) / 2,
+    y: (points[0].y + tip.y) / 2,
+  };
 
   // A hushed edge (an untaken loop, escape or jump nobody is looking at) keeps its line, loses its label.
   const pills: Pill[] = d.hushed ? [] : pillsFor(d);
@@ -112,6 +84,7 @@ function FlowEdge({
     d.taken && d.tone === 'skipped' ? 'edge-label--skipped' : '',
     d.loop ? 'edge-label--loop' : '',
     d.kind === 'max' ? 'edge-label--max' : '',
+    d.labelMaxWidth !== undefined ? 'edge-label--wrap' : '',
     d.dimmed || d.bypassed ? 'edge-label--dimmed' : '',
     d.hidden ? 'edge-label--hidden' : '',
   ]
@@ -119,15 +92,13 @@ function FlowEdge({
     .join(' ');
   const labelStyle: CSSProperties = {
     transform: `translate(-50%, -50%) translate(${label.x}px, ${label.y}px)`,
+    ...(d.labelMaxWidth !== undefined ? { maxWidth: `${d.labelMaxWidth}px` } : {}),
   };
 
   return (
     <>
       <BaseEdge id={id} path={path} interactionWidth={interactionWidth} />
-      <polygon
-        className="edge-arrow"
-        points={arrowPoints({ x: targetX, y: targetY }, targetPosition)}
-      />
+      <polygon className="edge-arrow" points={arrowPoints(tip, lastHeading(points))} />
       {d.live && <path className="edge-flow-overlay" d={path} fill="none" />}
       {pills.length > 0 && (
         <EdgeLabelRenderer>

@@ -70,6 +70,51 @@ export const wrappedLineCount = (paths: readonly string[], cols: number): number
 export const estimateSansWidth = (text: string, fontSize: number = 12): number =>
   text.length * fontSize * 0.56;
 
+/** Estimated width of a row of result pills (6 px padding each side, 4 px between). */
+export const pillRowWidth = (results: readonly string[]): number =>
+  results.reduce((w: number, r: string): number => w + estimateSansWidth(r) + 12, 0) +
+  Math.max(0, results.length - 1) * 4;
+
+/** The loop glyph (`↺ `) before a loop pill's text, and a traversal count (` ×2`) after the first pill. */
+const LOOP_GLYPH_W = 14;
+const COUNT_W = 22;
+
+/** The results a pill row prints: `max` for an escape, the routed events otherwise. */
+export const pillTexts = (data: EdgeLabelInput): string[] =>
+  data.kind === 'max' ? ['max'] : [...data.results];
+
+/** What the estimates need to know about an edge. */
+export interface EdgeLabelInput {
+  kind: 'start' | 'route' | 'max';
+  results: readonly string[];
+  loop: boolean;
+}
+
+/**
+ * Estimated width of an edge's full pill row, counting the room a loop's glyph and a
+ * traversal count will take once the run is known — the layout reserves it up front so a
+ * lane never changes thickness as the run progresses.
+ */
+export const labelRowWidth = (data: EdgeLabelInput): number => {
+  if (data.kind === 'start') return 0;
+  const texts: string[] = pillTexts(data);
+  const glyphs: number = data.loop ? texts.length * LOOP_GLYPH_W : 0;
+  return pillRowWidth(texts) + glyphs + COUNT_W;
+};
+
+/** The widest single pill of the row, the least a wrapped row can be. */
+export const widestPillWidth = (data: EdgeLabelInput): number =>
+  Math.max(
+    0,
+    ...pillTexts(data).map(
+      (t: string): number =>
+        estimateSansWidth(t) +
+        12 +
+        (data.loop ? LOOP_GLYPH_W : 0) +
+        (data.loop || data.kind === 'max' ? COUNT_W : 0),
+    ),
+  );
+
 /**
  * A doc path as people should read it: the `{{factoryPath}}/`, `{{skillPath}}/` and
  * `{{rootPath}}/` templates are how the harness resolves a knowledge file (the factory folder,

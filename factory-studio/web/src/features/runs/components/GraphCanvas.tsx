@@ -105,7 +105,7 @@ export default function GraphCanvas({
   const pendingInternals = useRef<boolean>(false);
   const updateNodeInternals = useUpdateNodeInternals();
   const initialized: boolean = useNodesInitialized();
-  const fitGraph = useFitGraph(wrapRef, view === 'detailed');
+  const fitGraph = useFitGraph(wrapRef, view === 'detailed', graph.bounds, graph.focusId);
 
   // Sync the controlled arrays whenever the base graph is rebuilt: a run switch (fresh
   // nodes, fresh selection), a card-mode switch (fresh nodes, selection kept, handles

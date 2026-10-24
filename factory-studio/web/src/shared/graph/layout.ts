@@ -2,6 +2,7 @@ import {
   END_ID,
   START_ID,
   isTerminalId,
+  type Box,
   type EdgeData,
   type EdgeKind,
   type EdgeRouteRef,
@@ -10,18 +11,19 @@ import {
   type GraphPipeline,
   type GraphRoute,
   type GraphStep,
+  type Point,
   type StepCardData,
-  type StepNodeOf,
-  type TerminalNodeType,
 } from './graph.types';
 import { edgeKey, happyEvent, rankPipeline, type PipelineRanks } from './rank';
-import { displayDocPath, estimateSansWidth, wrappedLineCount } from './text';
+import { routeGraph, type GridCard, type RoutedGraph } from './route';
+import { displayDocPath, pillRowWidth, wrappedLineCount } from './text';
 
 /**
  * The pipeline graph's layout, shared by the Runs screen and the Editor: one column per wave
  * (see `rank.ts`), the main-row card of a wave on the row line and its siblings stacked under
- * it, loops and jumps on lanes below and above the row. Pure functions returning new objects;
- * colours are never literal here — every tone is a CSS class.
+ * it in rows aligned across columns; every edge routed orthogonally through the gaps between
+ * rows and the channels between columns (see `route.ts`). Pure functions returning new
+ * objects; colours are never literal here — every tone is a CSS class.
  */
 
 /* ---- sizes shared with the CSS (nodes are fixed-size so fitView works before measuring) */
@@ -34,12 +36,8 @@ export const STEP_GAP = 72;
 /** Start → first card: the edge carries no pill, so it needs no label room. */
 export const TERM_GAP = 36;
 export const END_GAP = 80;
-/** Vertical gap between stacked cards in one column — room for a callout (32) and a rule. */
+/** Vertical gap between stacked rows — room for a callout (32) and a rule; grows with the lanes it carries. */
 export const STACK_GAP = 56;
-/** Lanes: first lane distance from the cards (64 clears a 24 px screen-sized callout down to zoom 0.6), and pitch between parallel lanes. */
-export const LANE_ABOVE = 64;
-export const LANE_BELOW = 40;
-export const LANE_PITCH = 32;
 
 /* ---- detailed-card metrics (must match `.step-node` CSS) */
 /** Characters per line of 11 px Plex Mono in the 128 px card content width. */
@@ -160,71 +158,78 @@ const labelWidthBetween = (
     }),
   );
 
-/** Estimated width of a row of result pills (6 px padding each side, 4 px between). */
-export const pillRowWidth = (results: readonly string[]): number =>
-  results.reduce((w: number, r: string): number => w + estimateSansWidth(r) + 12, 0) +
-  Math.max(0, results.length - 1) * 4;
+/** Nodes and edges of a laid-out graph, and the box they occupy (lanes included). */
+export interface LaidOutGraph<D extends StepCardData> {
+  nodes: GraphNodeOf<D>[];
+  edges: GraphEdge[];
+  bounds: Box;
+}
 
 /**
- * Columns left to right: START, one column per rank, END. The main-row card of each
- * column is centred on the row line (y = 0) so forward edges stay horizontal; extra
- * cards stack below it. Column gaps grow when a wide pill row has to fit between them.
+ * Columns left to right: START, one column per rank, END. Rows are aligned across columns,
+ * the main-row card of each column centred on the row line (y = 0) so forward edges stay
+ * horizontal, its siblings stacked below it. Column gaps grow when a wide pill row or several
+ * trunks have to fit between them; row gaps grow with the lanes routed through them.
  * `toData` builds each card's data and `heightOf` is its card height.
  */
-export const layoutNodes = <D extends StepCardData>(
+export const layoutGraph = <D extends StepCardData>(
   pipeline: GraphPipeline,
   ranks: PipelineRanks,
   toData: (slug: string, stackIndex: number) => D,
   heightOf: (data: D) => number,
-): GraphNodeOf<D>[] => {
+): LaidOutGraph<D> => {
   const columns: Column[] = columnsOf(ranks);
-
-  const start: TerminalNodeType = {
-    id: START_ID,
-    type: 'start',
-    position: { x: 0, y: -TERM_H / 2 },
-    width: START_W,
-    height: TERM_H,
-    data: { label: 'Start' },
-  };
-
-  let x: number = START_W + TERM_GAP;
-  const steps: StepNodeOf<D>[] = [];
-  columns.forEach((column: Column, ci: number): void => {
-    let y: number = 0;
-    column.slugs.forEach((slug: string, i: number): void => {
-      const data: D = toData(slug, i);
-      const height: number = heightOf(data);
-      const top: number = i === 0 ? -height / 2 : y;
-      steps.push({ id: slug, type: 'step', position: { x, y: top }, width: NODE_W, height, data });
-      y = top + height + STACK_GAP;
-    });
-    const next: Column | undefined = columns[ci + 1];
-    const labelW: number = next
-      ? labelWidthBetween(pipeline, ranks, column.rank, next.rank)
-      : labelWidthBetween(pipeline, ranks, column.rank, ranks.rank[END_ID]);
-    const gap: number = Math.max(next ? STEP_GAP : END_GAP, labelW + 24);
-    x += NODE_W + gap;
-  });
-
-  const end: TerminalNodeType = {
-    id: END_ID,
-    type: 'end',
-    position: { x, y: -TERM_H / 2 },
-    width: END_W,
-    height: TERM_H,
-    data: { label: 'End' },
-  };
-  return [start, ...steps, end];
-};
-
-/** Ids of the cards stacked under a main-row card (lane edges into them use the left handle). */
-export const stackedIds = <D extends StepCardData>(nodes: readonly GraphNodeOf<D>[]): Set<string> =>
-  new Set<string>(
-    nodes.flatMap((n: GraphNodeOf<D>): string[] =>
-      n.type === 'step' && n.data.stackIndex > 0 ? [n.id] : [],
+  const endCol: number = columns.length + 1;
+  const data: Map<string, D> = new Map();
+  const cards: GridCard[] = [
+    { id: START_ID, col: 0, row: 0, width: START_W, height: TERM_H },
+    ...columns.flatMap((column: Column, ci: number): GridCard[] =>
+      column.slugs.map((slug: string, i: number): GridCard => {
+        const d: D = toData(slug, i);
+        data.set(slug, d);
+        return { id: slug, col: ci + 1, row: i, width: NODE_W, height: heightOf(d) };
+      }),
     ),
+    { id: END_ID, col: endCol, row: 0, width: END_W, height: TERM_H },
+  ];
+  const channelWidth = (c: number): number => {
+    if (c === 0) return TERM_GAP;
+    const from: number = columns[c - 1].rank;
+    const next: Column | undefined = columns[c];
+    const labelW: number = labelWidthBetween(
+      pipeline,
+      ranks,
+      from,
+      next ? next.rank : ranks.rank[END_ID],
+    );
+    return Math.max(next ? STEP_GAP : END_GAP, labelW + 24);
+  };
+  const routed: RoutedGraph = routeGraph(cards, buildEdges(pipeline, ranks), {
+    stackGap: STACK_GAP,
+    channelWidth,
+  });
+  const positionOf = (id: string): Point => routed.positions[id] ?? { x: 0, y: 0 };
+  const nodes: GraphNodeOf<D>[] = cards.map((card: GridCard): GraphNodeOf<D> =>
+    isTerminalId(card.id)
+      ? {
+          id: card.id,
+          type: card.id === START_ID ? 'start' : 'end',
+          position: positionOf(card.id),
+          width: card.width,
+          height: card.height,
+          data: { label: card.id === START_ID ? 'Start' : 'End' },
+        }
+      : {
+          id: card.id,
+          type: 'step',
+          position: positionOf(card.id),
+          width: card.width,
+          height: card.height,
+          data: data.get(card.id) as D,
+        },
   );
+  return { nodes, edges: routed.edges, bounds: routed.bounds };
+};
 
 /* ------------------------------------------------------------------ edges */
 
@@ -290,21 +295,24 @@ const blankData = (
   quiet: false,
 });
 
+/**
+ * The handles an edge is attached to. The drawn path comes from the layout (`data.points`),
+ * so the handles only have to exist: one pair per edge direction, END's single `in`.
+ */
 const handlesFor = (
   data: EdgeData,
   target: string,
-  targetStacked: boolean,
 ): Pick<GraphEdge, 'sourceHandle' | 'targetHandle'> => {
   if (data.kind === 'max') {
     return {
       sourceHandle: HANDLE.maxOut,
-      targetHandle: isTerminalId(target) || targetStacked ? HANDLE.in : HANDLE.maxIn,
+      targetHandle: isTerminalId(target) ? HANDLE.in : HANDLE.maxIn,
     };
   }
   if (data.jump) {
     return {
       sourceHandle: HANDLE.jumpOut,
-      targetHandle: isTerminalId(target) || targetStacked ? HANDLE.in : HANDLE.jumpIn,
+      targetHandle: isTerminalId(target) ? HANDLE.in : HANDLE.jumpIn,
     };
   }
   if (data.loop) return { sourceHandle: HANDLE.loopOut, targetHandle: HANDLE.loopIn };
@@ -312,17 +320,13 @@ const handlesFor = (
 };
 
 /** Every routing edge: START → entry, `on` routes grouped per (source, target), `onMax` escapes. */
-export const buildEdges = (
-  pipeline: GraphPipeline,
-  ranks: PipelineRanks,
-  stacked: ReadonlySet<string>,
-): GraphEdge[] => {
+export const buildEdges = (pipeline: GraphPipeline, ranks: PipelineRanks): GraphEdge[] => {
   const make = (id: string, source: string, target: string, data: EdgeData): GraphEdge => ({
     id,
     source,
     target,
     type: 'flow',
-    ...handlesFor(data, target, stacked.has(target)),
+    ...handlesFor(data, target),
     data,
     focusable: false,
   });
@@ -377,92 +381,6 @@ export const buildEdges = (
   );
   return [...start, ...routes, ...escapes];
 };
-
-/* ------------------------------------------------------------------ lanes */
-
-interface Bounds {
-  top: number;
-  bottom: number;
-}
-
-interface LaneRequest {
-  index: number;
-  lo: number;
-  hi: number;
-}
-
-/** Greedy interval colouring: shorter spans get the lanes nearest the row. */
-const allocateLanes = (requests: readonly LaneRequest[]): Map<number, number> => {
-  const ordered: LaneRequest[] = [...requests].sort(
-    (a, b) => a.hi - a.lo - (b.hi - b.lo) || a.lo - b.lo,
-  );
-  const lanes: LaneRequest[][] = [];
-  const assigned: Map<number, number> = new Map();
-  for (const req of ordered) {
-    const free: number = lanes.findIndex((lane) =>
-      lane.every((o) => o.hi < req.lo || o.lo > req.hi),
-    );
-    const lane: number = free === -1 ? lanes.length : free;
-    if (free === -1) lanes.push([]);
-    lanes[lane].push(req);
-    assigned.set(req.index, lane);
-  }
-  return assigned;
-};
-
-/**
- * Give every above/below edge a lane y that clears all cards in the columns it spans
- * (and any callout above them), stacking parallel lanes outward from the row.
- */
-export const assignLanes =
-  <D extends StepCardData>(nodes: readonly GraphNodeOf<D>[], ranks: PipelineRanks) =>
-  (edges: readonly GraphEdge[]): GraphEdge[] => {
-    const rankOf = (id: string): number => ranks.rank[id] ?? 0;
-    const bounds: Map<number, Bounds> = new Map();
-    for (const n of nodes) {
-      const r: number = rankOf(n.id);
-      const h: number = n.height ?? NODE_H;
-      const prev: Bounds = bounds.get(r) ?? { top: Infinity, bottom: -Infinity };
-      bounds.set(r, {
-        top: Math.min(prev.top, n.position.y),
-        bottom: Math.max(prev.bottom, n.position.y + h),
-      });
-    }
-    const extent = (lo: number, hi: number): Bounds => {
-      let top: number = Infinity;
-      let bottom: number = -Infinity;
-      for (let r = lo; r <= hi; r += 1) {
-        const b: Bounds | undefined = bounds.get(r);
-        if (!b) continue;
-        top = Math.min(top, b.top);
-        bottom = Math.max(bottom, b.bottom);
-      }
-      return { top: Number.isFinite(top) ? top : 0, bottom: Number.isFinite(bottom) ? bottom : 0 };
-    };
-    const request = (e: GraphEdge, i: number): LaneRequest => {
-      const a: number = rankOf(e.source);
-      const b: number = rankOf(e.target);
-      return { index: i, lo: Math.min(a, b), hi: Math.max(a, b) };
-    };
-    const above: Map<number, number> = allocateLanes(
-      edges.flatMap((e, i) => (e.data?.lane === 'above' ? [request(e, i)] : [])),
-    );
-    const below: Map<number, number> = allocateLanes(
-      edges.flatMap((e, i) => (e.data?.lane === 'below' ? [request(e, i)] : [])),
-    );
-
-    return edges.map((e: GraphEdge, i: number): GraphEdge => {
-      const data: EdgeData = e.data as EdgeData;
-      if (data.lane === 'row') return e;
-      const { lo, hi } = request(e, i);
-      const ext: Bounds = extent(lo, hi);
-      const laneY: number =
-        data.lane === 'above'
-          ? ext.top - LANE_ABOVE - (above.get(i) ?? 0) * LANE_PITCH
-          : ext.bottom + LANE_BELOW + (below.get(i) ?? 0) * LANE_PITCH;
-      return { ...e, data: { ...data, laneY } };
-    });
-  };
 
 /* ------------------------------------------------------------------ decoration */
 
@@ -520,19 +438,13 @@ export const highlightHappyPath =
     });
   };
 
-/** Nodes and edges of a pipeline definition: laid out, laned, lit along the happy path, the rest quiet. */
+/** Nodes and edges of a pipeline definition: laid out, routed, lit along the happy path, the rest quiet. */
 export const buildDefinitionGraph = <D extends StepCardData>(
   pipeline: GraphPipeline,
   toData: (slug: string, stackIndex: number) => D,
   heightOf: (data: D) => number,
-): { nodes: GraphNodeOf<D>[]; edges: GraphEdge[] } => {
+): LaidOutGraph<D> => {
   const ranks: PipelineRanks = rankPipeline(pipeline);
-  const nodes: GraphNodeOf<D>[] = layoutNodes(pipeline, ranks, toData, heightOf);
-  const edges: GraphEdge[] = markQuiet(
-    highlightHappyPath(
-      pipeline,
-      ranks,
-    )(assignLanes(nodes, ranks)(buildEdges(pipeline, ranks, stackedIds(nodes)))),
-  );
-  return { nodes, edges };
+  const laid: LaidOutGraph<D> = layoutGraph(pipeline, ranks, toData, heightOf);
+  return { ...laid, edges: markQuiet(highlightHappyPath(pipeline, ranks)(laid.edges)) };
 };

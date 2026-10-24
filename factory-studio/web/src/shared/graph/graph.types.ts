@@ -56,6 +56,20 @@ export type GraphNodeOf<D extends StepCardData> = StepNodeOf<D> | TerminalNodeTy
 
 export type EdgeKind = 'start' | 'route' | 'max';
 
+/** A point in flow space. */
+export interface Point {
+  x: number;
+  y: number;
+}
+
+/** Axis-aligned box in flow space (React Flow's `Rect` shape). */
+export interface Box {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 /** Where an edge is drawn: on the row, or along a lane above / below it. */
 export type EdgeLane = 'row' | 'above' | 'below';
 
@@ -79,6 +93,12 @@ export type EdgeData = {
   lane: EdgeLane;
   /** Flow-space y of the lane's horizontal segment (undefined for row edges). */
   laneY?: number;
+  /** The routed polyline, in flow space, from the source's side to the target's side (set by the layout). */
+  points?: Point[];
+  /** Where the pill row is centred (set by the layout). */
+  label?: Point;
+  /** Width the pill row wraps at, when it is wider than the segment it sits on (set by the layout). */
+  labelMaxWidth?: number;
   /** Times the run went along this edge (from logs, else from final results). */
   traversals: number;
   taken: boolean;
