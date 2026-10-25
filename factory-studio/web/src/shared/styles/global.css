@@ -4559,8 +4559,8 @@ button.pv-prompt-toggle:focus-visible {
 }
 
 .run-header-status .status-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
 }
 
 .run-header-facts {
@@ -4721,8 +4721,8 @@ button.pv-prompt-toggle:focus-visible {
 }
 
 .chat-status-dot {
-  width: 7px;
-  height: 7px;
+  width: 8px;
+  height: 8px;
   border-radius: 50%;
   background: var(--tone);
 }
