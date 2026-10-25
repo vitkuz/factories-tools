@@ -68,7 +68,7 @@ const Chip = ({ path, extra }: { path: string; extra: string }): ReactNode => {
   );
 };
 
-/** One `Input` / `Output` / `Knowledge` row: the label, then a chip per file that opens it. */
+/** One `Knowledge` / `Input` / `Output` row: the label, then a chip per file that opens it. */
 const Fact = ({ kind, docs, scope, expected, editable = false }: FactProps): ReactNode => {
   if (docs.length === 0) return null;
   return (
@@ -376,6 +376,7 @@ const StepRow = ({
         {row.attempts.length > 1 && <Passes attempts={row.attempts} anchor={createdAt} now={now} />}
         {(inputs.length > 0 || outputs.length > 0 || data.knowledge.length > 0) && (
           <dl className="pv-facts">
+            <Fact kind="knowledge" docs={data.knowledge} scope="knowledge" expected={false} />
             <Fact
               kind="input"
               docs={inputs}
@@ -384,7 +385,6 @@ const StepRow = ({
               editable={data.human}
             />
             <Fact kind="output" docs={outputs} scope="run" expected={data.outputsFromPipeline} />
-            <Fact kind="knowledge" docs={data.knowledge} scope="knowledge" expected={false} />
           </dl>
         )}
         {transitions.length > 0 && (
