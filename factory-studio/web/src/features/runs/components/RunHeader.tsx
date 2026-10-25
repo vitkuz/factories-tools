@@ -38,7 +38,11 @@ export const RunHeader = ({ run, feed }: RunHeaderProps): ReactNode => {
           {run.runId}
         </span>
         <span className="run-header-status mono" style={colour}>
-          <span className="status-dot" style={dotStyle} aria-hidden="true" />
+          <span
+            className={run.state?.status === 'RUNNING' ? 'status-dot is-pulsing' : 'status-dot'}
+            style={dotStyle}
+            aria-hidden="true"
+          />
           {runStatusWord(run.state?.status)}
         </span>
         <span className="run-header-facts mono">

@@ -1559,8 +1559,13 @@ select {
     animation: edge-flow 1s linear infinite;
   }
 
-  .live-dot--live.is-active {
+  .live-dot--live.is-active,
+  .status-dot.is-pulsing {
     animation: live-pulse 1.6s ease-in-out infinite;
+  }
+
+  .tl-item.is-RUNNING:not(.is-selected) .tl-dot {
+    animation: tl-live-pulse 1.6s ease-in-out infinite;
   }
 }
 
@@ -1591,6 +1596,21 @@ select {
   }
   50% {
     box-shadow: 0 0 0 5px color-mix(in srgb, var(--st-running) 0%, transparent);
+  }
+}
+
+/* the live pulse for the timeline dot, keeping the ground ring that cuts it out of the rail */
+@keyframes tl-live-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 3px var(--ground),
+      0 0 0 3px color-mix(in srgb, var(--st-running) 50%, transparent);
+  }
+  50% {
+    box-shadow:
+      0 0 0 3px var(--ground),
+      0 0 0 9px color-mix(in srgb, var(--st-running) 0%, transparent);
   }
 }
 
