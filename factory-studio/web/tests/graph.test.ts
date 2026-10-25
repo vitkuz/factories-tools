@@ -130,6 +130,19 @@ describe('painting order and the focal step', () => {
     expect(graph.focusId).toBeNull();
   });
 
+  it('lifts the live edge over every other edge', () => {
+    const state: RunState = {
+      ...kpState(),
+      status: 'RUNNING',
+      frontier: ['build-landing'],
+    } as RunState;
+    const graph: GraphResult = buildGraph(kpPipeline())(state);
+    const lifted: GraphEdge[] = graph.edges.filter((e: GraphEdge): boolean => e.zIndex === 1);
+    expect(lifted).toHaveLength(1);
+    expect((lifted[0].data as EdgeData).live).toBe(true);
+    expect(lifted[0].target).toBe('build-landing');
+  });
+
   it('opens on the step a paused run waits for, else on what is running', () => {
     const paused: RunState = {
       ...kpState(),

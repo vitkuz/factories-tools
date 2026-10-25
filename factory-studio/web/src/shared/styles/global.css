@@ -1110,6 +1110,14 @@ select {
   color: var(--st-waiting);
 }
 
+/* the step running right now: the running tone, as strong as a step that needs you */
+.step-node[data-status='running'] {
+  border-color: var(--st-running);
+  background: color-mix(in srgb, var(--st-running) 10%, var(--raised));
+  outline-color: var(--st-running);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--st-running) 30%, transparent);
+}
+
 /* Claude's question for this step waits in the studio: the waiting tone, full strength */
 .step-node.is-needs-you {
   border-color: var(--st-waiting);
@@ -1451,9 +1459,16 @@ select {
   fill: color-mix(in srgb, var(--st-waiting) 55%, var(--line));
 }
 
-/* the comet: only on the edge into the step that is running right now */
+/* the live edge is lifted (zIndex 1) over every other edge; the label layer follows it up so
+   the pills still sit on top of the comet instead of under its dashes */
+.react-flow__edgelabel-renderer {
+  z-index: 1;
+}
+
+/* the comet: only on the edge into the step that is running right now; white reads on the dark
+   canvas over the green and grey lines */
 .edge-flow-overlay {
-  stroke: var(--st-running);
+  stroke: #fff;
   stroke-width: 3;
   stroke-linecap: round;
   stroke-dasharray: 10 22; /* period 32 */
@@ -1552,10 +1567,10 @@ select {
 @keyframes pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 0 color-mix(in srgb, var(--st-running) 45%, transparent);
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--st-running) 55%, transparent);
   }
   50% {
-    box-shadow: 0 0 0 6px color-mix(in srgb, var(--st-running) 0%, transparent);
+    box-shadow: 0 0 0 7px color-mix(in srgb, var(--st-running) 0%, transparent);
   }
 }
 

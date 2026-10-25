@@ -310,7 +310,8 @@ export const decorateEdges =
         data.bypassed ? 'edge-bypassed' : '',
         data.live ? 'edge-live' : '',
       ].filter(Boolean);
-      return { ...e, data, className: classes.join(' ') };
+      // The live edge sits over every other edge, whatever React Flow elevates.
+      return { ...e, data, className: classes.join(' '), zIndex: data.live ? 1 : 0 };
     });
   };
 
