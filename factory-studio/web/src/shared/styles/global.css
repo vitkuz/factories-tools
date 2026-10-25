@@ -1110,8 +1110,9 @@ select {
   color: var(--st-waiting);
 }
 
-/* the step running right now: the running tone, as strong as a step that needs you */
-.step-node[data-status='running'] {
+/* the step running right now (a retry too): the running tone, as strong as a step that needs you */
+.step-node[data-status='RUNNING'],
+.step-node[data-status='RETRYING'] {
   border-color: var(--st-running);
   background: color-mix(in srgb, var(--st-running) 10%, var(--raised));
   outline-color: var(--st-running);
@@ -1547,7 +1548,8 @@ select {
     transition: opacity 120ms ease;
   }
 
-  .step-node[data-status='running'] {
+  .step-node[data-status='RUNNING'],
+  .step-node[data-status='RETRYING'] {
     animation: pulse 1.6s ease-in-out infinite;
   }
 
