@@ -1,9 +1,10 @@
 import type { z } from 'zod';
-import type { edgeSchema, pipelineSchema, stepSchema } from './pipeline.schema.js';
+import type { edgeSchema, paramInfoSchema, pipelineSchema, stepSchema } from './pipeline.schema.js';
 
 export type Pipeline = z.infer<typeof pipelineSchema>;
 export type Step = z.infer<typeof stepSchema>;
 export type Edge = z.infer<typeof edgeSchema>;
+export type ParamInfo = z.infer<typeof paramInfoSchema>;
 
 export type Scalar = string | number | boolean;
 

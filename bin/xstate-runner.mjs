@@ -41088,6 +41088,14 @@ var hooksSchema = external_exports.strictObject({
   before: external_exports.array(nonEmpty2).optional(),
   after: external_exports.array(nonEmpty2).optional()
 });
+var PARAM_INPUT_TYPES = ["text", "textarea", "number", "checkbox", "select"];
+var paramInfoSchema = external_exports.strictObject({
+  description: external_exports.string().optional(),
+  type: external_exports.enum(PARAM_INPUT_TYPES, {
+    error: 'must be one of "text", "textarea", "number", "checkbox", "select"'
+  }).optional(),
+  options: external_exports.array(external_exports.union([external_exports.string(), external_exports.number()], { error: "must be string or number" })).optional()
+});
 var pipelineSchema = external_exports.strictObject({
   $schema: external_exports.string().optional(),
   id: kebab("the id"),
@@ -41096,6 +41104,7 @@ var pipelineSchema = external_exports.strictObject({
   description: nonEmpty2.optional(),
   constants: constantsSchema,
   params: external_exports.record(identifier, scalar).optional(),
+  paramsInfo: external_exports.record(identifier, paramInfoSchema).optional(),
   hooks: hooksSchema.optional(),
   outputDir: nonEmpty2,
   START: atLeastOne(target),

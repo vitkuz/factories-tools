@@ -96,6 +96,18 @@ describe('shape messages (the text factory-diagram matches on)', () => {
     );
   });
 
+  it('checks the shape of paramsInfo', () => {
+    expect(
+      errorsOf({
+        ...basePipeline(),
+        paramsInfo: { topic: { type: 'radio', label: 'x' } },
+      }),
+    ).toEqual([
+      'schema: pipeline.paramsInfo.topic.type: must be one of "text", "textarea", "number", "checkbox", "select"',
+      'schema: pipeline.paramsInfo.topic: unexpected key "label"',
+    ]);
+  });
+
   it('names a bad key', () => {
     const pipeline = basePipeline();
     expect(

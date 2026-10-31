@@ -4,6 +4,7 @@ import type { z } from 'zod';
 import {
   edgeSchema,
   hooksSchema,
+  paramInfoSchema,
   pipelineSchema,
   stepSchema,
 } from '../src/features/pipeline/pipeline.schema.js';
@@ -46,8 +47,23 @@ describeWithKit('pipeline.schema.ts mirrors pipeline.schema.json', () => {
     ['step', stepSchema.shape, json.$defs['step']!],
     ['edge', edgeSchema.shape, json.$defs['edge']!],
     ['hooks', hooksSchema.shape, json.properties['hooks'] as JsonObjectSchema],
+    [
+      'paramsInfo entry',
+      paramInfoSchema.shape,
+      (json.properties['paramsInfo'] as { additionalProperties: JsonObjectSchema })
+        .additionalProperties,
+    ],
   ] as const)('%s: same keys, same required keys', (_name, shape, schema) => {
     expect(keysOf(shape as Record<string, z.ZodType>)).toEqual(jsonKeysOf(schema));
+  });
+
+  it('the same paramsInfo input types', () => {
+    const entry = (
+      json.properties['paramsInfo'] as {
+        additionalProperties: { properties: Record<string, { enum: string[] }> };
+      }
+    ).additionalProperties;
+    expect(paramInfoSchema.shape.type.unwrap().options).toEqual(entry.properties['type']!.enum);
   });
 
   it('the same models', () => {

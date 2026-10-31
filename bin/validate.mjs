@@ -34325,6 +34325,14 @@ var hooksSchema = external_exports.strictObject({
   before: external_exports.array(nonEmpty).optional(),
   after: external_exports.array(nonEmpty).optional()
 });
+var PARAM_INPUT_TYPES = ["text", "textarea", "number", "checkbox", "select"];
+var paramInfoSchema = external_exports.strictObject({
+  description: external_exports.string().optional(),
+  type: external_exports.enum(PARAM_INPUT_TYPES, {
+    error: 'must be one of "text", "textarea", "number", "checkbox", "select"'
+  }).optional(),
+  options: external_exports.array(external_exports.union([external_exports.string(), external_exports.number()], { error: "must be string or number" })).optional()
+});
 var pipelineSchema = external_exports.strictObject({
   $schema: external_exports.string().optional(),
   id: kebab("the id"),
@@ -34333,6 +34341,7 @@ var pipelineSchema = external_exports.strictObject({
   description: nonEmpty.optional(),
   constants: constantsSchema,
   params: external_exports.record(identifier, scalar).optional(),
+  paramsInfo: external_exports.record(identifier, paramInfoSchema).optional(),
   hooks: hooksSchema.optional(),
   outputDir: nonEmpty,
   START: atLeastOne(target),
@@ -34773,6 +34782,25 @@ var outputNameNotBlocked = defineRule({
   description: "No step output is named summary.md, report.md, findings.md or analysis.md (any case): a subagent cannot write those."
 })(({ pipeline }, report) => stepEntries(pipeline).flatMap(outputFindings(report)));
 
+// src/features/rules/pipeline/params-info.rule.ts
+var SELECT = "select";
+var paramsInfo = defineRule({
+  id: "params-info",
+  description: '"paramsInfo" (Studio UI only) describes declared params; "options" go with a "select", and a "select" has them.'
+})(
+  ({ pipeline }, report) => Object.entries(pipeline.paramsInfo ?? {}).flatMap(
+    ([name, info]) => [
+      ...pipeline.params === void 0 || !(name in pipeline.params) ? [report.warning(`paramsInfo.${name}: "${name}" is not a declared param`)] : [],
+      ...info.options !== void 0 && info.type !== SELECT ? [
+        report.warning(
+          `paramsInfo.${name}: "options" is ignored unless "type" is "select" (got ${JSON.stringify(info.type ?? "no type")})`
+        )
+      ] : [],
+      ...info.type === SELECT && (info.options ?? []).length === 0 ? [report.warning(`paramsInfo.${name}: a "select" needs "options"`)] : []
+    ]
+  )
+);
+
 // src/features/rules/pipeline/placeholders-declared.rule.ts
 var placeholdersDeclared = defineRule({
   id: "placeholders-declared",
@@ -34877,6 +34905,7 @@ var PIPELINE_RULES = [
   outputDirNotRecursive,
   outputNameNotBlocked,
   knowledgeExists,
+  paramsInfo,
   // conventions
   anchorsFirst,
   schemaRef,

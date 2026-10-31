@@ -19,6 +19,7 @@ import { knowledgeExists } from './pipeline/knowledge-exists.rule.js';
 import { loopsCapped } from './pipeline/loops-capped.rule.js';
 import { outputDirNotRecursive } from './pipeline/output-dir-not-recursive.rule.js';
 import { outputNameNotBlocked } from './pipeline/output-name-not-blocked.rule.js';
+import { paramsInfo } from './pipeline/params-info.rule.js';
 import { placeholdersDeclared } from './pipeline/placeholders-declared.rule.js';
 import { schemaRef } from './pipeline/schema-ref.rule.js';
 import { startExists } from './pipeline/start-exists.rule.js';
@@ -43,6 +44,7 @@ export const PIPELINE_RULES: readonly PipelineRule[] = [
   outputDirNotRecursive,
   outputNameNotBlocked,
   knowledgeExists,
+  paramsInfo,
   // conventions
   anchorsFirst,
   schemaRef,

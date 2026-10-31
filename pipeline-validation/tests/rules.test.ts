@@ -13,6 +13,7 @@ import {
   onlyMatchesBlocked,
   outputNameNotBlocked,
 } from '../src/features/rules/pipeline/output-name-not-blocked.rule.js';
+import { paramsInfo } from '../src/features/rules/pipeline/params-info.rule.js';
 import { placeholdersDeclared } from '../src/features/rules/pipeline/placeholders-declared.rule.js';
 import { schemaRef } from '../src/features/rules/pipeline/schema-ref.rule.js';
 import { startExists } from '../src/features/rules/pipeline/start-exists.rule.js';
@@ -152,6 +153,33 @@ describe('names and paths', () => {
     expect(onlyMatchesBlocked('report.m?')).toBe(false);
     expect(onlyMatchesBlocked('[!x]eport.md')).toBe(false);
     expect(onlyMatchesBlocked('[rs]eport.md')).toBe(false);
+  });
+
+  it('params-info', () => {
+    expect(check(paramsInfo)()).toEqual([]);
+    expect(
+      check(paramsInfo)(
+        (p) =>
+          (p.paramsInfo = {
+            topic: { type: 'select', options: ['a', 'b'], description: 'What to write about' },
+          }),
+      ),
+    ).toEqual([]);
+    expect(
+      check(paramsInfo)(
+        (p) =>
+          (p.paramsInfo = {
+            ghost: { description: 'not declared' },
+            topic: { type: 'text', options: ['a'] },
+          }),
+      ),
+    ).toEqual([
+      'warning: paramsInfo.ghost: "ghost" is not a declared param',
+      'warning: paramsInfo.topic: "options" is ignored unless "type" is "select" (got "text")',
+    ]);
+    expect(check(paramsInfo)((p) => (p.paramsInfo = { topic: { type: 'select' } }))).toEqual([
+      'warning: paramsInfo.topic: a "select" needs "options"',
+    ]);
   });
 
   it('knowledge-exists', () => {

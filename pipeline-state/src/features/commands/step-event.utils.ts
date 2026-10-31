@@ -12,7 +12,7 @@ import {
   updateStep,
   withoutKeys,
 } from '../state/state.utils.js';
-import { flow } from '../../shared/utils/fp.utils.js';
+import { flow, unique } from '../../shared/utils/fp.utils.js';
 import { refuse } from '../../shared/utils/result.utils.js';
 import {
   applied,
@@ -102,7 +102,8 @@ export const recordStepEvent =
         ...step,
         status: 'COMPLETED',
         completedAt,
-        outputs,
+        // Every pass's files, earlier passes first: a loop's reports stay listed.
+        outputs: unique([...(step.outputs ?? []), ...outputs]),
         event,
         ...(hasReported ? { reported } : {}),
         ...(input.note ? { note: input.note } : {}),

@@ -80,6 +80,25 @@ export const hooksSchema = z.strictObject({
   after: z.array(nonEmpty).optional(),
 });
 
+export const PARAM_INPUT_TYPES = ['text', 'textarea', 'number', 'checkbox', 'select'] as const;
+
+/**
+ * UI metadata for one param: how Factory Studio's start form shows it. Studio only — the
+ * runner ignores `paramsInfo`. Whether a key names a declared param, and whether `options`
+ * fit the type, are warnings of the `params-info` rule.
+ */
+export const paramInfoSchema = z.strictObject({
+  description: z.string().optional(),
+  type: z
+    .enum(PARAM_INPUT_TYPES, {
+      error: 'must be one of "text", "textarea", "number", "checkbox", "select"',
+    })
+    .optional(),
+  options: z
+    .array(z.union([z.string(), z.number()], { error: 'must be string or number' }))
+    .optional(),
+});
+
 export const pipelineSchema = z.strictObject({
   $schema: z.string().optional(),
   id: kebab('the id'),
@@ -88,6 +107,7 @@ export const pipelineSchema = z.strictObject({
   description: nonEmpty.optional(),
   constants: constantsSchema,
   params: z.record(identifier, scalar).optional(),
+  paramsInfo: z.record(identifier, paramInfoSchema).optional(),
   hooks: hooksSchema.optional(),
   outputDir: nonEmpty,
   START: atLeastOne(target),

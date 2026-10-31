@@ -229,6 +229,20 @@ describe('step-done', () => {
     });
   });
 
+  it('a looped step keeps the outputs of every pass, earlier passes first', () => {
+    const state: State = flow<State>(
+      on(stepDoneCommand, { step: 'review', event: 'REVISE', outputs: ['2-review/report-1.md'] }),
+      on(startStepCommand, { step: 'draft' }),
+      on(stepDoneCommand, { step: 'draft', event: 'DONE' }),
+      on(startStepCommand, { step: 'review' }),
+      on(stepDoneCommand, { step: 'review', event: 'REVISE', outputs: ['2-review/report-2.md'] }),
+    )(atReview);
+    expect(state.steps['review']?.outputs).toEqual([
+      '2-review/report-1.md',
+      '2-review/report-2.md',
+    ]);
+  });
+
   it('once the max is spent it takes onMax, notes EDGE_CAPPED and does not count the edge', () => {
     const loop = (state: State): State =>
       flow<State>(

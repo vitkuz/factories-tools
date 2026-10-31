@@ -19,10 +19,12 @@ import { flow } from '../../shared/utils/fp.utils.js';
 import { applied, stepNameOf, stepRecordOf } from './commands.utils.js';
 import type { CommandResult, RunCommand, RunContext, StartStepOutput } from './commands.types.js';
 
-/** What a pass leaves behind; a new pass starts without it. */
+/**
+ * What a pass leaves behind; a new pass starts without it. `outputs` is not here: a looped step
+ * keeps every pass's files (edit-report-1.md, -2.md, ...), and step-done adds the new ones.
+ */
 const PASS_FIELDS: readonly (keyof StepRecord)[] = [
   'completedAt',
-  'outputs',
   'event',
   'reported',
   'note',

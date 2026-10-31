@@ -72,6 +72,8 @@ export const pipelineSchema = z.strictObject({
   description: z.string().optional(),
   constants: constantsSchema,
   params: z.record(z.string().regex(IDENTIFIER), scalarSchema).default({}),
+  /** UI metadata for Factory Studio's start form; not read here, only allowed. */
+  paramsInfo: z.record(z.string().regex(IDENTIFIER), z.unknown()).optional(),
   hooks: hooksSchema.default({ before: [], after: [] }),
   outputDir: z.string().min(1),
   START: z.array(stepNameSchema).min(1),
