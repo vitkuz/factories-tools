@@ -66,11 +66,9 @@ describe('runs home', () => {
 
   it('summarises a pipeline row, without tokens when none are known', () => {
     expect(pipelineSummary(pipeline({ runs: 6, steps: 112, totalTokens: 486_600_000 }))).toBe(
-      '6 runs · 112 steps · 486.6M tok',
+      '6 runs · 486.6M tok',
     );
-    expect(pipelineSummary(pipeline({ runs: 1, steps: 1, totalTokens: null }))).toBe(
-      '1 run · 1 step',
-    );
+    expect(pipelineSummary(pipeline({ runs: 1, steps: 1, totalTokens: null }))).toBe('1 run');
   });
 
   it('treats a pipeline as unpriced only when every run is', () => {

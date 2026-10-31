@@ -19,6 +19,47 @@ export const isAuthorized = (req: IncomingMessage, apiKey: string | undefined): 
   return presented !== undefined && keysMatch(presented, apiKey);
 };
 
+const DEFAULT_PORTS: Readonly<Record<string, string>> = {
+  'http:': '80',
+  'https:': '443',
+  'ws:': '80',
+  'wss:': '443',
+};
+
+/** `host[:port]` of a `Host` header, the port filled from the origin's scheme when absent. */
+const hostKey = (host: string, protocol: string): string | null => {
+  try {
+    const parsed: URL = new URL(`${protocol}//${host}`);
+    if (parsed.host === '' || parsed.pathname !== '/' || parsed.username !== '') return null;
+    return `${parsed.hostname}:${parsed.port || DEFAULT_PORTS[protocol] || ''}`;
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * A browser names the page a socket is opened from; it must be this server, as the request's
+ * `Host` names it (Caddy forwards `Host` unchanged, so `https://<domain>` matches `<domain>`;
+ * the Vite dev proxy keeps it too). Hosts compare case-insensitively with default ports
+ * filled in. No header — curl, the `ws` client, hooks — passes, as before. `Origin: null` (a
+ * sandboxed page, a file) and any other site do not. Pure.
+ */
+export const originMatchesHost = (
+  origin: string | undefined,
+  host: string | undefined,
+): boolean => {
+  if (origin === undefined) return true;
+  if (host === undefined || host === '') return false;
+  try {
+    const from: URL = new URL(origin);
+    if (DEFAULT_PORTS[from.protocol] === undefined) return false;
+    const own: string | null = hostKey(host, from.protocol);
+    return own !== null && own === `${from.hostname}:${from.port || DEFAULT_PORTS[from.protocol]}`;
+  } catch {
+    return false;
+  }
+};
+
 const refuse = (socket: Duplex, status: string): void => {
   socket.write(`HTTP/1.1 ${status}\r\nConnection: close\r\nContent-Length: 0\r\n\r\n`);
   socket.destroy();
@@ -35,8 +76,9 @@ const rawToText = (data: RawData): string =>
 
 /**
  * A WebSocket endpoint on an existing http server, upgrade handling only (`noServer`), so the
- * Express app is untouched. Auth is the same key as the REST routes. Dead peers are found by
- * ping/pong and terminated.
+ * Express app is untouched. Auth is the same key as the REST routes, and a browser must open
+ * the socket from this origin (`originMatchesHost`). Dead peers are found by ping/pong and
+ * terminated.
  */
 export const attachWebSocket = ({
   server,
@@ -54,6 +96,14 @@ export const attachWebSocket = ({
   server.on('upgrade', (req: IncomingMessage, socket: Duplex, head: Buffer): void => {
     if (requestUrl(req).pathname !== path) {
       refuse(socket, '404 Not Found');
+      return;
+    }
+    if (!originMatchesHost(req.headers.origin, req.headers.host)) {
+      logger?.warn('ws rejected: foreign origin', {
+        ip: req.socket.remoteAddress,
+        origin: req.headers.origin,
+      });
+      refuse(socket, '403 Forbidden');
       return;
     }
     if (!isAuthorized(req, apiKey)) {

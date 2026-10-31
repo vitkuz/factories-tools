@@ -1,12 +1,17 @@
 import { describe, expect, it } from 'vitest';
 import {
+  MAX_DOCUMENT_BYTES,
   contentTypeFor,
   docPathOf,
+  etagOf,
   isEditableFile,
+  isHashable,
+  isWithin,
   isRecorderFile,
   parseDocPath,
   resolveDocPath,
   sortEntries,
+  writeGuardOf,
 } from '../src/features/documents/documents.utils.js';
 
 describe('parseDocPath', () => {
@@ -107,5 +112,47 @@ describe('docPathOf and sortEntries', () => {
     const sorted = sortEntries(input);
     expect(sorted.map((e): string => e.name)).toEqual(['b', 'a.md', 'z.md']);
     expect(input[0]?.name).toBe('z.md');
+  });
+});
+
+describe('etagOf', () => {
+  it('is the quoted sha256 of the UTF-8 bytes', () => {
+    expect(etagOf('')).toBe('"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"');
+    expect(etagOf('a')).not.toBe(etagOf('b'));
+    expect(etagOf('é')).toBe(etagOf('é'));
+  });
+});
+
+describe('writeGuardOf', () => {
+  it.each([
+    [undefined, undefined, { kind: 'any' }],
+    ['', undefined, { kind: 'any' }],
+    ['  ', '', { kind: 'any' }],
+    ['"abc"', undefined, { kind: 'match', etag: '"abc"' }],
+    [' "abc" ', undefined, { kind: 'match', etag: '"abc"' }],
+    [undefined, '*', { kind: 'absent' }],
+    ['"abc"', ' * ', { kind: 'absent' }],
+    [undefined, '"abc"', { kind: 'any' }],
+  ])('If-Match %j, If-None-Match %j → %j', (ifMatch, ifNoneMatch, guard) => {
+    expect(writeGuardOf(ifMatch, ifNoneMatch)).toEqual(guard);
+  });
+});
+
+describe('isHashable', () => {
+  it('a text file within the PUT limit, nothing else', () => {
+    expect(isHashable('a.md', 10)).toBe(true);
+    expect(isHashable('a.py', MAX_DOCUMENT_BYTES)).toBe(true);
+    expect(isHashable('a.md', MAX_DOCUMENT_BYTES + 1)).toBe(false);
+    expect(isHashable('a.png', 10)).toBe(false);
+    expect(isHashable('a.pyc', 10)).toBe(false);
+  });
+});
+
+describe('isWithin', () => {
+  it('strictly inside, never the base itself or a sibling with the same prefix', () => {
+    expect(isWithin('/a/knowledge', '/a/knowledge/x.md')).toBe(true);
+    expect(isWithin('/a/knowledge', '/a/knowledge')).toBe(false);
+    expect(isWithin('/a/knowledge', '/a/knowledge-2/x.md')).toBe(false);
+    expect(isWithin('/a/knowledge', '/a/x.md')).toBe(false);
   });
 });

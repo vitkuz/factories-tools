@@ -3,12 +3,18 @@ import type {
   ParseDocPathResult,
   ParsedDocPath,
   WriteAnswer,
+  WriteGuard,
 } from '../../documents/documents.types.js';
 import { docPathOf, parseDocPath } from '../../documents/documents.utils.js';
 import type { RunServices, WriteRunDocumentResult } from '../runs.types.js';
 
 export interface WriteRunDocumentSettings extends Pick<RunServices, 'locateRunDir'> {
-  writeDocument: (base: string, parsed: ParsedDocPath, text: string) => Promise<WriteAnswer>;
+  writeDocument: (
+    base: string,
+    parsed: ParsedDocPath,
+    text: string,
+    guard: WriteGuard,
+  ) => Promise<WriteAnswer>;
   logger?: AppLogger;
 }
 
@@ -19,6 +25,7 @@ export const writeRunDocumentFactory =
     runId: string,
     rawPath: string,
     text: string,
+    guard: WriteGuard,
   ): Promise<WriteRunDocumentResult> => {
     const parsed: ParseDocPathResult = parseDocPath(rawPath);
     if (!parsed.ok) {
@@ -26,7 +33,7 @@ export const writeRunDocumentFactory =
     }
     const dir: string | null = await locateRunDir(pipelineId, runId);
     if (dir === null) return { ok: false, reason: 'run-not-found' };
-    const answer: WriteAnswer = await writeDocument(dir, parsed.parsed, text);
+    const answer: WriteAnswer = await writeDocument(dir, parsed.parsed, text, guard);
     if (answer.kind === 'saved') {
       logger?.info('document saved', { dir, path: docPathOf(parsed.parsed), bytes: answer.bytes });
     }

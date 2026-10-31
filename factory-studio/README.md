@@ -6,10 +6,11 @@ repository and to start the Claude harness sessions that launch them. The Expres
 reads the factory data on disk (`factories/<id>/pipeline.json` — the shared kit, a git submodule —
 or the project's own `factories.local/<id>/pipeline.json`, with the factory's own `knowledge/`
 beside it, the wrapper skills `.claude/skills/<id>/SKILL.md`, `run/<pipeline>/<run-id>/`, the hook
-scripts under `scripts/`), writes only run documents (the `input` documents of a `human` step), and
+scripts under `scripts/`), writes only run documents (the `input` documents of a `human` step) and
+the knowledge files of the project's own factories (`factories.local/<id>/knowledge/`), and
 starts, lists and stops a Claude harness in a herdr workspace from a prompt typed in the browser.
 
-Factory Studio never writes a pipeline: pipelines are edited as JSON (by Claude, or by hand), and a
+Factory Studio never writes a pipeline (only knowledge files beside it): pipelines are edited as JSON (by Claude, or by hand), and a
 changed `pipeline.json` shows up on the next poll. The pipeline editor that used to live here was
 split off into its own app, `factories-tools/factory-editor/`. Factory Studio replaces three tools
 that each needed their own dev server or process — the runs dashboard (`tools/state-dashboard`),
@@ -151,9 +152,22 @@ place.
 The document viewer opens from the run view: run documents (rendered and raw markdown, text,
 images, folder listings, missing and error states, relative links opened on top with `Back`),
 knowledge files of the factory (under `factories/<id>/knowledge/`), a step's prompt out of the
-pipeline definition, and hook scripts (`scripts/<path>`, read-only). Only the `input` documents of
-a `human` step are editable (`Edit`, `Save`, `Ctrl/Cmd+S`, a confirm before discarding); a document
-not yet written can be created that way.
+pipeline definition, and hook scripts (`scripts/<path>`, read-only). The `input` documents of a
+`human` step and the knowledge files of a `factories.local/` factory are editable (`Edit`, `Save`,
+`Ctrl/Cmd+S`, a confirm before discarding); a document not yet written can be created that way.
+Knowledge shows `Edit` only when E5 says `X-Doc-Writable: true` (never for the shared kit
+`factories/`). A save names the version it loaded (`If-Match`); when the file changed on disk
+meanwhile (another tab, a factory run) the draft stays and the person picks `Reload` or
+`Overwrite`. A running factory reads a knowledge file when a step starts: a step already in flight
+keeps what it read, the next one sees the edit.
+
+Next to the `output` label of a step (detailed card, inspector, timeline) two icons open the step's
+output folder in a new tab as a site (`index.html` renders with its relative assets; otherwise a
+plain folder listing where every file opens with its real type) and download it as a `.zip`. They
+are muted ("no output folder yet") until the step has started. The tab runs in a sandboxed, opaque
+origin: the page can render but cannot reach the API with your access. Inside it, classic scripts,
+stylesheets, images and links work; module scripts, `@font-face` fonts from the folder, `fetch()`
+of its own files and `localStorage` do not (they need an origin).
 
 ## The API
 
@@ -163,40 +177,57 @@ response carries an `x-request-id` header and one JSON log line (`method`, `path
 trace, and a miss under `/api` is JSON, never the app's page. With `API_KEY` set, every `/api/v1`
 route may also answer `401 { "error": "unauthorized" }`. `<path>` is one or more URL-encoded
 segments; a trailing `/` names a folder. There is no app-wide body parser: JSON (2 MB) is parsed
-only on E9 and E11, raw text (2 MB, any content type) only on E8.
+only on E9 and E11, raw text (2 MB, any content type) only on E8 and E16. E17 and E18 are made
+for the browser's address bar: they follow the same key rule, and every answer of theirs (errors
+and redirects too) carries `Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups
+allow-modals` (no `allow-same-origin`), `X-Content-Type-Options: nosniff` and
+`Referrer-Policy: no-referrer`. Keep the invariant they rely on: no POST route may parse a
+`text/plain`, form or multipart body, and no GET route may change anything — a sandboxed page can
+send those without a preflight.
 
 | # | Method | Path | Body | Success | Errors |
 | --- | --- | --- | --- | --- | --- |
 | E1 | GET | `/health` | — | `200 { "ok": true }`, no key | — |
-| E2 | GET | `/api/v1/pipelines` | — | `200 { "pipelines": [{ "id", "path", "pipeline" }] }` — every directory under `<WORK_DIR>/factories.local/` and `<WORK_DIR>/factories/` with a `pipeline.json` (a local id shadows the kit's), read fresh, sorted by id; `path` is `factories.local/<id>/pipeline.json` or `factories/<id>/pipeline.json`; a folder without the file or with one that does not parse is not listed | `500` |
-| E5 | GET, HEAD | `/api/v1/pipelines/:id/knowledge/<path>` | — | file: `200` bytes with content type (`.md` → `text/markdown`, `.json` → `application/json`, images → `image/*`, code and text → `text/plain`, else `application/octet-stream`) and `Content-Length`; folder: `200 { "kind": "directory", "path", "entries": [{ "name", "type": "file" \| "directory", "size" }] }` (folders first, dotfiles hidden); absent: `200 { "kind": "missing", "path" }`. The path is a knowledge entry as the pipeline spells it: a `{{name}}` naming any other string constant (`{{factoryPath}}`, `{{knowledgePath}}`…) is expanded first, with the built-in `{{id}}`, so `{{factoryPath}}/knowledge/x.md` becomes `{{rootPath}}/factories/<id>/knowledge/x.md`; then a leading `{{rootPath}}/` resolves against `WORK_DIR` (or the pipeline's `constants.rootPath` unless it is `cwd`), a leading `{{skillPath}}/` against the wrapper skill folder `.claude/skills/<id>/`, and a bare path against the folder holding `pipeline.json` (`factories/<id>/`, so `DESIGN.md` or `render/` of a factory open too) | `400 { "error": "invalid path segment" \| "empty path" \| "bad encoding" }`, `403 { "error": "outside the document root" }`, `404 { "error": "pipeline not found" }`, `500` |
+| E2 | GET | `/api/v1/pipelines` | — | `200 { "pipelines": [{ "id", "path", "pipeline", "params", "description"? }] }` — `params`: `pipeline.params` in declaration order, each `{ "name", "type" ("string" \| "number" \| "boolean", the JS type of the default), "default", "required" (empty default), "main" (the first declared: names the run folder), "description"?, "input"? }`, where `description` and `input: { "type": "text" \| "textarea" \| "number" \| "checkbox" \| "select", "options"? }` come from the optional `pipeline.paramsInfo.<name>` (UI metadata for the start form; the runner ignores it; an entry that does not parse is dropped, a `select` without options gets no `input`, `options` only on a `select`); `description`: `pipeline.description` when non-empty. Every directory under `<WORK_DIR>/factories.local/` and `<WORK_DIR>/factories/` with a `pipeline.json` (a local id shadows the kit's), read fresh, sorted by id; `path` is `factories.local/<id>/pipeline.json` or `factories/<id>/pipeline.json`; a folder without the file or with one that does not parse is not listed | `500` |
+| E5 | GET, HEAD | `/api/v1/pipelines/:id/knowledge/<path>` | — | file: `200` bytes with content type (`.md` → `text/markdown`, `.json` → `application/json`, images → `image/*`, code and text → `text/plain`, else `application/octet-stream`) and `Content-Length`, plus `ETag: "<sha256 of the bytes>"` for a text file ≤ 2 MB (also on E7) and `X-Doc-Writable: true|false` (knowledge only, also on a missing notice: would E16 accept this path); folder: `200 { "kind": "directory", "path", "entries": [{ "name", "type": "file" \| "directory", "size" }] }` (folders first, dotfiles hidden); absent: `200 { "kind": "missing", "path" }`. The path is a knowledge entry as the pipeline spells it: a `{{name}}` naming any other string constant (`{{factoryPath}}`, `{{knowledgePath}}`…) is expanded first, with the built-in `{{id}}`, so `{{factoryPath}}/knowledge/x.md` becomes `{{rootPath}}/factories/<id>/knowledge/x.md`; then a leading `{{rootPath}}/` resolves against `WORK_DIR` (or the pipeline's `constants.rootPath` unless it is `cwd`), a leading `{{skillPath}}/` against the wrapper skill folder `.claude/skills/<id>/`, and a bare path against the folder holding `pipeline.json` (`factories/<id>/`, so `DESIGN.md` or `render/` of a factory open too) | `400 { "error": "invalid path segment" \| "empty path" \| "bad encoding" }`, `403 { "error": "outside the document root" }`, `404 { "error": "pipeline not found" }`, `500` |
 | E6 | GET | `/api/v1/runs` | — | `200 { "generatedAt", "pipelines": { <id>: pipeline }, "runs": [{ "runId", "pipelineId", "dir", "hasState", "state", "cost", "hasCost", "pipeline"? }] }` — walks `<WORK_DIR>/run/<pipelineId>/<runId>/` on every call (a hidden folder such as `run/.trash` is skipped); pipeline id from `state.pipelineName` (or the older `pipeline`) before the folder name; a run whose `state.json` does not parse is skipped (a warning is logged); no `state.json` → `hasState: false, state: null`; unreadable `cost.json` → `cost: null, hasCost: true`; a run's own `pipeline.json` is included as `pipeline` exactly as written — a snapshot from before prompts became line arrays (a string `prompt`, a `systemPrompt`) is served as it is and upgraded by the app, so every old run still draws; sorted newest `createdAt` first, then stateless runs, then by id; unknown fields pass through | `500` |
 | E7 | GET, HEAD | `/api/v1/runs/:pipelineId/:runId/<path>` | — | as E5, from `<WORK_DIR>/run/<pipelineId>/<runId>/<path>` | `400`, `403` as E5, `404 { "error": "run not found" }` (also when an id is not a single safe segment), `500` |
-| E8 | PUT | `/api/v1/runs/:pipelineId/:runId/<path>` | raw text, any content type (the app sends `text/plain; charset=utf-8`), ≤ 2 MB; a body sent as `application/json` lands byte for byte, valid or not; an empty body writes an empty file | `200 { "kind": "saved", "bytes" }` — parents created, written atomically | `400 { "error": "a folder cannot be written" \| "state.json belongs to the recorder" \| "cost.json belongs to the recorder" \| "not a file" \| path errors }`, `403`, `404 { "error": "run not found" }`, `413 { "error": "document too large" }`, `415 { "error": "only text documents can be edited" }` (extension not `text/*` or `application/json`), `500` |
+| E8 | PUT | `/api/v1/runs/:pipelineId/:runId/<path>` | raw text, any content type (the app sends `text/plain; charset=utf-8`), ≤ 2 MB; a body sent as `application/json` lands byte for byte, valid or not; an empty body writes an empty file; optional `If-Match: "<etag>"` (the version E7 answered) or `If-None-Match: *` (must not exist yet) | `200 { "kind": "saved", "bytes", "etag" }` and the `ETag` header — parents created, written atomically | `409 { "error": "the file changed on disk since it was loaded" \| "the file is gone from disk" \| "the file already exists" }` (guard headers only), `400 { "error": "a folder cannot be written" \| "state.json belongs to the recorder" \| "cost.json belongs to the recorder" \| "not a file" \| path errors }`, `403`, `404 { "error": "run not found" }`, `413 { "error": "document too large" }`, `415 { "error": "only text documents can be edited" }` (extension not `text/*` or `application/json`), `500` |
+| E16 | PUT | `/api/v1/pipelines/:id/knowledge/<path>` | as E8 (raw text ≤ 2 MB, `If-Match` / `If-None-Match`); `<path>` spelled and resolved exactly as E5, the legacy fallback included (the file E5 showed is the one written) | `200 { "kind": "saved", "bytes", "etag" }` and the `ETag` header — parents created, written atomically | `400` path errors and `a folder cannot be written`, `403 { "error": "the shared kit is read-only in Studio: edit factories/<id> in the repository" \| "outside the factory knowledge folder" \| "a linked file cannot be edited" \| "the factory has no knowledge folder" }` (only a pipeline under `factories.local/`, only strictly inside its own `knowledge/` once symlinks are followed, never a symlinked file), `404 { "error": "pipeline not found" }`, `409` as E8, `413`, `415` as E8, `500` |
 | E9 | POST | `/api/v1/sessions` | `{ "id", "prompt", "harness"? }` — `id` matches `^[a-z0-9-]+-factory$` and must be a listed pipeline (`factories/<id>/pipeline.json`) whose wrapper skill `.claude/skills/<id>/SKILL.md` exists; `prompt` 1–50 000 characters after trimming; `harness` one of `claude`, `copilot`, `agy`, `codex`, default `claude` (the app always sends `claude`) | `201 { "session", "factoryId", "harness", "prompt", "promptFile", "workDir" }` — `session` is `factory-<id without -factory>-<8 hex>`; the text `/<id> <prompt>` is written to `<PROMPT_DIR>/<session>.prompt` (`0600` in a `0700` folder) and left there; the harness starts in a herdr workspace with cwd `WORK_DIR` and the user options `@harness`, `@factory_id`; the same factory may be started any number of times | `400 { "error": "invalid request body", "details": issues }`, `400 { "error": "malformed JSON body: …" }`, `404 { "error": "no such factory skill on disk", "details": { "available": [ids] } }`, `502 { "error": "the <harness> session exited immediately — …", "details": { "session", "harness" } }` (after `START_GRACE_MS`), `500` |
 | E10 | GET | `/api/v1/sessions` | — | `200 { "count", "sessions": [{ "session", "factoryId", "harness", "startedAt", "ageSeconds", "age" }] }` — every tmux session named `factory-*`, oldest first, labels read back from tmux (so a session survives an API restart; a hand-made one shows `"harness": "unknown"`); `{ "count": 0, "sessions": [] }` with no tmux server | `500` |
 | E11 | POST | `/api/v1/sessions/stop` | `{ "session" }` — a full session name, or a factory id with or without `-factory` when exactly one of its sessions is live | `200 { "stopped": { "session", "factoryId", "harness", "startedAt", "ageSeconds", "age" } }` | `400`, `404 { "error": "no running factory session named \"…\"", "details": { "running": [session names] } }`, `409 { "error": "\"<id>\" is running n times — stop one by its session name", "details": { "sessions": [...] } }`, `500`; a session whose name does not start with `factory-` is never stopped |
 | E12 | GET, HEAD | `/api/v1/scripts/<path>` | — | `200` a text file under `<WORK_DIR>/scripts/` (≤ 1 MB, symlinks followed but kept inside that folder), with its content type | `400` path errors, `404 { "error": "not found" }` (also for a folder or an absent file), `413 { "error": "script too large" }`, `415 { "error": "only text scripts can be read" }`, `500` |
 | E15 | DELETE | `/api/v1/runs/:pipelineId/:runId` | — | `200 { "removed": { "pipelineId", "runId", "from", "trashedTo" } }` — never deletes: the run folder moves whole to `<WORK_DIR>/run/.trash/<folder>/<runId>-<yyyymmddThhmmssmmmZ>` (`folder` is where it was filed, normally the pipeline id), so E6 stops listing it; restore with `mv run/.trash/<folder>/<runId>-<stamp> run/<folder>/<runId>`. A run that says `RUNNING` but has no live session is dead and may go | `400 { "error": "invalid run id" }` (each id `^[A-Za-z0-9_][A-Za-z0-9._-]*$`, no `..`), `403` (a symlinked run or folder, or a real path outside `run/<folder>/`), `404 { "error": "run not found" }`, `409 { "error": "the run is still live in session \"…\" — stop the session first", "details": { "session" } }` (a herdr session linked to the run as a question would be: by the Claude session id the recorder stamped, else the started-after fallback), `503` (the session list could not be read), `500` |
+| E17 | GET, HEAD | `/api/v1/site/:pipelineId/:runId/<path>` | — | the run folder as a site, for a new tab. **file**: `200` bytes streamed with the browser's type (`.html` → `text/html`, `.css` → `text/css`, `.js` → `text/javascript`, `.json` → `application/json`, `.md` and other text → `text/plain`, images, fonts, `.pdf`, media; else `application/octet-stream`) and `Content-Length`; **folder with a trailing `/`**: its `index.html` (then `index.htm`), else a `200 text/html` listing (no scripts; folders first, dotfiles and symlinks hidden, `../` below the run root); **folder without `/`**: `302` to `./<name>/` so relative links resolve; an empty `<path>` is the run folder. No `ETag`, no `X-Doc-Writable`; dotfiles are never served | `400 { "error": "invalid path segment" \| "bad encoding" }`, `403 { "error": "outside the run folder" }` (a symlink that resolves outside the run), `404 { "error": "run not found" }` (also an id that is not one run folder name), `404 { "error": "not found" }` (nothing there, a dotfile, or a file named with a trailing `/`), `500` |
+| E18 | GET, HEAD | `/api/v1/zip/:pipelineId/:runId/<path>/` | — | `200 application/zip`, `Content-Disposition: attachment; filename="<runId>-<folder>.zip"` (`<runId>.zip` for the run root; the name kept to `[A-Za-z0-9._-]`), streamed without `Content-Length`: every regular file under the folder, deflated, named relative to it; dotfiles, dot-folders and symlinks skipped. HEAD answers the headers only | `400` path errors and `{ "error": "not a folder" }`, `403` and `404` as E17, `413 { "error": "folder too large to zip", "details": { "entries", "bytes", "maxEntries", "maxBytes" } }` (more than 20 000 files or 512 MiB, checked before the first byte), `500` |
 | E13 | GET, HEAD | any path not under `/api` | — | `200` a static asset from `WEB_DIST`, else `WEB_DIST/index.html` (so `/runs/<p>/<r>` reloads into the app) | `503 { "error": "app not built: run npm run build -w web" }` while `index.html` is absent (checked once at startup); any other method → `404 { "error": "not found" }` |
 | E14 | any | any other `/api` path (including the editor's former `GET`/`PUT /api/v1/pipelines/:id` and `POST /api/v1/pipelines`) | — | — | `404 { "error": "not found" }` |
 
-Path safety, shared by E5, E7 and E8: a segment that is `.`, `..`, empty, or holds `/` or `\`
+Path safety, shared by E5, E7, E8, E16, E17 and E18: a segment that is `.`, `..`, empty, or holds `/` or `\`
 (also when percent-encoded) answers `400 invalid path segment`; a malformed escape `400 bad
 encoding`; anything that resolves outside the run or knowledge base `403`. No CORS headers
 anywhere; `x-powered-by` is off. The API never writes `cost.json` or `state.json`; a `PUT` to
 either is refused. Two edges outside the contract: `GET /api/v1/runs/<p>/<r>/` with no document
 path answers the generic `404 not found`, and `…/knowledge/{{skillPath}}/` alone answers
-`400 empty path`.
+`400 empty path`. E17/E18 also realpath the target and refuse anything that resolves outside the
+run folder (`403 outside the run folder`). The WebSocket upgrade refuses a browser `Origin` that is
+not this server (`403`; compared as host and port against the request's `Host`, which Caddy and the
+Vite dev proxy forward unchanged), so a sandboxed preview (`Origin: null`) or another site cannot
+open it; a client that sends no `Origin` (curl, hooks) is let through as before.
 
 Examples:
 
 ```
 curl -s http://127.0.0.1:3100/api/v1/pipelines | jq -c '[.pipelines[].id]'
 curl -s -X PUT -H 'content-type: text/plain' --data 'hello' http://127.0.0.1:3100/api/v1/runs/<pipeline>/<run>/0-verify/input.md
+curl -si http://127.0.0.1:3100/api/v1/pipelines/<local-pipeline>/knowledge/%7B%7BknowledgePath%7D%7D/x.md | grep -iE 'etag|x-doc-writable'
+curl -s -X PUT -H 'content-type: text/plain' -H 'If-Match: "<etag>"' --data-binary @x.md http://127.0.0.1:3100/api/v1/pipelines/<local-pipeline>/knowledge/%7B%7BknowledgePath%7D%7D/x.md
 curl -s -X POST -H 'content-type: application/json' --data '{"id":"canonical-factory","prompt":"say hello and exit"}' http://127.0.0.1:3100/api/v1/sessions
 curl -s -X POST -H 'content-type: application/json' --data '{"session":"canonical-factory"}' http://127.0.0.1:3100/api/v1/sessions/stop
 curl -s -X DELETE http://127.0.0.1:3100/api/v1/runs/<pipeline>/<run>
+curl -si http://127.0.0.1:3100/api/v1/site/<pipeline>/<run>/<step>/ | grep -iE 'content-(type|security)'
+curl -sS -o step.zip http://127.0.0.1:3100/api/v1/zip/<pipeline>/<run>/<step>/
 ```
 
 ## How it fits together
@@ -204,16 +235,17 @@ curl -s -X DELETE http://127.0.0.1:3100/api/v1/runs/<pipeline>/<run>
 **Layout.** This folder is an npm workspace root with two packages. `api/` is the Express server:
 `src/server.ts` is the one composition root (env → logger → fs and herdr clients → services →
 usecases → `createApp` → listen; SIGTERM/SIGINT close only the HTTP server). Each feature under
-`api/src/features/{pipelines,runs,scripts,sessions,documents}` (`pipelines` is read-only: the list E2 and knowledge E5) is layered
+`api/src/features/{pipelines,runs,scripts,sessions,documents,site}` (`pipelines`: the list E2 and knowledge E5 read; E16 writes knowledge of `factories.local` factories; `site`: the E17 preview and E18 zip, read-only, over the runs' `locateRunDir`) is layered
 `routes -> controllers -> usecases -> services`, every layer a function closing over its settings,
-with the IO clients under `api/src/clients/{fs,herdr}` and the middleware under
+with the IO clients under `api/src/clients/{fs,herdr,zip}` (`zip` wraps `yazl`) and the middleware under
 `api/src/shared/middleware` (request log, API key, validation, `no-store`, JSON 404, static app,
 document sender, error edge). `web/` is a Vite + React 19 app organised as
 `src/features/{runs,sessions}` (components, hooks, `*.schema.ts`, `*.types.ts`, `*.utils.ts`,
 and the pure libraries copied from the original tools under `lib/`), `src/shared` (shell, route,
 polling, storage, the document viewer, the stylesheets) and `src/adapters/http` (one axios instance
 with logging interceptors, one path builder per endpoint, and `studio-api.adapter.ts` with one
-function per endpoint the app calls — E2, E5–E12, E15 — each answer parsed with zod). There are no classes on either side.
+function per endpoint the app calls — E2, E5–E12, E15, E16 — each answer parsed with zod; E17/E18
+are plain links built by `api-paths.ts`, not adapter calls). There are no classes on either side.
 
 **How the static app is served.** `npm run build -w web` writes `web/dist` (`index.html` plus hashed
 chunks: `react`, `flow`, `zod`, `index`, and a lazy `DocModal` + `markdown` pair that downloads only
@@ -272,7 +304,7 @@ Claude sessions started by the studio get a per-session `--settings` file with a
 `PostToolUse` hook on `AskUserQuestion` (`api/hooks/studio-question-hook.mjs`). The PreToolUse hook
 posts the full `tool_input` (up to 4 questions) to `POST /api/v1/hooks/ask-user-question` and
 blocks; the API broadcasts `session.question` on `ws://<host>/api/v1/ws` (key via `?key=` or
-`x-api-key`). The UI answers with `session.answer` (one answer per question), the hook prints
+`x-api-key`; a browser's `Origin` must be this server). The UI answers with `session.answer` (one answer per question), the hook prints
 `permissionDecision: allow` plus `updatedInput.answers`, and Claude receives them without the
 terminal dialog. `session.dismiss` makes the hook exit silently so the normal terminal dialog opens;
 a hook timeout or crash does the same. `session.question.resolved` closes the box (answered,

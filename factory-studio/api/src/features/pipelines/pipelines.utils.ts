@@ -1,6 +1,12 @@
 import path from 'node:path';
-import { paramNameSchema, paramValueSchema } from './pipelines.schema.js';
-import type { FactoryParam, ParamValue } from './pipelines.types.js';
+import { paramInfoSchema, paramNameSchema, paramValueSchema } from './pipelines.schema.js';
+import type {
+  FactoryParam,
+  ParamInfo,
+  ParamInput,
+  ParamValue,
+  PipelineSkill,
+} from './pipelines.types.js';
 
 /** Where the shared factory graphs live: `factories/<id>/pipeline.json` (+ per-factory extras) — the kit, a git submodule. */
 export const FACTORIES_DIR = 'factories';
@@ -8,6 +14,11 @@ export const FACTORIES_DIR = 'factories';
 export const LOCAL_FACTORIES_DIR = 'factories.local';
 /** Where an id is looked up, in order. */
 export const FACTORY_DIRS: readonly string[] = [LOCAL_FACTORIES_DIR, FACTORIES_DIR];
+/**
+ * Factory folders whose knowledge Studio may rewrite (E16): the project's own, never the shared
+ * kit — `factories/` is a git submodule other projects use; its edits belong in a commit there.
+ */
+export const WRITABLE_FACTORY_DIRS: readonly string[] = [LOCAL_FACTORIES_DIR];
 /** Where the wrapper skills live: `.claude/skills/<id>/SKILL.md` hands off to `any-factory`. */
 export const SKILLS_DIR = '.claude/skills';
 export const PIPELINE_FILE = 'pipeline.json';
@@ -44,6 +55,10 @@ export const knowledgeDirOf = (dir: string): string => path.join(dir, KNOWLEDGE_
  */
 export const legacyKnowledgeCandidates = (segments: readonly string[]): string[][] =>
   segments.map((_: string, index: number): string[] => segments.slice(index));
+
+/** May this listed factory's knowledge be edited? Judged by where its `pipeline.json` sits. Pure. */
+export const isWritableFactory = (skill: Pick<PipelineSkill, 'path'>): boolean =>
+  WRITABLE_FACTORY_DIRS.some((dir: string): boolean => skill.path.startsWith(`${dir}/`));
 
 /** `<id>`'s wrapper skill folder `.claude/skills/<id>` — what `{{skillPath}}` resolves to. */
 export const wrapperSkillDir = (workDir: string, id: string): string =>
@@ -140,28 +155,56 @@ export const knowledgeBase = (rawDocPath: string, ctx: KnowledgeContext): Knowle
 const isRecord = (value: unknown): value is Record<string, unknown> =>
   typeof value === 'object' && value !== null && !Array.isArray(value);
 
+/** `pipeline.paramsInfo.<name>` when it parses, else nothing: a bad entry never breaks the list. Pure. */
+export const paramInfoOf =
+  (pipeline: unknown) =>
+  (name: string): ParamInfo | undefined => {
+    const info: unknown = isRecord(pipeline) ? pipeline.paramsInfo : undefined;
+    if (!isRecord(info)) return undefined;
+    const parsed = paramInfoSchema.safeParse(info[name]);
+    return parsed.success ? parsed.data : undefined;
+  };
+
+/** The widget a `paramsInfo` entry asks for: a `select` only with options to offer. Pure. */
+export const paramInputOf = (info: ParamInfo | undefined): ParamInput | undefined => {
+  if (info?.type === undefined) return undefined;
+  if (info.type !== 'select') return { type: info.type };
+  return info.options !== undefined && info.options.length > 0
+    ? { type: 'select', options: info.options }
+    : undefined;
+};
+
 /**
  * The declared params of a pipeline, in declaration order, typed by their default. A name the
  * schema would refuse, or a default that is not text, a number or a boolean, is left out: the
- * form cannot offer it and the runner would refuse the pipeline anyway. Pure.
+ * form cannot offer it and the runner would refuse the pipeline anyway. `paramsInfo` adds the
+ * help text and the widget the start form shows (UI only). Pure.
  */
 export const extractParams = (pipeline: unknown): FactoryParam[] => {
   const params: unknown = isRecord(pipeline) ? pipeline.params : undefined;
   if (!isRecord(params)) return [];
   // The runner's main param is the first one declared, whatever the form can offer.
   const first: string | undefined = Object.keys(params)[0];
+  const infoOf: (name: string) => ParamInfo | undefined = paramInfoOf(pipeline);
   return Object.entries(params)
     .filter(
       ([name, value]: [string, unknown]): boolean =>
         paramNameSchema.safeParse(name).success && paramValueSchema.safeParse(value).success,
     )
-    .map(([name, value]: [string, unknown]): FactoryParam => ({
-      name,
-      type: typeof value as FactoryParam['type'],
-      default: value as ParamValue,
-      required: value === '',
-      main: name === first,
-    }));
+    .map(([name, value]: [string, unknown]): FactoryParam => {
+      const info: ParamInfo | undefined = infoOf(name);
+      const description: string | undefined = info?.description?.trim() || undefined;
+      const input: ParamInput | undefined = paramInputOf(info);
+      return {
+        name,
+        type: typeof value as FactoryParam['type'],
+        default: value as ParamValue,
+        required: value === '',
+        main: name === first,
+        ...(description === undefined ? {} : { description }),
+        ...(input === undefined ? {} : { input }),
+      };
+    });
 };
 
 /** `pipeline.description` when it is a non-empty string. Pure. */

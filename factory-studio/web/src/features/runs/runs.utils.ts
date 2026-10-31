@@ -1,7 +1,7 @@
 import { RUN_STATUS_META, runStatusWord } from './lib/run';
 import { attemptSpanMs, attemptsOf, type Attempt } from './lib/attempts';
 import { formatDay, formatDurationMs, formatTokens } from './lib/format';
-import type { StepStatusKey } from './lib/graph';
+import type { StepNodeData, StepStatusKey } from './lib/graph';
 import { END_ID } from '../../shared/graph';
 import { describeApiError, isApiError } from '../../adapters/http/api-error.utils';
 import type { PipelineStep, RunState, StepState } from './lib/types';
@@ -42,6 +42,41 @@ export const runRelativePath = (
   const trimmed: string = path.replace(/^\.\//, '');
   return trimmed.startsWith(prefix) ? trimmed.slice(prefix.length) : path;
 };
+
+/** A first segment that names no real folder: a glob, a template, `.`/`..`. */
+const isPlainFolder = (segment: string): boolean =>
+  segment !== '' && segment !== '.' && segment !== '..' && !/[*?[\]{}]/.test(segment);
+
+/**
+ * The folder a step writes into: the one first segment every output path shares
+ * (`1-get-lead/lead.json` → `1-get-lead`). Null when the outputs are empty, disagree, name a
+ * bare file, or the segment is a glob or a template (pure).
+ */
+export const stepFolderOf = (
+  run: Pick<RunRecord, 'pipelineId' | 'runId'>,
+  outputs: readonly string[],
+): string | null => {
+  const folders: string[] = outputs.map((output: string): string => {
+    const parts: string[] = runRelativePath(run, output).replace(/^\.\//, '').split('/');
+    return parts.length > 1 ? (parts[0] ?? '') : '';
+  });
+  const first: string | undefined = folders[0];
+  if (first === undefined || !isPlainFolder(first)) return null;
+  return folders.every((folder: string): boolean => folder === first) ? first : null;
+};
+
+/**
+ * Is there a folder to open yet? Once the step has started (anything but no state, pending or
+ * skipped), or once the run recorded what it wrote (pure).
+ */
+export const stepFolderReady = (
+  data: Pick<StepNodeData, 'hasState' | 'status' | 'outputsFromPipeline'>,
+): boolean =>
+  !data.outputsFromPipeline ||
+  (data.hasState &&
+    data.status !== 'none' &&
+    data.status !== 'PENDING' &&
+    data.status !== 'SKIPPED');
 
 export const isActiveRun = (run: RunRecord | undefined): boolean =>
   run?.state?.status === 'RUNNING' || run?.state?.status === 'PAUSED';
@@ -160,11 +195,10 @@ export const runsOfPipeline =
 
 const plural = (n: number, word: string): string => `${n} ${word}${n === 1 ? '' : 's'}`;
 
-/** "6 runs · 112 steps · 486.6M tok": the second line of a pipeline row; no tokens part without a cost.json. */
+/** "6 runs · 486.6M tok": the second line of a pipeline row; no tokens part without a cost.json. */
 export const pipelineSummary = (pipeline: PipelineOverview): string =>
   [
     plural(pipeline.runs, 'run'),
-    plural(pipeline.steps, 'step'),
     pipeline.totalTokens === null ? null : `${formatTokens(pipeline.totalTokens)} tok`,
   ]
     .filter((part: string | null): part is string => part !== null)

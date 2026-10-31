@@ -4,6 +4,7 @@ import {
   expandConstants,
   extractDescription,
   extractParams,
+  isWritableFactory,
   knowledgeBase,
   legacyKnowledgeCandidates,
   type KnowledgeBase,
@@ -115,6 +116,62 @@ describe('extractParams', () => {
     ).toEqual([{ name: 'label', type: 'string', default: 'ok', required: false, main: false }]);
   });
 
+  it('adds the description and widget from paramsInfo; a bad or unknown entry is ignored', () => {
+    expect(
+      extractParams({
+        params: { client: 'none', language: 'Russian', notes: '', count: 3, flag: true },
+        paramsInfo: {
+          client: { type: 'text', description: '  Client name  ' },
+          language: { type: 'select', options: ['Russian', 'English'], description: 'Language' },
+          notes: { type: 'select' },
+          count: { type: 'slider', description: 'dropped with its entry' },
+          flag: 'not an object',
+          ghost: { type: 'text', description: 'not a param' },
+        },
+      }),
+    ).toEqual([
+      {
+        name: 'client',
+        type: 'string',
+        default: 'none',
+        required: false,
+        main: true,
+        description: 'Client name',
+        input: { type: 'text' },
+      },
+      {
+        name: 'language',
+        type: 'string',
+        default: 'Russian',
+        required: false,
+        main: false,
+        description: 'Language',
+        input: { type: 'select', options: ['Russian', 'English'] },
+      },
+      { name: 'notes', type: 'string', default: '', required: true, main: false },
+      { name: 'count', type: 'number', default: 3, required: false, main: false },
+      { name: 'flag', type: 'boolean', default: true, required: false, main: false },
+    ]);
+  });
+
+  it('ignores paramsInfo that is not an object, and options on a type other than select', () => {
+    expect(extractParams({ params: { a: 'x' }, paramsInfo: ['a'] })).toEqual([
+      { name: 'a', type: 'string', default: 'x', required: false, main: true },
+    ]);
+    expect(
+      extractParams({ params: { a: 'x' }, paramsInfo: { a: { type: 'text', options: ['y'] } } }),
+    ).toEqual([
+      {
+        name: 'a',
+        type: 'string',
+        default: 'x',
+        required: false,
+        main: true,
+        input: { type: 'text' },
+      },
+    ]);
+  });
+
   it('is empty when there are no params, or they are not an object', () => {
     expect(extractParams({ id: 'x' })).toEqual([]);
     expect(extractParams({ params: ['a'] })).toEqual([]);
@@ -130,5 +187,13 @@ describe('extractDescription', () => {
     expect(extractDescription({ description: '   ' })).toBeUndefined();
     expect(extractDescription({ description: 3 })).toBeUndefined();
     expect(extractDescription({})).toBeUndefined();
+  });
+});
+
+describe('isWritableFactory', () => {
+  it('only a factory of factories.local, judged by where its pipeline.json sits', () => {
+    expect(isWritableFactory({ path: 'factories.local/x/pipeline.json' })).toBe(true);
+    expect(isWritableFactory({ path: 'factories/x/pipeline.json' })).toBe(false);
+    expect(isWritableFactory({ path: 'factories.localx/x/pipeline.json' })).toBe(false);
   });
 });

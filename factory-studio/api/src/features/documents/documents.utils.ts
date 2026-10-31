@@ -1,9 +1,12 @@
+import { createHash } from 'node:crypto';
 import path from 'node:path';
 import type {
   DirEntry,
+  DocEtag,
   ParseDocPathResult,
   ParsedDocPath,
   ResolveDocPathResult,
+  WriteGuard,
 } from './documents.types.js';
 
 /** A saved document is a hand-written text file, not an upload: 2 MB is far past any of them. */
@@ -120,3 +123,28 @@ export const sortEntries = (entries: readonly DirEntry[]): DirEntry[] =>
   [...entries].sort((a: DirEntry, b: DirEntry): number =>
     a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'directory' ? -1 : 1,
   );
+
+/** The strong ETag of a document: the quoted sha256 of its UTF-8 bytes. Pure. */
+export const etagOf = (text: string): DocEtag =>
+  `"${createHash('sha256').update(text, 'utf8').digest('hex')}"`;
+
+/** `If-Match` / `If-None-Match` as the write service reads them; `If-None-Match: *` wins. Pure. */
+export const writeGuardOf = (
+  ifMatch: string | undefined,
+  ifNoneMatch: string | undefined,
+): WriteGuard =>
+  ifNoneMatch?.trim() === '*'
+    ? { kind: 'absent' }
+    : ifMatch !== undefined && ifMatch.trim() !== ''
+      ? { kind: 'match', etag: ifMatch.trim() }
+      : { kind: 'any' };
+
+/** A file small enough to hash and edit: a text file within the PUT limit. Pure. */
+export const isHashable = (file: string, size: number): boolean =>
+  isEditableFile(file) && size <= MAX_DOCUMENT_BYTES;
+
+/** `file` is strictly inside `base` (both already real paths): never the base itself, never above it. Pure. */
+export const isWithin = (base: string, file: string): boolean => {
+  const rel: string = path.relative(base, file);
+  return rel !== '' && !rel.startsWith('..') && !path.isAbsolute(rel);
+};

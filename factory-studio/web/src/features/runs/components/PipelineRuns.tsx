@@ -39,7 +39,7 @@ const Stat = ({ label, value, money, absent, note }: StatProps): ReactNode => (
   </div>
 );
 
-/** The right column of the home: the picked pipeline's name, its five sums and its runs. */
+/** The right column of the home: the picked pipeline's name, its four sums and its runs. */
 export const PipelineRuns = ({ pipeline, runs, onOpen, remover }: PipelineRunsProps): ReactNode => {
   // Absent is not zero: with no cost.json behind any run there is no cost to state.
   const cost: number | null = isAllUnpriced(pipeline) ? null : pipeline.costUsd;
@@ -55,7 +55,6 @@ export const PipelineRuns = ({ pipeline, runs, onOpen, remover }: PipelineRunsPr
       </div>
       <div className="pipeline-stats">
         <Stat label="Runs" value={String(pipeline.runs)} />
-        <Stat label="Steps" value={String(pipeline.steps)} />
         <Stat
           label="Cost"
           value={cost === null ? 'unpriced' : formatUSD(cost)}

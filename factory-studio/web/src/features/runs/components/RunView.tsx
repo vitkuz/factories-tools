@@ -1,4 +1,4 @@
-import { Suspense, useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import type { RunsFeed } from '../hooks/use-runs-feed';
 import type { GraphResult, ViewMode } from '../lib/graph';
@@ -14,6 +14,7 @@ import {
   type OpenDoc,
   type OpenDocOptions,
 } from '../../../shared/document-viewer';
+import { RunRefContext } from './FolderActions';
 import GraphCanvas from './GraphCanvas';
 import Inspector from './Inspector';
 import NoPipeline from './NoPipeline';
@@ -88,7 +89,8 @@ export const RunView = ({
 
   // The document modal: a stack so a link inside one doc opens on top of it (Back pops).
   const [docStack, setDocStack] = useState<DocRef[]>([]);
-  // Editing is granted to the document the link opened, never to one reached from inside it.
+  // Editing a run doc is granted to the document the link opened, never to one reached from
+  // inside it. A knowledge file needs no grant: the API's answer says whether it is writable.
   const [editable, setEditable] = useState<boolean>(false);
   const runRef = useRef<RunRecord>(run);
   runRef.current = run;
@@ -125,9 +127,14 @@ export const RunView = ({
   const backDoc = useCallback((): void => setDocStack((s) => s.slice(0, -1)), []);
   const closeDoc = useCallback((): void => setDocStack([]), []);
   const doc: DocRef | undefined = docStack[docStack.length - 1];
+  // The run the step folders' open / download links point into.
+  const runRefValue: RunRef = useMemo(
+    (): RunRef => ({ pipelineId: run.pipelineId, runId: run.runId }),
+    [run.pipelineId, run.runId],
+  );
 
   return (
-    <>
+    <RunRefContext.Provider value={runRefValue}>
       <RunHeader run={run} feed={feed} />
 
       <DocOpenContext.Provider value={openDoc}>
@@ -218,6 +225,6 @@ export const RunView = ({
           />
         </Suspense>
       )}
-    </>
+    </RunRefContext.Provider>
   );
 };

@@ -13,7 +13,13 @@ import type {
   PipelineListEntry,
   StartRequest,
 } from '../sessions.types';
-import { buildStartRequest, initialParamDraft, paramWidget, startBlocker } from '../sessions.utils';
+import {
+  buildStartRequest,
+  initialParamDraft,
+  paramWidget,
+  selectOptions,
+  startBlocker,
+} from '../sessions.utils';
 
 interface StartFormProps {
   entries: PipelineListEntry[];
@@ -31,6 +37,7 @@ interface ParamFieldProps {
 }
 
 const fieldId = (name: string): string => `start-param-${name}`;
+const descriptionId = (name: string): string => `start-param-${name}-description`;
 
 /** The param's name, a mark when it is required, and a tag on the one that names the run folder. */
 const ParamLabel = ({ param }: { param: FactoryParam }): ReactNode => (
@@ -49,32 +56,68 @@ const ParamLabel = ({ param }: { param: FactoryParam }): ReactNode => (
   </>
 );
 
-/** One param: a checkbox, a number, a one-line text or a growing textarea, pre-filled with the default. */
+/** The pipeline's help text for a param (`paramsInfo`), under its field. */
+const ParamDescription = ({ param }: { param: FactoryParam }): ReactNode =>
+  param.description === undefined ? null : (
+    <p id={descriptionId(param.name)} className="sessions-param-description">
+      {param.description}
+    </p>
+  );
+
+/**
+ * One param: a checkbox, a number, a select, a one-line text or a growing textarea, pre-filled
+ * with the default, its help text under it.
+ */
 const ParamField = ({ param, value, onChange }: ParamFieldProps): ReactNode => {
   const widget: ParamWidget = paramWidget(param);
   const id: string = fieldId(param.name);
   const placeholder: string = param.required ? 'required' : '';
+  const describedBy: string | undefined =
+    param.description === undefined ? undefined : descriptionId(param.name);
 
   if (widget === 'checkbox') {
-    return (
+    const check: ReactNode = (
       <label className="sessions-param sessions-param-check" htmlFor={id}>
         <input
           id={id}
           type="checkbox"
           checked={value === true}
+          aria-describedby={describedBy}
           onChange={(event: ChangeEvent<HTMLInputElement>): void => onChange(event.target.checked)}
         />
         <ParamLabel param={param} />
       </label>
     );
+    return describedBy === undefined ? (
+      check
+    ) : (
+      <div className="sessions-param sessions-param-described">
+        {check}
+        <ParamDescription param={param} />
+      </div>
+    );
   }
 
-  return (
-    <div className={`sessions-param${widget === 'textarea' ? ' is-wide' : ''}`}>
-      <label className="sessions-param-label" htmlFor={id}>
-        <ParamLabel param={param} />
-      </label>
-      {widget === 'textarea' ? (
+  const field = (): ReactNode => {
+    if (widget === 'select')
+      return (
+        <select
+          id={id}
+          className="input select sessions-param-input sessions-param-select"
+          value={String(value)}
+          required={param.required}
+          aria-describedby={describedBy}
+          onChange={(event: ChangeEvent<HTMLSelectElement>): void => onChange(event.target.value)}
+        >
+          {selectOptions(param).map((option: string) => (
+            <option key={option} value={option}>
+              {option === '' ? placeholder : option}
+            </option>
+          ))}
+        </select>
+      );
+    if (widget === 'textarea')
+      return (
         <textarea
           id={id}
           className="input textarea sessions-param-input sessions-param-textarea"
@@ -82,21 +125,33 @@ const ParamField = ({ param, value, onChange }: ParamFieldProps): ReactNode => {
           rows={1}
           required={param.required}
           placeholder={placeholder}
+          aria-describedby={describedBy}
           onChange={(event: ChangeEvent<HTMLTextAreaElement>): void => onChange(event.target.value)}
         />
-      ) : (
-        <input
-          id={id}
-          className="input sessions-param-input"
-          type={widget === 'number' ? 'number' : 'text'}
-          step={widget === 'number' && !Number.isInteger(param.default) ? 'any' : undefined}
-          inputMode={widget === 'number' ? 'decimal' : undefined}
-          value={String(value)}
-          required={param.required}
-          placeholder={placeholder}
-          onChange={(event: ChangeEvent<HTMLInputElement>): void => onChange(event.target.value)}
-        />
-      )}
+      );
+    return (
+      <input
+        id={id}
+        className="input sessions-param-input"
+        type={widget === 'number' ? 'number' : 'text'}
+        step={widget === 'number' && !Number.isInteger(param.default) ? 'any' : undefined}
+        inputMode={widget === 'number' ? 'decimal' : undefined}
+        value={String(value)}
+        required={param.required}
+        placeholder={placeholder}
+        aria-describedby={describedBy}
+        onChange={(event: ChangeEvent<HTMLInputElement>): void => onChange(event.target.value)}
+      />
+    );
+  };
+
+  return (
+    <div className={`sessions-param${widget === 'textarea' ? ' is-wide' : ''}`}>
+      <label className="sessions-param-label" htmlFor={id}>
+        <ParamLabel param={param} />
+      </label>
+      {field()}
+      <ParamDescription param={param} />
     </div>
   );
 };

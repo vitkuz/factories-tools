@@ -26,7 +26,7 @@ interface Confirming {
   error: string | null;
 }
 
-const COLUMNS = 7;
+const COLUMNS = 6;
 
 const rowKey = (run: RunRef): string => `${run.pipelineId}/${run.runId}`;
 
@@ -71,7 +71,6 @@ export const RunTable = ({ runs, onOpen, onRemove }: RunTableProps): ReactNode =
           <tr>
             <th>Run</th>
             <th>Status</th>
-            <th className="numeric">Steps</th>
             <th className="numeric">Time</th>
             <th className="numeric">Cost</th>
             <th>Started</th>
@@ -124,7 +123,6 @@ export const RunTable = ({ runs, onOpen, onRemove }: RunTableProps): ReactNode =
                       ) : null}
                     </span>
                   </td>
-                  <td className="numeric">{run.steps > 0 ? run.steps : '—'}</td>
                   <td className="numeric muted">{seconds(run.durationSeconds)}</td>
                   <td className="numeric money mono">
                     {run.priced && run.costUsd !== null ? (

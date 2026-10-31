@@ -1,21 +1,24 @@
+import path from 'node:path';
+import type { FsClient } from '../../../clients/fs/fs.types.js';
+import type { DocumentAnswer, ParsedDocPath } from '../../documents/documents.types.js';
+import { isEditableFile, isHashable } from '../../documents/documents.utils.js';
 import type {
-  DocumentAnswer,
-  ParseDocPathResult,
-  ParsedDocPath,
-} from '../../documents/documents.types.js';
-import { docPathOf, parseDocPath } from '../../documents/documents.utils.js';
-import type { PipelineServices, PipelineSkill, ReadKnowledgeResult } from '../pipelines.types.js';
-import {
-  knowledgeBase,
-  knowledgeDirOf,
-  legacyKnowledgeCandidates,
-  type KnowledgeBase,
-} from '../pipelines.utils.js';
+  PipelineServices,
+  PipelineSkill,
+  ReadKnowledgeResult,
+  ResolvedKnowledgePath,
+  WritableKnowledge,
+} from '../pipelines.types.js';
+import { knowledgeDirOf, legacyKnowledgeCandidates } from '../pipelines.utils.js';
+import { locateWritableKnowledgeFactory } from './locate-writable-knowledge.usecase.js';
+import { resolveKnowledgePathFactory } from './resolve-knowledge-path.usecase.js';
 
 export interface ReadKnowledgeDocumentSettings extends Pick<
   PipelineServices,
   'listPipelineSkills'
 > {
+  /** Only to tell whether the file may be rewritten (`X-Doc-Writable`). */
+  fs: Pick<FsClient, 'lstat' | 'realpath'>;
   readDocument: (base: string, parsed: ParsedDocPath) => Promise<DocumentAnswer>;
   workDir: string;
 }
@@ -26,7 +29,7 @@ type ReadDocument = (base: string, parsed: ParsedDocPath) => Promise<DocumentAns
  * The first candidate that is a file under the factory's own knowledge folder, else `null`.
  * Candidates are already-checked segments, so nothing here can leave that folder.
  */
-const findLegacyKnowledge = async (
+export const findLegacyKnowledge = async (
   readDocument: ReadDocument,
   knowledgeDir: string,
   candidates: readonly (readonly string[])[],
@@ -46,46 +49,44 @@ const findLegacyKnowledge = async (
  * document service answers. A file that is not where the path says — a run recorded before
  * the factory layout names `{{rootPath}}/knowledge/<topic>/x.md` or `{{skillPath}}/…` —
  * is looked up under the factory's own `knowledge/` by its sub-path, then by its name.
+ * A file or a missing notice also says whether E16 would accept a write of it.
  */
 export const readKnowledgeDocumentFactory =
-  ({ listPipelineSkills, readDocument, workDir }: ReadKnowledgeDocumentSettings) =>
+  ({ listPipelineSkills, fs, readDocument, workDir }: ReadKnowledgeDocumentSettings) =>
   async (id: string, rawPath: string): Promise<ReadKnowledgeResult> => {
-    const skills: PipelineSkill[] = await listPipelineSkills();
-    const skill: PipelineSkill | undefined = skills.find(
-      (candidate: PipelineSkill): boolean => candidate.id === id,
-    );
-    if (skill === undefined) return { ok: false, reason: 'not-found' };
-
-    const parsed: ParseDocPathResult = parseDocPath(rawPath);
-    if (!parsed.ok) {
-      return { ok: true, answer: { kind: 'refused', status: parsed.status, error: parsed.error } };
-    }
-
-    const { base, rest }: KnowledgeBase = knowledgeBase(docPathOf(parsed.parsed), {
-      pipelineDir: skill.dir,
+    const resolved: ResolvedKnowledgePath = await resolveKnowledgePathFactory({
+      listPipelineSkills,
       workDir,
-      pipeline: skill.pipeline,
-    });
-    const segments: string[] = rest.split('/').filter((segment: string): boolean => segment !== '');
-    if (segments.length === 0) {
-      return { ok: true, answer: { kind: 'refused', status: 400, error: 'empty path' } };
+    })(id, rawPath);
+    if (!resolved.ok && 'reason' in resolved) return { ok: false, reason: 'not-found' };
+    if (!resolved.ok) return { ok: true, answer: { kind: 'refused', ...resolved.refused } };
+
+    const { skill, base, parsed }: { skill: PipelineSkill; base: string; parsed: ParsedDocPath } =
+      resolved;
+    const writableAt = async (file: string): Promise<boolean> => {
+      const at: WritableKnowledge = await locateWritableKnowledgeFactory({ fs })(skill, file);
+      return at.ok;
+    };
+
+    const answer: DocumentAnswer = await readDocument(base, parsed);
+    const found: DocumentAnswer =
+      answer.kind !== 'missing' || parsed.directory
+        ? answer
+        : ((await findLegacyKnowledge(
+            readDocument,
+            knowledgeDirOf(skill.dir),
+            legacyKnowledgeCandidates(parsed.segments),
+          )) ?? answer);
+
+    if (found.kind === 'file') {
+      const writable: boolean =
+        isHashable(found.file, found.size) && (await writableAt(found.file));
+      return { ok: true, answer: { ...found, writable } };
     }
-    // A constant's value is spliced in after the request path was checked — check it again.
-    if (segments.some((segment: string): boolean => segment === '.' || segment === '..')) {
-      return {
-        ok: true,
-        answer: { kind: 'refused', status: 400, error: 'invalid path segment' },
-      };
+    if (found.kind === 'missing' && !parsed.directory) {
+      const target: string = path.resolve(base, ...parsed.segments);
+      const writable: boolean = isEditableFile(target) && (await writableAt(target));
+      return { ok: true, answer: { ...found, writable } };
     }
-    const answer: DocumentAnswer = await readDocument(base, {
-      segments,
-      directory: parsed.parsed.directory,
-    });
-    if (answer.kind !== 'missing' || parsed.parsed.directory) return { ok: true, answer };
-    const legacy: DocumentAnswer | null = await findLegacyKnowledge(
-      readDocument,
-      knowledgeDirOf(skill.dir),
-      legacyKnowledgeCandidates(segments),
-    );
-    return { ok: true, answer: legacy ?? answer };
+    return { ok: true, answer: found };
   };

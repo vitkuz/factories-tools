@@ -22,9 +22,11 @@ export type {
   InlineDocRef,
   KnowledgeDocRef,
   RunDocRef,
+  SaveGuard,
   SaveResult,
   ScriptDocRef,
 } from './docs.types';
+export { docVersionOf, guardHeaders, isWritableDoc, saveGuardFor } from './docs.utils';
 export type { DirEntry, DirectoryListing } from './docs.schema';
 export { extLabel, extensionOf, languageOf, languageOfName } from './highlight.utils';
 export type { Language } from './highlight.utils';

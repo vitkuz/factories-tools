@@ -11,15 +11,27 @@ import {
 /** A param's default or value: the runner takes text, numbers and booleans. */
 export const paramValueSchema = z.union([z.string(), z.number(), z.boolean()]);
 
+/** The widget a pipeline's `paramsInfo` asks for (E2): UI only, the runner ignores it. */
+export const paramInputSchema = z.object({
+  type: z.enum(['text', 'textarea', 'number', 'checkbox', 'select']),
+  /** The choices of a `select`. */
+  options: z.array(z.union([z.string(), z.number()])).optional(),
+});
+
 /** One declared param of a factory, typed by its default (E2). */
 export const factoryParamSchema = z.object({
   name: z.string(),
+  /** The JS type of the default: what is sent back. */
   type: z.enum(['string', 'number', 'boolean']),
   default: paramValueSchema,
   /** An empty default: the runner would ask for it, so the form asks first. */
   required: z.boolean(),
   /** The first declared param: the runner names the run folder (`{{slug}}`) after it. */
   main: z.boolean(),
+  /** Help text shown under the field (`paramsInfo.<name>.description`). */
+  description: z.string().optional(),
+  /** The widget asked for (`paramsInfo.<name>.type`); absent, the default picks one. */
+  input: paramInputSchema.optional(),
 });
 
 /** One entry of `GET /api/v1/pipelines` (E2): the skill id, its file, the parsed file and its params. */

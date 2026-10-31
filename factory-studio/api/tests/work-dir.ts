@@ -15,6 +15,7 @@ import {
   readFactoryParamsFactory,
   listPipelinesFactory,
   readKnowledgeDocumentFactory,
+  writeKnowledgeDocumentFactory,
 } from '../src/features/pipelines/index.js';
 import type { PipelineServices } from '../src/features/pipelines/pipelines.types.js';
 import {
@@ -37,6 +38,8 @@ import {
 } from '../src/features/questions/index.js';
 import type { QuestionStore, QuestionUsecases } from '../src/features/questions/questions.types.js';
 import { readScriptFactory } from '../src/features/scripts/index.js';
+import { readMemoryFactory } from '../src/features/system/index.js';
+import type { OsProbe } from '../src/features/system/system.types.js';
 import {
   listSessionsFactory,
   readSessionMetaFactory,
@@ -70,6 +73,14 @@ import {
   writeWorkspacesFactory,
 } from '../src/features/workspaces/index.js';
 import type { WorkspaceServices } from '../src/features/workspaces/workspaces.types.js';
+import {
+  readSiteFactory,
+  resolveRunPathFactory,
+  walkFolderFactory,
+  zipFolderFactory,
+} from '../src/features/site/index.js';
+import type { SiteServices, ZipLimits } from '../src/features/site/site.types.js';
+import { createZipClient } from '../src/clients/zip/zip.client.js';
 import type { AppLogger } from '../src/shared/types.js';
 
 export const quiet: AppLogger = {
@@ -91,6 +102,11 @@ export const CANONICAL_PIPELINE: Record<string, unknown> = {
   },
   hooks: { after: ['bash {{rootPath}}/scripts/sync.sh {{outputDir}}'] },
   params: { topic: '', sub_questions: 5, ratio: 0.5, deep: false, language: 'English' },
+  paramsInfo: {
+    topic: { type: 'textarea', description: 'What to research' },
+    deep: { type: 'radio' },
+    language: { type: 'select', options: ['English', 'Russian'], description: 'Report language' },
+  },
   outputDir: '{{rootPath}}/run/{{id}}/{{slug}}-{{date}}',
   START: ['one'],
   steps: {
@@ -118,6 +134,32 @@ export const OTHER_PIPELINE: Record<string, unknown> = {
   outputDir: '{{rootPath}}/run/{{id}}/{{slug}}',
   START: ['go'],
   steps: { go: { agent: 'claude', prompt: ['go'], transitions: { DONE: { target: ['END'] } } } },
+};
+
+/** The project's own factory (`factories.local/`): its knowledge is the one E16 may rewrite. */
+export const LOCAL_PIPELINE: Record<string, unknown> = {
+  ...OTHER_PIPELINE,
+  id: 'local-factory',
+  constants: {
+    rootPath: 'cwd',
+    factoryPath: '{{rootPath}}/factories.local/{{id}}',
+    knowledgePath: '{{factoryPath}}/knowledge',
+  },
+  steps: {
+    go: {
+      agent: 'claude',
+      prompt: ['go'],
+      knowledge: [
+        '{{knowledgePath}}/notes.md',
+        '{{knowledgePath}}/new/todo.md',
+        '{{knowledgePath}}/helper.py',
+        '{{knowledgePath}}/logo.png',
+        '{{rootPath}}/knowledge/one.md',
+        '{{skillPath}}/SKILL.md',
+      ],
+      transitions: { DONE: { target: ['END'] } },
+    },
+  },
 };
 
 export const RUN_A_STATE: Record<string, unknown> = {
@@ -158,11 +200,11 @@ export const makeWorkDir = async (): Promise<WorkDir> => {
     '.claude/skills/canonical-factory/SKILL.md': '# canonical-factory\n',
     'factories/other-factory/pipeline.json': json(OTHER_PIPELINE),
     // a project's own factory, same layout, found before the kit's
-    'factories.local/local-factory/pipeline.json': json({
-      ...OTHER_PIPELINE,
-      id: 'local-factory',
-      constants: { rootPath: 'cwd', factoryPath: '{{rootPath}}/factories.local/{{id}}' },
-    }),
+    'factories.local/local-factory/pipeline.json': json(LOCAL_PIPELINE),
+    // its own knowledge: what E16 may rewrite
+    'factories.local/local-factory/knowledge/notes.md': '# notes\n',
+    'factories.local/local-factory/knowledge/helper.py': 'print(1)\n',
+    'factories.local/local-factory/knowledge/logo.png': 'PNG',
     '.claude/skills/local-factory/SKILL.md': '# local wrapper\n',
     '.claude/skills/other-factory/SKILL.md': '# other-factory\n',
     '.claude/skills/create-any-factory/SKILL.md': '# create-any-factory\n',
@@ -179,6 +221,15 @@ export const makeWorkDir = async (): Promise<WorkDir> => {
     'run/canonical-factory/run-a/cost.json': json(RUN_A_COST),
     'run/canonical-factory/run-a/3-write-prd/prd.md': '# PRD\n',
     'run/canonical-factory/run-a/3-write-prd/logo.png': 'PNG',
+    // E17/E18: a step folder that is a site, and one that is a plain folder.
+    'run/canonical-factory/run-a/4-site/index.html':
+      '<!doctype html><link rel=stylesheet href="css/site.css"><img src="img/logo.png"><script>document.title=\'x\'</script>\n',
+    'run/canonical-factory/run-a/4-site/css/site.css': 'body{color:red}\n',
+    'run/canonical-factory/run-a/4-site/img/logo.png': 'PNG',
+    'run/canonical-factory/run-a/4-site/.secret': 'hidden\n',
+    'run/canonical-factory/run-a/4-site/notes.md': '# notes\n',
+    'run/canonical-factory/run-a/5-plain/report.md': '# report\n',
+    'run/canonical-factory/run-a/5-plain/data.json': '{"a":1}\n',
     'run/canonical-factory/run-b/notes.md': 'no state here\n',
     'run/canonical-factory/run-c/state.json': '{ garbage',
     'run/legacy-factory/run-d/state.json': json({
@@ -200,6 +251,14 @@ export const makeWorkDir = async (): Promise<WorkDir> => {
   }
   // A symlink inside scripts/ that points outside it: the scripts route must refuse it.
   await symlink(path.join(dir, 'knowledge/one.md'), path.join(dir, 'scripts/escape.md'));
+  // Links inside a local factory's knowledge: a file and a folder that both lead outside it.
+  const localKnowledge: string = path.join(dir, 'factories.local/local-factory/knowledge');
+  await symlink(path.join(dir, 'knowledge/one.md'), path.join(localKnowledge, 'escape.md'));
+  await symlink(path.join(dir, 'scripts'), path.join(localKnowledge, 'linked'));
+  // Links inside a run step folder that lead outside the run: E17/E18 refuse and skip them.
+  const plainStep: string = path.join(dir, 'run/canonical-factory/run-a/5-plain');
+  await symlink(path.join(dir, 'knowledge/one.md'), path.join(plainStep, 'escape.md'));
+  await symlink(path.join(dir, 'scripts'), path.join(plainStep, 'linked'));
   return {
     dir,
     promptDir: path.join(dir, 'prompts'),
@@ -221,7 +280,19 @@ export interface TestAppOptions {
   questionTimeoutMs?: number;
   /** Shared with the test, so it can subscribe to the same live chat. */
   onChatHub?: (hub: ChatHub) => void;
+  /** Default: the real `node:os` and `/proc/meminfo`. */
+  osProbe?: OsProbe;
+  meminfoPath?: string;
+  /** E18's caps; default `MAX_ZIP_ENTRIES` / `MAX_ZIP_BYTES`. */
+  zipLimits?: ZipLimits;
 }
+
+const realOs: OsProbe = {
+  totalmem: os.totalmem,
+  freemem: os.freemem,
+  loadavg: os.loadavg,
+  cpuCount: (): number => os.availableParallelism(),
+};
 
 /** The whole app over real services and a temp WORK_DIR, the way `server.ts` wires it. */
 export const buildTestApp = (
@@ -286,6 +357,11 @@ export const buildTestApp = (
     readWorkspaces: readWorkspacesFactory({ fs, workDir, logger: quiet }),
     writeWorkspaces: writeWorkspacesFactory({ fs, workDir, logger: quiet }),
   };
+  const siteServices: SiteServices = {
+    locateRunDir,
+    resolveRunPath: resolveRunPathFactory({ fs }),
+    walkFolder: walkFolderFactory({ fs }),
+  };
 
   return createApp({
     apiKey: options.apiKey,
@@ -295,8 +371,17 @@ export const buildTestApp = (
       listPipelines: listPipelinesFactory(pipelineServices),
       readKnowledgeDocument: readKnowledgeDocumentFactory({
         ...pipelineServices,
+        fs,
         readDocument,
         workDir,
+      }),
+      writeKnowledgeDocument: writeKnowledgeDocumentFactory({
+        ...pipelineServices,
+        fs,
+        readDocument,
+        writeDocument,
+        workDir,
+        logger: quiet,
       }),
     },
     runs: {
@@ -356,6 +441,18 @@ export const buildTestApp = (
       updateWorkspace: updateWorkspaceFactory(workspaceServices),
       removeWorkspace: removeWorkspaceFactory(workspaceServices),
     },
+    system: {
+      readMemory: readMemoryFactory({
+        fs,
+        os: options.osProbe ?? realOs,
+        meminfoPath: options.meminfoPath,
+      }),
+    },
+    site: {
+      readSite: readSiteFactory({ ...siteServices, fs }),
+      zipFolder: zipFolderFactory({ ...siteServices, limits: options.zipLimits }),
+    },
+    zip: createZipClient({}),
   });
 };
 

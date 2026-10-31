@@ -1,5 +1,5 @@
 import type { z } from 'zod';
-import type { DocumentAnswer, WriteAnswer } from '../documents/documents.types.js';
+import type { DocumentAnswer, WriteAnswer, WriteGuard } from '../documents/documents.types.js';
 import type { DiscoveredPipeline } from '../pipelines/pipelines.types.js';
 import type { FactorySession } from '../sessions/sessions.types.js';
 import type {
@@ -110,6 +110,7 @@ export interface RunUsecases {
     runId: string,
     rawPath: string,
     text: string,
+    guard: WriteGuard,
   ) => Promise<WriteRunDocumentResult>;
   /** Moves the run to `run/.trash`, unless a live session is still in it. */
   removeRun: (pipelineId: string, runId: string) => Promise<RemoveRunResult>;

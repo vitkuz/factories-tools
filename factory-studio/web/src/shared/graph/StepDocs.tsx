@@ -38,6 +38,8 @@ export interface DocGroupProps {
   scope: DocScope;
   /** The docs of this group open with the modal's editor (a human step's inputs). */
   editable?: boolean;
+  /** Drawn after the label (the output folder's open / download icons). */
+  actions?: ReactNode;
 }
 
 /** `input` / `output` / `knowledge` on a detailed card — the label, then the paths under it. */
@@ -47,9 +49,13 @@ export const DocGroup = ({
   expected,
   scope,
   editable = false,
+  actions,
 }: DocGroupProps): ReactNode => (
   <div className="step-doc-group">
-    <div className="step-doc-label">{docs.length === 0 ? `no ${label}` : label}</div>
+    <div className={`step-doc-label${actions ? ' has-actions' : ''}`}>
+      {docs.length === 0 ? `no ${label}` : label}
+      {actions}
+    </div>
     {docs.length > 0 && (
       <ul className={`step-doc-list${expected ? ' is-expected' : ''}`}>
         {docs.map((d: string) => (

@@ -4,9 +4,10 @@ import {
   readKnowledgeDocument,
   readRunDocument,
   readScriptDocument,
+  writeKnowledgeDocument,
   writeRunDocument,
 } from '../../adapters/http/studio-api.adapter';
-import type { DocContent, DocRef, SaveResult } from './docs.types';
+import type { DocContent, DocRef, SaveGuard, SaveResult, Saved } from './docs.types';
 
 export type {
   DocContent,
@@ -15,6 +16,7 @@ export type {
   InlineDocRef,
   KnowledgeDocRef,
   RunDocRef,
+  SaveGuard,
   SaveResult,
   ScriptDocRef,
 } from './docs.types';
@@ -24,6 +26,7 @@ export type {
  *   GET /api/v1/runs/<pipelineId>/<runId>/<path>     — a doc in the run's folder (E7)
  *   PUT /api/v1/runs/<pipelineId>/<runId>/<path>     — write it back (E8)
  *   GET /api/v1/pipelines/<pipelineId>/knowledge/<path> — a knowledge file of the factory (E5)
+ *   PUT /api/v1/pipelines/<pipelineId>/knowledge/<path> — write it, own factories only (E16)
  *   GET /api/v1/scripts/<path>                       — a hook script, read-only (E12)
  * `inline` text is never fetched. Everything here is pure apart from `fetchDoc` and
  * `saveDoc`, which go through the adapter.
@@ -127,16 +130,30 @@ export const fetchDoc = async (ref: DocRef, signal?: AbortSignal): Promise<DocCo
   }
 };
 
+/** A refusal because the file changed on disk since the editor loaded it. */
+const isConflict = (error: unknown): boolean =>
+  isApiError(error) && error.kind === 'http' && error.status === 409;
+
 /**
- * Write a run document back to disk through the API. Only run docs are writable — a
- * factory's knowledge file belongs to the repository, not to the run.
+ * Write a document back to disk through the API: a run document (E8), or a knowledge file of
+ * one of the project's own factories (E16 — the API refuses the shared kit). `guard` names the
+ * version the editor loaded, so a file changed meanwhile answers a conflict, not a silent
+ * overwrite. Hook scripts and inline prompts are never written.
  */
-export const saveDoc = async (ref: DocRef, text: string): Promise<SaveResult> => {
-  if (ref.scope !== 'run') return { ok: false, message: 'only run documents can be edited' };
+export const saveDoc = async (
+  ref: DocRef,
+  text: string,
+  guard: SaveGuard = { kind: 'any' },
+): Promise<SaveResult> => {
+  if (ref.scope !== 'run' && ref.scope !== 'pipeline')
+    return { ok: false, conflict: false, message: 'this document cannot be edited' };
   try {
-    await writeRunDocument(ref, text);
-    return { ok: true };
+    const saved: Saved =
+      ref.scope === 'run'
+        ? await writeRunDocument(ref, text, guard)
+        : await writeKnowledgeDocument(ref, text, guard);
+    return saved.etag === undefined ? { ok: true } : { ok: true, etag: saved.etag };
   } catch (error: unknown) {
-    return { ok: false, message: failureMessage(error) };
+    return { ok: false, conflict: isConflict(error), message: failureMessage(error) };
   }
 };

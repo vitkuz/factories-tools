@@ -19,10 +19,12 @@ export const missingNoticeSchema = z.object({
   path: z.string(),
 });
 
-/** The answer of a run document write (E8). */
+/** The answer of a document write: a run document (E8) or a factory's knowledge (E16). */
 export const savedSchema = z.object({
   kind: z.literal('saved'),
   bytes: z.number(),
+  /** The version now on disk; optional so an older API still parses. */
+  etag: z.string().optional(),
 });
 
 export type DirEntry = z.infer<typeof dirEntrySchema>;

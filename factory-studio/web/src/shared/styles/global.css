@@ -480,6 +480,16 @@ select {
   min-width: 0;
 }
 
+/* a document list: the label on its own row, the list across the whole panel */
+.kv dt.kv-wide,
+.kv dd.kv-wide {
+  grid-column: 1 / -1;
+}
+
+.kv dt.kv-wide {
+  margin-top: 6px;
+}
+
 /* a quiet qualifier under a value (why working time can exceed the wall clock) */
 .kv-note {
   display: block;
@@ -874,6 +884,68 @@ select {
   cursor: default;
 }
 
+/* ---- the memory meter: last in the top bar, after the screen's feed group ---- */
+.memory-meter {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  align-self: stretch;
+  padding-left: 16px;
+  border-left: 1px solid var(--line);
+  font-family: var(--mono);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  color: var(--ink);
+  cursor: default;
+}
+
+.memory-meter-label {
+  color: var(--ink-2);
+}
+
+.memory-meter-value {
+  min-width: 4ch;
+  text-align: right;
+}
+
+.memory-meter-bar {
+  width: 36px;
+  height: 4px;
+  border-radius: 2px;
+  background: var(--raised);
+  overflow: hidden;
+}
+
+.memory-meter-fill {
+  display: block;
+  height: 100%;
+  background: var(--st-completed);
+  transition: width 0.4s ease;
+}
+
+.memory-meter--warning .memory-meter-value {
+  color: var(--st-waiting);
+}
+
+.memory-meter--warning .memory-meter-fill {
+  background: var(--st-waiting);
+}
+
+.memory-meter--danger .memory-meter-value {
+  color: var(--st-failed);
+}
+
+.memory-meter--danger .memory-meter-fill {
+  background: var(--st-failed);
+}
+
+.memory-meter--unknown .memory-meter-value {
+  color: var(--ink-2);
+  min-width: 0;
+}
+
 /* ------------------------------------------------------------------ */
 /* Status badge and dots                                                 */
 /* ------------------------------------------------------------------ */
@@ -1253,6 +1325,53 @@ select {
 
 .doc-link.doc-chip:hover {
   border-color: var(--ink-2);
+}
+
+/* The output label's icons: open the step's folder as a site, download it as a zip. 14 px, so the card's label row keeps its height. */
+.step-doc-label.has-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.folder-actions {
+  display: inline-flex;
+  gap: 4px;
+  margin-left: auto;
+  vertical-align: -2px;
+}
+
+.folder-action {
+  display: inline-flex;
+  width: 14px;
+  height: 14px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 2px;
+  color: var(--ink-2);
+}
+
+.folder-action:hover {
+  color: var(--ink);
+  background: var(--raised);
+}
+
+.folder-action:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.folder-action.is-disabled {
+  color: var(--line);
+  cursor: default;
+}
+
+.folder-action.is-disabled:hover {
+  background: none;
+}
+
+dt .folder-actions {
+  margin-left: 6px;
 }
 
 /* The file name is the thing you read; its directory is context. */
@@ -2054,7 +2173,7 @@ select {
   overflow-wrap: anywhere;
 }
 
-/* ---- editor (human-step input docs) ---- */
+/* ---- editor (human-step input docs, own factories' knowledge) ---- */
 .doc-edit {
   display: block;
   box-sizing: border-box;
@@ -2086,6 +2205,15 @@ select {
   flex-direction: column;
   overflow: hidden;
   padding: 16px 24px 24px;
+}
+
+/* a knowledge file: where the save lands and when a running factory sees it */
+.doc-edit-note {
+  flex: 0 0 auto;
+  margin: 8px 0 0;
+  font-size: 12px;
+  line-height: 1.4;
+  color: var(--ink-2);
 }
 
 .doc-save-state {
@@ -3319,7 +3447,7 @@ button.pv-prompt-toggle:focus-visible {
   color: var(--ink-2);
 }
 
-/* The five sums: cells on a hairline grid. Each cell draws its right and bottom line; the
+/* The four sums: cells on a hairline grid. Each cell draws its right and bottom line; the
    strip reaches 1px past the panel (which clips) on the right and under the table on the
    bottom, so the outer lines vanish and a short last row leaves a plain cell, not a block of
    line. The line under the strip is the table's own top border. */
@@ -3532,6 +3660,23 @@ button.pv-prompt-toggle:focus-visible {
   border-radius: 999px;
 }
 
+/* The pipeline's help text for a param (paramsInfo), under its field. */
+.sessions-param-description {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 12px;
+  line-height: 16px;
+}
+
+/* A described checkbox: the box on the inputs' line, its help text under it. */
+.sessions-param-described {
+  align-self: end;
+}
+
+.sessions-param-described .sessions-param-check {
+  align-self: stretch;
+}
+
 /* A checkbox sits on the inputs' line, its name beside it. */
 .sessions-param-check {
   align-self: end;
@@ -3553,6 +3698,10 @@ button.pv-prompt-toggle:focus-visible {
   height: 36px;
   padding: 0 10px;
   font-size: 13px;
+}
+
+.sessions-form .sessions-param-select {
+  font-family: var(--mono);
 }
 
 .sessions-form .sessions-param-textarea {

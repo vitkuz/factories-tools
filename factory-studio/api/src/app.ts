@@ -10,7 +10,12 @@ import type { RunUsecases } from './features/runs/runs.types.js';
 import { createScriptsRoutes } from './features/scripts/index.js';
 import type { ScriptUsecases } from './features/scripts/scripts.types.js';
 import { createSessionsRoutes } from './features/sessions/index.js';
+import { createSiteRoutes } from './features/site/index.js';
+import type { SiteUsecases } from './features/site/site.types.js';
+import type { ZipClient } from './clients/zip/zip.types.js';
 import type { SessionUsecases } from './features/sessions/sessions.types.js';
+import { createSystemRoutes } from './features/system/index.js';
+import type { SystemUsecases } from './features/system/system.types.js';
 import { createWorkspacesRoutes } from './features/workspaces/index.js';
 import type { WorkspaceUsecases } from './features/workspaces/workspaces.types.js';
 import { apiKeyMiddleware } from './shared/middleware/api-key.js';
@@ -33,6 +38,9 @@ export interface AppSettings {
   questions: QuestionUsecases;
   chat: ChatUsecases;
   workspaces: WorkspaceUsecases;
+  system: SystemUsecases;
+  site: SiteUsecases;
+  zip: ZipClient;
   logger: AppLogger;
 }
 
@@ -55,6 +63,9 @@ export const createApp = ({
   questions,
   chat,
   workspaces,
+  system,
+  site,
+  zip,
   logger,
 }: AppSettings): Express => {
   const app: Express = express();
@@ -71,11 +82,14 @@ export const createApp = ({
   if (apiKey !== undefined) api.use(apiKeyMiddleware({ apiKey, logger }));
   api.use(createPipelinesRoutes(pipelines));
   api.use(createRunsRoutes(runs));
+  // E17/E18 live under /api/v1 on purpose: same key rule, same no-store, same JSON error edge.
+  api.use(createSiteRoutes({ usecases: site, zip }));
   api.use(createScriptsRoutes(scripts));
   api.use(createSessionsRoutes(sessions));
   api.use(createQuestionsRoutes(questions));
   api.use(createChatRoutes(chat));
   api.use(createWorkspacesRoutes(workspaces));
+  api.use(createSystemRoutes(system));
   app.use(API_PREFIX, api);
 
   // Every API route is registered above this line: a miss under /api is JSON, never a page.

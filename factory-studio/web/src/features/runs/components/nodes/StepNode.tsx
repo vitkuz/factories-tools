@@ -4,6 +4,8 @@ import { STATUS_META, type StepNodeData, type StepNodeType } from '../../lib/gra
 import { useNow } from '../../../../shared/lib/polling';
 import { formatAttempts, formatDurationMs, formatUSD } from '../../lib/format';
 import { DocGroup, StepCard } from '../../../../shared/graph';
+import { FolderActions } from '../FolderActions';
+import { stepFolderReady } from '../../runs.utils';
 
 /** Footer cells: left (result / running / skipped word), right (attempts). */
 interface Footer {
@@ -136,6 +138,7 @@ function StepNode({ data }: NodeProps<StepNodeType>) {
             docs={data.outputs}
             expected={data.outputsFromPipeline}
             scope="run"
+            actions={<FolderActions outputs={data.outputs} ready={stepFolderReady(data)} />}
           />
           {data.knowledge.length > 0 && (
             <DocGroup label="knowledge" docs={data.knowledge} expected={false} scope="knowledge" />

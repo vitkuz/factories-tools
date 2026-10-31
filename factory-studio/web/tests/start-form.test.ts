@@ -14,6 +14,7 @@ import {
   invalidParams,
   missingParams,
   paramWidget,
+  selectOptions,
   serializeParams,
   startBlocker,
 } from '../src/features/sessions/sessions.utils';
@@ -57,6 +58,73 @@ describe('paramWidget', () => {
     expect(paramWidget(param('x', 'a'.repeat(41)))).toBe('textarea');
     expect(paramWidget(param('x', 'a'.repeat(40)))).toBe('text');
     expect(paramWidget(param('x', 'one\ntwo'))).toBe('textarea');
+  });
+});
+
+describe('paramWidget with paramsInfo (input)', () => {
+  const withInput = (p: FactoryParam, input: FactoryParam['input']): FactoryParam => ({
+    ...p,
+    input,
+  });
+
+  it('takes the widget the pipeline asks for', () => {
+    expect(paramWidget(withInput(param('topic', ''), { type: 'textarea' }))).toBe('textarea');
+    expect(paramWidget(withInput(param('x', 'a'.repeat(41)), { type: 'text' }))).toBe('text');
+    expect(paramWidget(withInput(param('count', '3'), { type: 'number' }))).toBe('number');
+    expect(
+      paramWidget(
+        withInput(param('language', 'Russian'), { type: 'select', options: ['English'] }),
+      ),
+    ).toBe('select');
+  });
+
+  it('keeps what is sent the default type: booleans stay checkboxes, a checkbox needs a boolean, a select needs options', () => {
+    expect(paramWidget(withInput(param('deep', false), { type: 'text' }))).toBe('checkbox');
+    expect(paramWidget(withInput(param('topic', 'x'), { type: 'checkbox' }))).toBe('text');
+    expect(paramWidget(withInput(param('topic', 'x'), { type: 'select' }))).toBe('text');
+    expect(paramWidget(withInput(param('words', 5), { type: 'text' }))).toBe('number');
+  });
+
+  it('selectOptions: the declared options as text, the default first when it is not one of them', () => {
+    const select = (value: string | number, options: (string | number)[]): FactoryParam =>
+      withInput(param('p', value), { type: 'select', options });
+    expect(selectOptions(select('Russian', ['Russian', 'English']))).toEqual([
+      'Russian',
+      'English',
+    ]);
+    expect(selectOptions(select('none', ['a', 'b']))).toEqual(['none', 'a', 'b']);
+    expect(selectOptions(select(2, [1, 2, 3]))).toEqual(['1', '2', '3']);
+    expect(selectOptions(param('p', 'x'))).toEqual([]);
+  });
+
+  it('a select sends what the default type says: text as text, numbers as numbers', () => {
+    const params: FactoryParam[] = [
+      withInput(param('language', 'Russian'), { type: 'select', options: ['Russian', 'English'] }),
+      withInput(param('depth', 2), { type: 'select', options: [1, 2, 3] }),
+    ];
+    expect(serializeParams(params, { language: 'English', depth: '3' })).toEqual({
+      language: 'English',
+      depth: 3,
+    });
+  });
+
+  it('the list schema keeps description and input, and still takes a param without them', () => {
+    const parsed: PipelineListEntry = pipelineListEntrySchema.parse({
+      ...entry([]),
+      params: [
+        {
+          ...param('language', 'Russian'),
+          description: 'KP language',
+          input: { type: 'select', options: ['Russian', 'English'] },
+        },
+        param('topic', ''),
+      ],
+    });
+    expect(parsed.params[0]).toMatchObject({
+      description: 'KP language',
+      input: { type: 'select', options: ['Russian', 'English'] },
+    });
+    expect(parsed.params[1]).not.toHaveProperty('input');
   });
 });
 

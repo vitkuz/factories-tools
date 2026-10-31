@@ -28,7 +28,7 @@ export type FactoryParam = z.infer<typeof factoryParamSchema>;
 export type ParamValue = z.infer<typeof paramValueSchema>;
 
 /** How the start form shows one param. */
-export type ParamWidget = 'text' | 'textarea' | 'number' | 'checkbox';
+export type ParamWidget = 'text' | 'textarea' | 'number' | 'checkbox' | 'select';
 
 /** What a person has typed for one factory's params: numbers stay text until they are sent. */
 export type ParamDraft = Record<string, string | boolean>;

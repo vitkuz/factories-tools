@@ -13,6 +13,7 @@ import {
   scriptPath,
   sessionsPath,
   stopSessionPath,
+  systemMemoryPath,
   workspacePath,
   workspacesPath,
 } from './api-paths';
@@ -42,6 +43,8 @@ import type {
   WorkspacePayload,
   WorkspacesList,
 } from '../../features/workspaces/workspaces.types';
+import { systemMemorySchema } from '../../features/system/system.schema';
+import type { SystemMemory } from '../../features/system/system.types';
 import { removedRunSchema } from '../../features/runs/runs.schema';
 import type { RemovedRun } from '../../features/runs/runs.types';
 import type { RunRef } from '../../shared/lib/route';
@@ -50,10 +53,13 @@ import {
   missingNoticeSchema,
   savedSchema,
 } from '../../shared/document-viewer/docs.schema';
+import { docVersionOf, guardHeaders } from '../../shared/document-viewer/docs.utils';
 import type {
   DocContent,
+  DocVersion,
   KnowledgeDocRef,
   RunDocRef,
+  SaveGuard,
   Saved,
   ScriptDocRef,
 } from '../../shared/document-viewer/docs.types';
@@ -100,7 +106,8 @@ const jsonText = (raw: string, parsed: unknown): string =>
 
 /**
  * E5 / E7 share one reader: the answer's content type decides what the viewer gets. Every
- * status is accepted here so a `404 { error }` becomes a value, not a throw.
+ * status is accepted here so a `404 { error }` becomes a value, not a throw. A text answer
+ * keeps its `ETag` (the version a save names) and `X-Doc-Writable` (knowledge only).
  */
 const readDocument = async (url: string, signal?: AbortSignal): Promise<DocContent> => {
   const res: AxiosResponse<Blob> = await http.get(url, {
@@ -111,6 +118,7 @@ const readDocument = async (url: string, signal?: AbortSignal): Promise<DocConte
   const type: string = String(res.headers['content-type'] ?? '');
   const body: Blob = res.data;
   const ok: boolean = res.status >= 200 && res.status < 300;
+  const version: DocVersion = docVersionOf(res.headers as Readonly<Record<string, unknown>>);
   if (!ok) {
     if (type.includes('html')) return { kind: 'unavailable' };
     const parsed: unknown = isJsonType(type) ? JSON.parse(await body.text()) : {};
@@ -125,14 +133,19 @@ const readDocument = async (url: string, signal?: AbortSignal): Promise<DocConte
     const raw: string = await body.text();
     const parsed: unknown = parseJson(raw);
     // A file that is not there yet is a normal answer, not an error (no console noise).
-    if (missingNoticeSchema.safeParse(parsed).success) return { kind: 'missing' };
+    if (missingNoticeSchema.safeParse(parsed).success) {
+      // Only whether it may be written: a JSON notice's own ETag is not a file's version.
+      return version.writable === undefined
+        ? { kind: 'missing' }
+        : { kind: 'missing', writable: version.writable };
+    }
     const listing = directoryListingSchema.safeParse(parsed);
     if (listing.success)
       return { kind: 'directory', path: listing.data.path, entries: listing.data.entries };
-    return { kind: 'text', text: jsonText(raw, parsed) };
+    return { kind: 'text', text: jsonText(raw, parsed), ...version };
   }
-  if (type.includes('markdown')) return { kind: 'markdown', text: await body.text() };
-  if (type.startsWith('text/')) return { kind: 'text', text: await body.text() };
+  if (type.includes('markdown')) return { kind: 'markdown', text: await body.text(), ...version };
+  if (type.startsWith('text/')) return { kind: 'text', text: await body.text(), ...version };
   return { kind: 'binary' };
 };
 
@@ -196,15 +209,36 @@ export const readScriptDocument = async (
   }
 };
 
-/** E8 */
-export const writeRunDocument = async (ref: RunDocRef, text: string): Promise<Saved> => {
+/** The PUT of a document body: the text as it is, plus the guard's `If-Match` / `If-None-Match`. */
+const putDocument = async (url: string, text: string, guard: SaveGuard): Promise<Saved> => {
+  const { data }: AxiosResponse<unknown> = await http.put(url, text, {
+    headers: { 'Content-Type': 'text/plain; charset=utf-8', ...guardHeaders(guard) },
+    transformRequest: identity,
+  });
+  return savedSchema.parse(data);
+};
+
+/** E8: a 409 means the file changed on disk since the guard's version. */
+export const writeRunDocument = async (
+  ref: RunDocRef,
+  text: string,
+  guard: SaveGuard = { kind: 'any' },
+): Promise<Saved> => {
   try {
-    const { data }: AxiosResponse<unknown> = await http.put(
-      runDocPath(ref.pipelineId, ref.runId, ref.path),
-      text,
-      { headers: { 'Content-Type': 'text/plain; charset=utf-8' }, transformRequest: identity },
-    );
-    return savedSchema.parse(data);
+    return await putDocument(runDocPath(ref.pipelineId, ref.runId, ref.path), text, guard);
+  } catch (error: unknown) {
+    return failWith(error);
+  }
+};
+
+/** E16: a knowledge file of the project's own factory; the kit answers 403, a stale guard 409. */
+export const writeKnowledgeDocument = async (
+  ref: KnowledgeDocRef,
+  text: string,
+  guard: SaveGuard = { kind: 'any' },
+): Promise<Saved> => {
+  try {
+    return await putDocument(knowledgeDocPath(ref.pipelineId, ref.path), text, guard);
   } catch (error: unknown) {
     return failWith(error);
   }
@@ -299,6 +333,16 @@ export const removeWorkspace = async (id: string): Promise<Workspace> => {
   try {
     const { data }: AxiosResponse<unknown> = await http.delete(workspacePath(id));
     return removedWorkspaceSchema.parse(data).removed;
+  } catch (error: unknown) {
+    return failWith(error);
+  }
+};
+
+/** How busy the API machine's memory is (inside WSL2, the WSL VM's). */
+export const readSystemMemory = async (signal?: AbortSignal): Promise<SystemMemory> => {
+  try {
+    const { data }: AxiosResponse<unknown> = await http.get(systemMemoryPath(), { signal });
+    return systemMemorySchema.parse(data);
   } catch (error: unknown) {
     return failWith(error);
   }

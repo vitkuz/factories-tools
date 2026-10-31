@@ -113,16 +113,39 @@ export const provisionalSession = (started: StartedSession, now: number): Factor
 /** A default longer than this would not fit a one-line input. */
 const LONG_DEFAULT = 40;
 
-/**
- * How a param is shown, from its default alone — never from its name or its factory: a
- * checkbox for a boolean, a number input for a number, a growing textarea for text whose
- * default is long or has a newline, a one-line input for any other text.
- */
-export const paramWidget = (param: FactoryParam): ParamWidget => {
+/** The widget the default alone asks for: the rule when the pipeline names none. */
+const widgetFromDefault = (param: FactoryParam): ParamWidget => {
   if (param.type === 'boolean') return 'checkbox';
   if (param.type === 'number') return 'number';
   const text: string = String(param.default);
   return text.length > LONG_DEFAULT || text.includes('\n') ? 'textarea' : 'text';
+};
+
+/**
+ * A select's choices as its options' values: the declared ones, with the default first when it
+ * is not one of them, so the field opens on the default. Pure.
+ */
+export const selectOptions = (param: FactoryParam): string[] => {
+  const declared: string[] = (param.input?.options ?? []).map(String);
+  const fallback: string = String(param.default);
+  return declared.length === 0 || declared.includes(fallback) ? declared : [fallback, ...declared];
+};
+
+/**
+ * How a param is shown — never from its name or its factory. The pipeline's `paramsInfo` type
+ * wins where the value sent stays what the default's type says: a boolean is always a checkbox,
+ * a checkbox is only for a boolean, a select needs options. Otherwise, from the default: a
+ * checkbox for a boolean, a number input for a number, a growing textarea for text whose
+ * default is long or has a newline, a one-line input for any other text.
+ */
+export const paramWidget = (param: FactoryParam): ParamWidget => {
+  const asked: ParamWidget | undefined = param.input?.type;
+  if (param.type === 'boolean' || asked === undefined || asked === 'checkbox')
+    return widgetFromDefault(param);
+  if (asked === 'select')
+    return selectOptions(param).length > 0 ? 'select' : widgetFromDefault(param);
+  if (asked === 'text' || asked === 'textarea') return param.type === 'number' ? 'number' : asked;
+  return asked;
 };
 
 /** Every param at its default; a number as the text its input shows. */

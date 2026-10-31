@@ -47,6 +47,7 @@ import {
   unaccountedUSD,
 } from '../lib/cost';
 import { displayDocPath, pathSegments } from '../../../shared/graph/text';
+import { stepFolderReady } from '../runs.utils';
 import type {
   Cost,
   CostActor,
@@ -61,6 +62,7 @@ import type {
 import StatusBadge from './StatusBadge';
 import LogList from './LogList';
 import { DocLink } from '../../../shared/document-viewer';
+import { FolderActions } from './FolderActions';
 import { readJson, writeJson } from '../../../shared/lib/storage';
 import { CollapseToggle } from '../../../shared/components/CollapseToggle';
 
@@ -196,6 +198,7 @@ function DocList({
   scope,
   editable = false,
   emptyText = 'none',
+  actions,
 }: {
   label: string;
   docs: string[];
@@ -204,11 +207,16 @@ function DocList({
   /** These docs open with the modal's editor (a human step's inputs). */
   editable?: boolean;
   emptyText?: string;
+  /** Drawn after the label (the output folder's open / download icons). */
+  actions?: ReactNode;
 }) {
   return (
     <>
-      <dt>{fromPipeline && docs.length > 0 ? `${label}, expected` : label}</dt>
-      <dd>
+      <dt className="kv-wide">
+        {fromPipeline && docs.length > 0 ? `${label}, expected` : label}
+        {actions}
+      </dt>
+      <dd className="kv-wide">
         {docs.length === 0 ? (
           <span className="muted">{emptyText}</span>
         ) : (
@@ -721,6 +729,16 @@ export default function Inspector({
                   docs={docs.outputs}
                   fromPipeline={docs.outputsFromPipeline}
                   scope="run"
+                  actions={
+                    <FolderActions
+                      outputs={docs.outputs}
+                      ready={stepFolderReady({
+                        hasState: selectedState !== undefined,
+                        status: selectedState?.status ?? 'none',
+                        outputsFromPipeline: docs.outputsFromPipeline,
+                      })}
+                    />
+                  }
                 />
                 <DocList
                   label="knowledge"

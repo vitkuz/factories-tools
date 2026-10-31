@@ -1,4 +1,5 @@
 import type { Server } from 'node:http';
+import os from 'node:os';
 import { API_PREFIX, createApp } from './app.js';
 import { createFsClient } from './clients/fs/fs.client.js';
 import type { FsClient } from './clients/fs/fs.types.js';
@@ -6,6 +7,8 @@ import { createHerdrClient } from './clients/herdr/herdr.client.js';
 import type { HerdrClient } from './clients/herdr/herdr.types.js';
 import { createTranscriptClient } from './clients/transcript/transcript.client.js';
 import type { TranscriptClient } from './clients/transcript/transcript.types.js';
+import { createZipClient } from './clients/zip/zip.client.js';
+import type { ZipClient } from './clients/zip/zip.types.js';
 import {
   createChatHub,
   createTailerFactory,
@@ -24,6 +27,7 @@ import {
   listStartableFactoriesFactory,
   readFactoryParamsFactory,
   readKnowledgeDocumentFactory,
+  writeKnowledgeDocumentFactory,
 } from './features/pipelines/index.js';
 import type { PipelineServices, PipelineUsecases } from './features/pipelines/pipelines.types.js';
 import {
@@ -63,6 +67,15 @@ import {
 } from './features/sessions/index.js';
 import type { FactorySession, SessionUsecases } from './features/sessions/sessions.types.js';
 import {
+  readSiteFactory,
+  resolveRunPathFactory,
+  walkFolderFactory,
+  zipFolderFactory,
+} from './features/site/index.js';
+import type { SiteServices, SiteUsecases } from './features/site/site.types.js';
+import { readMemoryFactory } from './features/system/index.js';
+import type { OsProbe, SystemUsecases } from './features/system/system.types.js';
+import {
   createWorkspaceFactory,
   listWorkspacesFactory,
   readWorkspacesFactory,
@@ -93,6 +106,7 @@ const herdr: HerdrClient = createHerdrClient({
   logger,
 });
 const transcripts: TranscriptClient = createTranscriptClient();
+const zip: ZipClient = createZipClient({ logger });
 const bus: BroadcastBus = createBroadcastBus();
 const workDir: string = env.WORK_DIR;
 
@@ -106,8 +120,17 @@ const pipelines: PipelineUsecases = {
   listPipelines: listPipelinesFactory(pipelineServices),
   readKnowledgeDocument: readKnowledgeDocumentFactory({
     ...pipelineServices,
+    fs,
     readDocument,
     workDir,
+  }),
+  writeKnowledgeDocument: writeKnowledgeDocumentFactory({
+    ...pipelineServices,
+    fs,
+    readDocument,
+    writeDocument,
+    workDir,
+    logger,
   }),
 };
 
@@ -117,6 +140,17 @@ const runServices: RunServices = {
   locateRunDir,
   locateRemovableRun: locateRemovableRunFactory({ fs, workDir, locateRunDir }),
   moveRunToTrash: moveRunToTrashFactory({ fs, workDir, logger }),
+};
+
+// E17/E18: the run folders as sites and zips, read-only, over the runs' own lookup.
+const siteServices: SiteServices = {
+  locateRunDir,
+  resolveRunPath: resolveRunPathFactory({ fs }),
+  walkFolder: walkFolderFactory({ fs }),
+};
+const site: SiteUsecases = {
+  readSite: readSiteFactory({ ...siteServices, fs }),
+  zipFolder: zipFolderFactory(siteServices),
 };
 
 const scripts: ScriptUsecases = {
@@ -223,6 +257,16 @@ const workspaces: WorkspaceUsecases = {
   removeWorkspace: removeWorkspaceFactory(workspaceServices),
 };
 
+const osProbe: OsProbe = {
+  totalmem: os.totalmem,
+  freemem: os.freemem,
+  loadavg: os.loadavg,
+  cpuCount: (): number => os.availableParallelism(),
+};
+const system: SystemUsecases = {
+  readMemory: readMemoryFactory({ fs, os: osProbe, logger }),
+};
+
 const server: Server = createApp({
   apiKey: env.API_KEY,
   webDist: env.WEB_DIST,
@@ -233,6 +277,9 @@ const server: Server = createApp({
   questions,
   chat,
   workspaces,
+  system,
+  site,
+  zip,
   logger,
 }).listen(env.PORT, env.HOST, (): void => {
   logger.info('factory-studio-api listening', {

@@ -10,8 +10,10 @@ import {
   saveDoc,
   type DocContent,
   type DocRef,
+  type SaveGuard,
   type SaveResult,
 } from './docs';
+import { isWritableDoc, saveGuardFor } from './docs.utils';
 import type { DirEntry } from './docs.schema';
 import { CodeView, TokenSpans } from './CodeView';
 import {
@@ -29,7 +31,11 @@ import { displayDocPath, pathBasename } from '../graph/text';
 
 interface Props {
   doc: DocRef;
-  /** The person may rewrite this document: the Edit button next to Rendered / Raw. */
+  /**
+   * The opener lets the person rewrite this document (a human step's input): the Edit button
+   * next to Rendered / Raw. A knowledge file needs no grant — the API's answer says whether
+   * it may be written.
+   */
   editable: boolean;
   /** A doc opened from inside another doc: show Back. */
   canBack: boolean;
@@ -48,7 +54,9 @@ type Save =
   | { status: 'idle' }
   | { status: 'saving' }
   | { status: 'saved' }
-  | { status: 'failed'; message: string };
+  | { status: 'failed'; message: string }
+  /** 409: the file on disk is no longer the one the editor loaded. */
+  | { status: 'conflict'; message: string };
 
 interface SplitPath {
   dir: string;
@@ -214,8 +222,21 @@ const COPIED_MS = 1500;
  * What can be rewritten by hand: a text document, and one a step has not written yet (a
  * person writing the input of a human step creates it). Never a folder, image or blob.
  */
-const canEdit = (loaded: Loaded): boolean =>
-  loaded.status === 'ready' && ['markdown', 'text', 'missing'].includes(loaded.content.kind);
+const canEdit = (loaded: Loaded, editable: boolean): boolean =>
+  loaded.status === 'ready' && isWritableDoc(editable, loaded.content);
+
+/** The version the editor loaded, as the save names it; nothing to name before the load. */
+const guardOf = (loaded: Loaded): SaveGuard =>
+  loaded.status === 'ready' ? saveGuardFor(loaded.content) : { kind: 'any' };
+
+/** Whether the API said the file may be written: kept on the content a save puts in place. */
+const writableOf = (loaded: Loaded): boolean | undefined =>
+  loaded.status === 'ready' &&
+  (loaded.content.kind === 'markdown' ||
+    loaded.content.kind === 'text' ||
+    loaded.content.kind === 'missing')
+    ? loaded.content.writable
+    : undefined;
 
 /** The text the editor starts from: the file as it is on disk, or empty for a file yet to exist. */
 const editableText = (loaded: Loaded): string =>
@@ -242,8 +263,16 @@ const frameClass = (loaded: Loaded, mode: Mode): string =>
         ? ' is-image'
         : '';
 
+const CONFLICT_TEXT = 'Not saved: the file changed on disk since you opened it';
+
 /** What the last write did, next to the Save button: nothing to say when the draft is untouched. */
 function SaveState({ save, dirty }: { save: Save; dirty: boolean }) {
+  if (save.status === 'conflict')
+    return (
+      <span className="doc-save-state is-failed" role="status" title={CONFLICT_TEXT}>
+        {CONFLICT_TEXT}
+      </span>
+    );
   if (save.status === 'failed')
     return (
       <span className="doc-save-state is-failed" role="status">
@@ -274,9 +303,11 @@ const SLOW_FETCH_MS = 250;
  * an image, or a folder listing — and saying plainly when the file is not there, or when
  * it is an input/output path opened from the editor, which no run has written.
  *
- * An `editable` document (the input docs of a human step) also carries **Edit**: the third
- * button of the view group turns the body into a plain textarea with a Save that writes
- * the file back through the API. Closing with unsaved text asks first.
+ * An `editable` document (the input docs of a human step) and a knowledge file the API calls
+ * writable (`factories.local/<id>/knowledge/`) also carry **Edit**: the third button of the
+ * view group turns the body into a plain textarea with a Save that writes the file back
+ * through the API, naming the version it loaded. Closing with unsaved text asks first. When
+ * the file changed on disk meanwhile, the draft stays and the person picks Reload or Overwrite.
  */
 export default function DocModal({ doc, editable, canBack, onBack, onClose, onOpen }: Props) {
   const dialogRef = useRef<HTMLDialogElement | null>(null);
@@ -288,6 +319,9 @@ export default function DocModal({ doc, editable, canBack, onBack, onClose, onOp
   const [draft, setDraft] = useState<string>('');
   const [save, setSave] = useState<Save>({ status: 'idle' });
   const [copied, setCopied] = useState<Copied>('idle');
+  // Bumped by Reload: fetches the same document again.
+  const [reloadKey, setReloadKey] = useState<number>(0);
+  const mayEdit: boolean = canEdit(loaded, editable);
   const dirty: boolean = mode === 'edit' && draft !== editableText(loaded);
   const { dir, base }: SplitPath = splitPath(shownPath(doc));
   const language: Language = languageOf(doc.path);
@@ -358,21 +392,36 @@ export default function DocModal({ doc, editable, canBack, onBack, onClose, onOp
     setMode(next);
   };
 
-  const persist = async (): Promise<void> => {
+  /** Write the draft; `guard` defaults to the version loaded (Overwrite passes none). */
+  const persist = async (guard: SaveGuard = guardOf(loaded)): Promise<void> => {
     if (save.status === 'saving') return;
     const text: string = draft;
+    const writable: boolean | undefined = writableOf(loaded);
     setSave({ status: 'saving' });
-    const result: SaveResult = await saveDoc(doc, text);
+    const result: SaveResult = await saveDoc(doc, text, guard);
     if (!result.ok) {
-      setSave({ status: 'failed', message: result.message });
+      setSave({ status: result.conflict ? 'conflict' : 'failed', message: result.message });
       return;
     }
-    // The file on disk is now the draft: the reading modes show it without another fetch.
+    // The file on disk is now the draft: the reading modes show it without another fetch, and
+    // the next save names the version this one wrote.
+    const version: { etag?: string; writable?: boolean } = {
+      ...(result.etag === undefined ? {} : { etag: result.etag }),
+      ...(writable === undefined ? {} : { writable }),
+    };
     setLoaded({
       status: 'ready',
-      content: isMarkdownPath(doc.path) ? { kind: 'markdown', text } : { kind: 'text', text },
+      content: isMarkdownPath(doc.path)
+        ? { kind: 'markdown', text, ...version }
+        : { kind: 'text', text, ...version },
     });
     setSave({ status: 'saved' });
+  };
+
+  /** Drop the draft (asked first) and show the file as it is on disk now. */
+  const reload = (): void => {
+    if (!confirmDiscard()) return;
+    setReloadKey((key: number): number => key + 1);
   };
 
   // The editor takes focus when it appears, with the caret at the start of the document.
@@ -406,7 +455,7 @@ export default function DocModal({ doc, editable, canBack, onBack, onClose, onOp
       controller.abort();
       window.clearTimeout(timer);
     };
-  }, [doc]);
+  }, [doc, reloadKey]);
 
   const body = (): ReactNode => {
     if (mode === 'edit')
@@ -419,12 +468,13 @@ export default function DocModal({ doc, editable, canBack, onBack, onClose, onOp
           aria-label={`Edit ${doc.path}`}
           onChange={(e) => {
             setDraft(e.target.value);
-            if (save.status !== 'saving') setSave({ status: 'idle' });
+            // A conflict stays on screen until the person picks Reload or Overwrite.
+            if (save.status !== 'saving' && save.status !== 'conflict') setSave({ status: 'idle' });
           }}
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 's') {
               e.preventDefault();
-              void persist();
+              if (save.status !== 'conflict') void persist();
             }
           }}
         />
@@ -517,7 +567,7 @@ export default function DocModal({ doc, editable, canBack, onBack, onClose, onOp
                 {copied === 'copied' ? 'Copied' : copied === 'failed' ? 'Copy failed' : 'Copy'}
               </button>
             )}
-            {(canToggle(loaded) || (editable && canEdit(loaded))) && (
+            {(canToggle(loaded) || mayEdit) && (
               <div className="doc-mode" role="group" aria-label="View">
                 {canToggle(loaded) && (
                   <>
@@ -539,7 +589,7 @@ export default function DocModal({ doc, editable, canBack, onBack, onClose, onOp
                     </button>
                   </>
                 )}
-                {editable && canEdit(loaded) && (
+                {mayEdit && (
                   <button
                     type="button"
                     className="doc-modal-btn"
@@ -552,7 +602,27 @@ export default function DocModal({ doc, editable, canBack, onBack, onClose, onOp
                 )}
               </div>
             )}
-            {mode === 'edit' && (
+            {mode === 'edit' && save.status === 'conflict' && (
+              <>
+                <button
+                  type="button"
+                  className="doc-modal-btn"
+                  onClick={reload}
+                  title="Drop your changes and show the file as it is on disk now"
+                >
+                  Reload
+                </button>
+                <button
+                  type="button"
+                  className="doc-modal-btn is-primary"
+                  onClick={() => void persist({ kind: 'any' })}
+                  title="Write your version over the file on disk"
+                >
+                  Overwrite
+                </button>
+              </>
+            )}
+            {mode === 'edit' && save.status !== 'conflict' && (
               <button
                 type="button"
                 className="doc-modal-btn is-primary"
@@ -569,6 +639,12 @@ export default function DocModal({ doc, editable, canBack, onBack, onClose, onOp
         </header>
         <div className="doc-modal-body" ref={bodyRef} tabIndex={-1}>
           {body()}
+          {mode === 'edit' && doc.scope === 'pipeline' && (
+            <p className="doc-edit-note">
+              Saved on the machine running Studio, into this factory&apos;s knowledge folder. A step
+              that already read it keeps its copy; the next step that opens it sees your version.
+            </p>
+          )}
         </div>
         {stats !== null && mode !== 'edit' && (
           <footer className="doc-modal-foot">

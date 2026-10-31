@@ -33,6 +33,17 @@ export const runPath = (pipelineId: string, runId: string): string =>
 export const runDocPath = (pipelineId: string, runId: string, path: string): string =>
   `${API_PREFIX}/runs/${encodeURIComponent(pipelineId)}/${encodeURIComponent(runId)}/${encodeDocPath(path)}`;
 
+/**
+ * E17: a run folder as a site, opened in its own tab (a plain link, not an adapter call). The
+ * trailing `/` makes the page's relative links resolve under the folder.
+ */
+export const runSitePath = (pipelineId: string, runId: string, folder: string): string =>
+  `${API_PREFIX}/site/${encodeURIComponent(pipelineId)}/${encodeURIComponent(runId)}/${encodeDocPath(`${folder}/`)}`;
+
+/** E18: the same folder as a `.zip` download. */
+export const runZipPath = (pipelineId: string, runId: string, folder: string): string =>
+  `${API_PREFIX}/zip/${encodeURIComponent(pipelineId)}/${encodeURIComponent(runId)}/${encodeDocPath(`${folder}/`)}`;
+
 /** A hook script of the repository (`scripts/<path>`), read-only. */
 export const scriptPath = (path: string): string => `${API_PREFIX}/scripts/${encodeDocPath(path)}`;
 
@@ -57,3 +68,6 @@ export const workspacesPath = (): string => `${API_PREFIX}/workspaces`;
 /** One workspace: update and remove. */
 export const workspacePath = (id: string): string =>
   `${API_PREFIX}/workspaces/${encodeURIComponent(id)}`;
+
+/** The API machine's memory, for the top bar meter. */
+export const systemMemoryPath = (): string => `${API_PREFIX}/system/memory`;

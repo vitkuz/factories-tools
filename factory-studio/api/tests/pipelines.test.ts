@@ -50,12 +50,36 @@ describe('pipelines', () => {
         pipeline: { id: 'canonical-factory', hooks: CANONICAL_PIPELINE.hooks },
         description: 'test pipeline',
         params: [
-          { name: 'topic', type: 'string', default: '', required: true, main: true },
+          {
+            name: 'topic',
+            type: 'string',
+            default: '',
+            required: true,
+            main: true,
+            description: 'What to research',
+            input: { type: 'textarea' },
+          },
           { name: 'sub_questions', type: 'number', default: 5, required: false, main: false },
           { name: 'ratio', type: 'number', default: 0.5, required: false, main: false },
           { name: 'deep', type: 'boolean', default: false, required: false, main: false },
-          { name: 'language', type: 'string', default: 'English', required: false, main: false },
+          {
+            name: 'language',
+            type: 'string',
+            default: 'English',
+            required: false,
+            main: false,
+            description: 'Report language',
+            input: { type: 'select', options: ['English', 'Russian'] },
+          },
         ],
+      });
+      // A paramsInfo entry that does not parse (`deep: { type: 'radio' }`) is dropped, the param stays.
+      expect(body.pipelines[0]!.params[3]).toEqual({
+        name: 'deep',
+        type: 'boolean',
+        default: false,
+        required: false,
+        main: false,
       });
       expect(body.pipelines[1]).toMatchObject({ params: [] });
       expect(body.pipelines[1]).not.toHaveProperty('description');

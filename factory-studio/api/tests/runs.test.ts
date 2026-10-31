@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
@@ -14,6 +15,9 @@ import {
   type RawResponse,
   type WorkDir,
 } from './work-dir.js';
+
+const sha = (text: string): string =>
+  `"${createHash('sha256').update(text, 'utf8').digest('hex')}"`;
 
 describe('runs', () => {
   let work: WorkDir;
@@ -37,8 +41,9 @@ describe('runs', () => {
     url: string,
     body: string,
     contentType: string = 'text/plain; charset=utf-8',
+    headers: Record<string, string> = {},
   ): Promise<Response> =>
-    fetch(url, { method: 'PUT', headers: { 'content-type': contentType }, body });
+    fetch(url, { method: 'PUT', headers: { 'content-type': contentType, ...headers }, body });
 
   describe('E6 GET /runs', () => {
     it('answers the dashboard envelope, fresh, with no-store', async () => {
@@ -126,6 +131,20 @@ describe('runs', () => {
       expect(res.headers.get('cache-control')).toBe('no-store');
       expect(await res.text()).toBe('# PRD\n');
     });
+    it('an editable file answers its ETag; an image, a missing doc and a run doc carry no X-Doc-Writable', async () => {
+      const prd: Response = await fetch(doc('canonical-factory', 'run-a', '3-write-prd/prd.md'));
+      expect(prd.headers.get('etag')).toBe(
+        sha(
+          await readFile(
+            path.join(work.dir, 'run/canonical-factory/run-a/3-write-prd/prd.md'),
+            'utf8',
+          ),
+        ),
+      );
+      expect(prd.headers.get('x-doc-writable')).toBeNull();
+      const logo: Response = await fetch(doc('canonical-factory', 'run-a', '3-write-prd/logo.png'));
+      expect(logo.headers.get('etag')).toBeNull();
+    });
     it('a missing document is 200 missing', async () => {
       const res: Response = await fetch(doc('canonical-factory', 'run-a', '9-later/not-yet.md'));
       expect(res.status).toBe(200);
@@ -176,7 +195,11 @@ describe('runs', () => {
       const text: string = 'hello — écrit\n';
       const res: Response = await put(doc('canonical-factory', 'run-a', '0-verify/input.md'), text);
       expect(res.status).toBe(200);
-      expect(await res.json()).toEqual({ kind: 'saved', bytes: Buffer.byteLength(text, 'utf8') });
+      expect(await res.json()).toEqual({
+        kind: 'saved',
+        bytes: Buffer.byteLength(text, 'utf8'),
+        etag: sha(text),
+      });
       const file: string = path.join(
         work.dir,
         'run',
@@ -201,6 +224,21 @@ describe('runs', () => {
         await fetch(doc('canonical-factory', 'run-a', '3-write-prd/'))
       ).json()) as { entries: { name: string }[] };
       expect(listing.entries.map((e): string => e.name)).toEqual(['logo.png', 'prd.md']);
+    });
+    it('If-Match: 409 when stale (file untouched), 200 with the new etag when fresh', async () => {
+      const url: string = doc('canonical-factory', 'run-a', 'guarded.md');
+      const file: string = path.join(work.dir, 'run', 'canonical-factory', 'run-a', 'guarded.md');
+      await writeFile(file, 'one\n', 'utf8');
+      const stale: Response = await put(url, 'two\n', undefined, { 'if-match': sha('zero\n') });
+      expect(stale.status).toBe(409);
+      expect(await stale.json()).toMatchObject({
+        error: 'the file changed on disk since it was loaded',
+      });
+      expect(await readFile(file, 'utf8')).toBe('one\n');
+      const fresh: Response = await put(url, 'two\n', undefined, { 'if-match': sha('one\n') });
+      expect(fresh.status).toBe(200);
+      expect(await fresh.json()).toEqual({ kind: 'saved', bytes: 4, etag: sha('two\n') });
+      expect(await readFile(file, 'utf8')).toBe('two\n');
     });
     it('400 a folder cannot be written', async () => {
       const res: Response = await put(doc('canonical-factory', 'run-a', '3-write-prd/'), 'x');
@@ -253,7 +291,7 @@ describe('runs', () => {
           'application/json',
         );
         expect(res.status).toBe(200);
-        expect(await res.json()).toEqual({ kind: 'saved', bytes: 7 });
+        expect(await res.json()).toEqual({ kind: 'saved', bytes: 7, etag: sha(text) });
         const file: string = path.join(work.dir, 'run', 'canonical-factory', 'run-a', 'probe.json');
         expect(await readFile(file, 'utf8')).toBe(text);
         const back: Response = await fetch(doc('canonical-factory', 'run-a', 'probe.json'));
@@ -267,7 +305,7 @@ describe('runs', () => {
           'application/json',
         );
         expect(res.status).toBe(200);
-        expect(await res.json()).toEqual({ kind: 'saved', bytes: 4 });
+        expect(await res.json()).toEqual({ kind: 'saved', bytes: 4, etag: sha('{bad') });
         const file: string = path.join(work.dir, 'run', 'canonical-factory', 'run-a', 'probe.md');
         expect(await readFile(file, 'utf8')).toBe('{bad');
       });

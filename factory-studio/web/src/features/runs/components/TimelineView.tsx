@@ -18,6 +18,7 @@ import {
   promptPreview,
   type PromptPreview,
   recordedOutputs,
+  stepFolderReady,
   stepTimeLabel,
   timelineRows,
   transitionsOf,
@@ -27,6 +28,7 @@ import { END_ID, rankPipeline } from '../../../shared/graph';
 import { displayDocPath } from '../../../shared/graph/text';
 import { copyText } from '../../../shared/lib/clipboard';
 import { DocLink, extLabel, type DocScope } from '../../../shared/document-viewer';
+import { FolderActions } from './FolderActions';
 
 export interface TimelineViewProps {
   pipeline: Pipeline;
@@ -49,6 +51,8 @@ interface FactProps {
   /** The list comes from the definition, not from what the run wrote: drawn muted. */
   expected: boolean;
   editable?: boolean;
+  /** Drawn after the label (the output folder's open / download icons). */
+  actions?: ReactNode;
 }
 
 const LABEL: Record<FactKind, string> = {
@@ -69,11 +73,14 @@ const Chip = ({ path, extra }: { path: string; extra: string }): ReactNode => {
 };
 
 /** One `Knowledge` / `Input` / `Output` row: the label, then a chip per file that opens it. */
-const Fact = ({ kind, docs, scope, expected, editable = false }: FactProps): ReactNode => {
+const Fact = ({ kind, docs, scope, expected, editable = false, actions }: FactProps): ReactNode => {
   if (docs.length === 0) return null;
   return (
     <>
-      <dt>{LABEL[kind]}</dt>
+      <dt>
+        {LABEL[kind]}
+        {actions}
+      </dt>
       <dd>
         {docs.map((path: string) => (
           <DocLink
@@ -384,7 +391,13 @@ const StepRow = ({
               expected={data.inputsFromPipeline && inputs.some((p) => !recorded.includes(p))}
               editable={data.human}
             />
-            <Fact kind="output" docs={outputs} scope="run" expected={data.outputsFromPipeline} />
+            <Fact
+              kind="output"
+              docs={outputs}
+              scope="run"
+              expected={data.outputsFromPipeline}
+              actions={<FolderActions outputs={data.outputs} ready={stepFolderReady(data)} />}
+            />
           </dl>
         )}
         {transitions.length > 0 && (
