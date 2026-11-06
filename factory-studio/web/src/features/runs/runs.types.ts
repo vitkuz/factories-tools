@@ -1,7 +1,7 @@
 export type { DashboardData, RunRecord, Pipeline, RunState, Cost } from './lib/types';
 import type { z } from 'zod';
 import type { Attempt } from './lib/attempts';
-import type { RunRecord } from './lib/types';
+import type { RunRecord, StepStatus } from './lib/types';
 import type { removedRunSchema } from './runs.schema';
 
 /** E15's answer: the run that went, and where (`run/.trash/<folder>/<runId>-<stamp>`). */
@@ -48,6 +48,72 @@ export interface RunOverview {
   hasState: boolean;
   /** The state says RUNNING or PAUSED: live, or dead if its session is gone. */
   active: boolean;
+}
+
+/** One line of a run's per-step breakdown (the expanded row of the run table). */
+export interface StepUsageRow {
+  /** The step slug; `Total` and the "other" line use their own names. */
+  step: string;
+  status: StepStatus | null;
+  /** Times the step was entered; `null` when it never started. */
+  passes: number | null;
+  /** Tokens the report tied to the step; `null` when nothing was billed against it. */
+  tokens: number | null;
+  /** Money; `unpriced` when tokens were counted but no price is known; `null` when nothing was billed. */
+  costUsd: number | 'unpriced' | null;
+  /** Working time of its passes (an open pass counted to now); `null` when it never started. */
+  durationSeconds: number | null;
+  /** A human gate's time waiting for a person (not running time); `null` for agent steps. */
+  waitSeconds: number | null;
+  /** When it first started, for the order; `null` when it never did. */
+  startedMs: number | null;
+  /** The models that did the row's work, most tokens first; empty when nothing was billed. */
+  models: StepModelUsage[];
+}
+
+/** One model's share of a breakdown row, from the report's usage records. */
+export interface StepModelUsage {
+  /** The provider's model id, e.g. `claude-opus-5-5`. */
+  model: string;
+  tokens: number;
+  /** `null` when the report priced none of this model's tokens. */
+  costUsd: number | null;
+}
+
+export interface StepBreakdown {
+  /** In start order; steps that never started last, in the pipeline's order. */
+  steps: StepUsageRow[];
+  /** Usage the report holds outside any step (the orchestrator, unattributed calls); `null` when none. */
+  other: StepUsageRow | null;
+  /** The run's own tokens and cost (the run row's figures), and the passes summed. */
+  total: StepUsageRow;
+  /** The run has a cost.json at all. */
+  priced: boolean;
+}
+
+/** A pipeline's runs averaged: each figure over the runs that carry it; `null` when none does. */
+export interface PipelineAverages {
+  costUsd: number | null;
+  totalTokens: number | null;
+  durationSeconds: number | null;
+}
+
+/** The longest bar of each kind on the runs list: every card's bars are a share of these. */
+export interface RunScale {
+  costUsd: number;
+  totalTokens: number;
+  durationSeconds: number;
+}
+
+/** One step line of the run panel with its share of the run's money, as the bar draws it. */
+export interface StepShare {
+  row: StepUsageRow;
+  /** The row's money over the run's total, 0..1; `null` when the row has no money. */
+  share: number | null;
+  /** Bar length, 0..100, against the costliest row. */
+  barPct: number;
+  /** Among the costliest rows (at least half of the top one): drawn in the warm colour. */
+  hot: boolean;
 }
 
 export interface OverviewTotals {

@@ -5,6 +5,10 @@ import { asNumber, asString, isRecord } from "../adapter.utils.js";
 import type { PipelineRun, PipelineStep } from "./factory-state.types.js";
 
 const STATE_FILES: string[] = [".state.json", "state.json"];
+/** The pipeline snapshot `hooks.before` copies into the run folder; declares each step's `output` globs. */
+const PIPELINE_SNAPSHOT = "pipeline.json";
+
+type Window = { from: string; to: string };
 
 const toIso = (value: unknown): string | undefined => {
   const s: string | undefined = asString(value);
@@ -16,20 +20,109 @@ const toIso = (value: unknown): string | undefined => {
 const seconds = (from: string | undefined, to: string | undefined): number | undefined =>
   from && to ? Math.round((new Date(to).getTime() - new Date(from).getTime()) / 1000) : undefined;
 
+const historyOf = (raw: Record<string, unknown>): Record<string, unknown>[] =>
+  (Array.isArray(raw.history) ? raw.history : []).filter(isRecord);
+
 /**
  * A step's session id per pass. The step record keeps only the latest pass, so the run history is
  * read too: a looped step ran in one session per pass and every one of them is that step's work.
  */
-const sessionIdsByStep = (raw: Record<string, unknown>): Map<string, string[]> => {
-  const history: unknown[] = Array.isArray(raw.history) ? raw.history : [];
-  return history.reduce((acc: Map<string, string[]>, entry: unknown): Map<string, string[]> => {
-    if (!isRecord(entry)) return acc;
-    const step: string | undefined = asString(entry.step);
-    const id: string | undefined = isRecord(entry.details)
-      ? asString(entry.details.sessionId)
-      : undefined;
-    return step && id ? acc.set(step, [...(acc.get(step) ?? []), id]) : acc;
-  }, new Map<string, string[]>());
+const sessionIdsByStep = (raw: Record<string, unknown>): Map<string, string[]> =>
+  historyOf(raw).reduce(
+    (acc: Map<string, string[]>, entry: Record<string, unknown>): Map<string, string[]> => {
+      const step: string | undefined = asString(entry.step);
+      const id: string | undefined = isRecord(entry.details)
+        ? asString(entry.details.sessionId)
+        : undefined;
+      return step && id ? acc.set(step, [...(acc.get(step) ?? []), id]) : acc;
+    },
+    new Map<string, string[]>(),
+  );
+
+/** Session ids recorded for the run as a whole (`PIPELINE_INIT`, or any entry naming no step). */
+const runSessionIds = (raw: Record<string, unknown>): string[] =>
+  Array.from(
+    new Set<string>([
+      ...(asString(raw.sessionId) ? [asString(raw.sessionId) as string] : []),
+      ...historyOf(raw).flatMap((entry: Record<string, unknown>): string[] => {
+        if (asString(entry.step)) return [];
+        const id: string | undefined = isRecord(entry.details)
+          ? asString(entry.details.sessionId)
+          : undefined;
+        return id ? [id] : [];
+      }),
+    ]),
+  );
+
+const STEP_OPENERS: Set<string> = new Set<string>(["STEP_START"]);
+const STEP_CLOSERS: Set<string> = new Set<string>([
+  "STEP_EVENT",
+  "STEP_COMPLETE",
+  "STEP_FAIL",
+  "STEP_SKIP",
+  "HUMAN_ANSWER",
+]);
+
+/**
+ * Every pass window per step, from the run-level history the recorder writes: a `STEP_START`
+ * opens a pass, the next step event for the same step closes it. The step record alone keeps only
+ * the latest pass, and a looped step's earlier passes are where its earlier subagents ran.
+ */
+const windowsByStep = (raw: Record<string, unknown>): Map<string, Window[]> => {
+  const open: Map<string, string> = new Map<string, string>();
+  return historyOf(raw).reduce(
+    (acc: Map<string, Window[]>, entry: Record<string, unknown>): Map<string, Window[]> => {
+      const step: string | undefined = asString(entry.step);
+      const type: string | undefined = asString(entry.type);
+      const at: string | undefined = toIso(entry.timestamp);
+      if (!step || !type || !at) return acc;
+      if (STEP_OPENERS.has(type)) {
+        open.set(step, at);
+        return acc;
+      }
+      if (STEP_CLOSERS.has(type)) {
+        const from: string | undefined = open.get(step);
+        open.delete(step);
+        return from ? acc.set(step, [...(acc.get(step) ?? []), { from, to: at }]) : acc;
+      }
+      return acc;
+    },
+    new Map<string, Window[]>(),
+  );
+};
+
+const covered = (windows: Window[], from: string, to: string): boolean =>
+  windows.some(
+    (w: Window): boolean =>
+      new Date(w.from).getTime() <= new Date(from).getTime() + 1000 &&
+      new Date(w.to).getTime() >= new Date(to).getTime() - 1000,
+  );
+
+/** `7-verify-demo-landing/report-*.md` → `7-verify-demo-landing`; a bare file name has no folder. */
+export const topFolderOf = (p: string): string | undefined => {
+  const clean: string = p.replace(/^\.\//, "").replace(/^\/+/, "");
+  const i: number = clean.indexOf("/");
+  return i > 0 ? clean.slice(0, i) : undefined;
+};
+
+const folderList = (paths: unknown[]): string[] =>
+  Array.from(
+    new Set<string>(
+      paths
+        .filter((o: unknown): o is string => typeof o === "string")
+        .map(topFolderOf)
+        .filter((f: string | undefined): f is string => f !== undefined && !f.includes("*")),
+    ),
+  );
+
+/** The `output` globs of each step in the pipeline snapshot, by step id. */
+const snapshotOutputs = (pipeline: unknown): Map<string, string[]> => {
+  if (!isRecord(pipeline) || !isRecord(pipeline.steps)) return new Map<string, string[]>();
+  return Object.entries(pipeline.steps).reduce(
+    (acc: Map<string, string[]>, [id, step]: [string, unknown]): Map<string, string[]> =>
+      isRecord(step) && Array.isArray(step.output) ? acc.set(id, folderList(step.output)) : acc,
+    new Map<string, string[]>(),
+  );
 };
 
 const normalizeStep = (
@@ -37,18 +130,23 @@ const normalizeStep = (
   raw: Record<string, unknown>,
   fallbackOrder: number,
   fromHistory: string[],
+  passWindows: Window[],
+  declaredFolders: string[],
 ): PipelineStep => {
   const startedAt: string | undefined = toIso(raw.startedAt ?? raw.startAt);
   const endedAt: string | undefined = toIso(raw.completedAt ?? raw.endAt);
-  const history: unknown[] = Array.isArray(raw.history) ? raw.history : [];
-  const windows: Array<{ from: string; to: string }> = history.flatMap(
-    (h: unknown): Array<{ from: string; to: string }> => {
-      if (!isRecord(h)) return [];
-      const from: string | undefined = toIso(h.startAt ?? h.startedAt);
-      const to: string | undefined = toIso(h.endAt ?? h.completedAt);
-      return from && to ? [{ from, to }] : [];
-    },
-  );
+  const stepHistory: unknown[] = Array.isArray(raw.history) ? raw.history : [];
+  const ownWindows: Window[] = stepHistory.flatMap((h: unknown): Window[] => {
+    if (!isRecord(h)) return [];
+    const from: string | undefined = toIso(h.startAt ?? h.startedAt);
+    const to: string | undefined = toIso(h.endAt ?? h.completedAt);
+    return from && to ? [{ from, to }] : [];
+  });
+  const fromHistoryWindows: Window[] = ownWindows.length > 0 ? ownWindows : passWindows;
+  const windows: Window[] =
+    startedAt && endedAt && !covered(fromHistoryWindows, startedAt, endedAt)
+      ? [...fromHistoryWindows, { from: startedAt, to: endedAt }]
+      : fromHistoryWindows;
   const outputs: string[] = Array.isArray(raw.outputs)
     ? raw.outputs.filter((o: unknown): o is string => typeof o === "string")
     : [];
@@ -66,29 +164,45 @@ const normalizeStep = (
         ? { durationSeconds: seconds(startedAt, endedAt) }
         : {}),
     outputs,
+    outputFolders: Array.from(new Set<string>([...folderList(outputs), ...declaredFolders])),
     sessionIds: Array.from(
       new Set<string>([
         ...(asString(raw.sessionId) ? [asString(raw.sessionId) as string] : []),
         ...fromHistory,
       ]),
     ),
-    windows:
-      windows.length > 0 ? windows : startedAt && endedAt ? [{ from: startedAt, to: endedAt }] : [],
+    windows: windows.sort((a: Window, b: Window): number => a.from.localeCompare(b.from)),
   };
 };
 
-export const parsePipelineState = (
-  raw: unknown,
-  ctx: { root: string; runDir: string; stateFile: string },
-): PipelineRun | null => {
+export type ParseStateContext = {
+  root: string;
+  runDir: string;
+  stateFile: string;
+  /** The run folder's pipeline.json snapshot, when there is one. */
+  pipeline?: unknown;
+};
+
+export const parsePipelineState = (raw: unknown, ctx: ParseStateContext): PipelineRun | null => {
   if (!isRecord(raw) || !isRecord(raw.steps)) return null;
   const pipeline: string =
     asString(raw.pipelineName ?? raw.pipeline) ?? path.basename(path.dirname(ctx.runDir));
   const runFolder: string = path.basename(ctx.runDir);
   const historyIds: Map<string, string[]> = sessionIdsByStep(raw);
+  const passWindows: Map<string, Window[]> = windowsByStep(raw);
+  const declared: Map<string, string[]> = snapshotOutputs(ctx.pipeline);
   const steps: PipelineStep[] = Object.entries(raw.steps)
     .map(([name, step], i): PipelineStep | null =>
-      isRecord(step) ? normalizeStep(name, step, i + 1, historyIds.get(name) ?? []) : null,
+      isRecord(step)
+        ? normalizeStep(
+            name,
+            step,
+            i + 1,
+            historyIds.get(name) ?? [],
+            passWindows.get(name) ?? [],
+            declared.get(name) ?? [],
+          )
+        : null,
     )
     .filter((s): s is PipelineStep => s !== null)
     .sort((a: PipelineStep, b: PipelineStep): number => a.order - b.order);
@@ -123,7 +237,17 @@ export const parsePipelineState = (
     params,
     steps,
     stateFile: ctx.stateFile,
+    sessionIds: runSessionIds(raw),
   };
+};
+
+const readJsonOrNull = async (file: string): Promise<unknown> => {
+  if (!(await fileExists(file))) return undefined;
+  try {
+    return JSON.parse(await fsp.readFile(file, "utf8"));
+  } catch {
+    return undefined;
+  }
 };
 
 /** Discovers `<root>/run/<pipeline>/<run>/(.state.json|state.json)` and parses each. */
@@ -147,7 +271,12 @@ export const readFactoryRuns = async (root: string, runDirName = "run"): Promise
         try {
           const parsed: PipelineRun | null = parsePipelineState(
             JSON.parse(await fsp.readFile(stateFile, "utf8")),
-            { root, runDir, stateFile },
+            {
+              root,
+              runDir,
+              stateFile,
+              pipeline: await readJsonOrNull(path.join(runDir, PIPELINE_SNAPSHOT)),
+            },
           );
           if (parsed) runs.push(parsed);
         } catch {

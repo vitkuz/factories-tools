@@ -38,7 +38,7 @@ export const siteRawPath = (req: Request, prefix: SitePrefix): string | null => 
   return rest.length === 0 ? null : rest.join('/');
 };
 
-/** E17/E18: every answer, errors and redirects included, is sandboxed and unsniffable. */
+/** E17/E18: every answer, errors and redirects included, is unsniffable and sends no referrer. */
 export const siteHeadersMiddleware: RequestHandler = (
   _req: Request,
   res: Response,

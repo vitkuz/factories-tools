@@ -1,5 +1,6 @@
 export {
   collectRunRecordsFactory,
+  readRunRecordFactory,
   type CollectRunRecordsSettings,
 } from './collect-run-records.service.js';
 export {

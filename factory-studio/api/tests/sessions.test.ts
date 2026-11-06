@@ -110,7 +110,7 @@ describe('startFactorySession (usecase)', () => {
     };
     expect(settings.hooks.PreToolUse?.[0]).toMatchObject({
       matcher: 'AskUserQuestion',
-      hooks: [{ type: 'command', timeout: 3600 }],
+      hooks: [{ type: 'command', timeout: 604800 }],
     });
     expect(settings.hooks.PreToolUse?.[0]?.hooks[0]?.command).toBe(
       `'/usr/bin/node' '/opt/studio/hooks/hook.mjs'`,

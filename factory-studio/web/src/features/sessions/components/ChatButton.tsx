@@ -9,7 +9,7 @@ interface ChatButtonProps {
 export const ChatButton = ({ session, onOpen }: ChatButtonProps): ReactNode => (
   <button
     type="button"
-    className="ghost-button chat-open-button"
+    className="btn chat-open-button"
     aria-label={`Open the live chat of ${session}`}
     onClick={onOpen}
   >

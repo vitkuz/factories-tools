@@ -14,6 +14,7 @@ const EMPTY_BUCKET: CostBucket = {
   requestCount: 0,
   estimatedListPriceUsd: 0,
   providerUnits: [],
+  byModel: [],
 };
 
 /** The step's entry in `cost.steps`; null when the run has no cost or the step is not in it. */
@@ -65,6 +66,7 @@ const addBuckets = (a: CostBucket, b: CostBucket): CostBucket => ({
   totals: addUsage(a.totals, b.totals),
   providerUnits: a.providerUnits,
   certainty: a.certainty,
+  byModel: [...a.byModel, ...b.byModel],
 });
 
 /**

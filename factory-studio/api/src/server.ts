@@ -1,10 +1,13 @@
 import type { Server } from 'node:http';
 import os from 'node:os';
+import path from 'node:path';
 import { API_PREFIX, createApp } from './app.js';
 import { createFsClient } from './clients/fs/fs.client.js';
 import type { FsClient } from './clients/fs/fs.types.js';
 import { createHerdrClient } from './clients/herdr/herdr.client.js';
 import type { HerdrClient } from './clients/herdr/herdr.types.js';
+import { createWatchClient } from './clients/watch/watch.client.js';
+import type { WatchClient } from './clients/watch/watch.types.js';
 import { createTranscriptClient } from './clients/transcript/transcript.client.js';
 import type { TranscriptClient } from './clients/transcript/transcript.types.js';
 import { createZipClient } from './clients/zip/zip.client.js';
@@ -22,6 +25,29 @@ import {
 import type { ChatHub, ChatUsecases, TranscriptLink } from './features/chat/index.js';
 import { readDocumentFactory, writeDocumentFactory } from './features/documents/index.js';
 import {
+  createActiveRunTracker,
+  createHeartbeat,
+  createMemoryTicker,
+  createRunSweeper,
+  createSubscriptionRegistry,
+  handleLiveMessageFactory,
+  isLiveFrame,
+  publishPipelinesChangeFactory,
+  publishRunChangeFactory,
+  sendSnapshotFactory,
+  watchLiveSourcesFactory,
+} from './features/live/index.js';
+import type {
+  ActiveRunTracker,
+  Heartbeat,
+  LiveWatchers,
+  MemoryTicker,
+  RunChangePublisher,
+  RunKey,
+  RunSweeper,
+  SubscriptionRegistry,
+} from './features/live/index.js';
+import {
   listPipelineSkillsFactory,
   listPipelinesFactory,
   listStartableFactoriesFactory,
@@ -37,20 +63,30 @@ import {
   locateRunDirFactory,
   moveRunToTrashFactory,
   readRunDocumentFactory,
+  readRunRecordFactory,
   removeRunFactory,
   writeRunDocumentFactory,
 } from './features/runs/index.js';
 import type { RunServices, RunUsecases } from './features/runs/runs.types.js';
 import {
   answerQuestionFactory,
+  createQuestionJournal,
+  createQuestionLifecycle,
   createQuestionStore,
   dismissQuestionFactory,
   handleClientMessageFactory,
   locateQuestionRunFactory,
+  reconcileQuestionsFactory,
   registerQuestionFactory,
   resolveQuestionFactory,
+  restoreQuestionsFactory,
 } from './features/questions/index.js';
-import type { QuestionStore, QuestionUsecases } from './features/questions/questions.types.js';
+import type { QuestionLifecycle } from './features/questions/index.js';
+import type {
+  QuestionJournal,
+  QuestionStore,
+  QuestionUsecases,
+} from './features/questions/questions.types.js';
 import { readScriptFactory } from './features/scripts/index.js';
 import type { ScriptUsecases } from './features/scripts/scripts.types.js';
 import {
@@ -58,6 +94,7 @@ import {
   pollSessionStatusFactory,
   readSessionMetaFactory,
   replySessionFactory,
+  sendMessageFactory,
   startFactorySessionFactory,
   startSessionFactory,
   stopSessionFactory,
@@ -107,6 +144,7 @@ const herdr: HerdrClient = createHerdrClient({
 });
 const transcripts: TranscriptClient = createTranscriptClient();
 const zip: ZipClient = createZipClient({ logger });
+const watch: WatchClient = createWatchClient({ logger });
 const bus: BroadcastBus = createBroadcastBus();
 const workDir: string = env.WORK_DIR;
 
@@ -177,6 +215,11 @@ const runs: RunUsecases = {
   removeRun: removeRunFactory({ ...runServices, listSessions, workDir, logger }),
 };
 
+// The questions waiting for a person: in memory for the waiting hooks, on disk
+// (`<PROMPT_DIR>/questions/<promptId>.json`) so a restart, a reload or a new socket shows them
+// in full again. The hook keeps asking until it gets an answer, so a restart only detaches it.
+const questionStore: QuestionStore = createQuestionStore();
+
 const sessions: SessionUsecases = {
   startFactorySession: startFactorySessionFactory({
     workDir,
@@ -204,13 +247,32 @@ const sessions: SessionUsecases = {
   listSessions,
   stopSession: stopSessionFactory({ herdr, listSessions, logger }),
   replySession: replySessionFactory({ herdr, listSessions }),
+  // The chat drawer's message box. A session with a studio question open takes its answer
+  // through the question card, never as a typed message.
+  sendMessage: sendMessageFactory({
+    herdr,
+    listSessions,
+    hasPendingQuestion: (sessionId: string): boolean =>
+      questionStore.list().some((question): boolean => question.sessionId === sessionId),
+    broadcast: bus.broadcast,
+    logger,
+  }),
 };
-
-const questionStore: QuestionStore = createQuestionStore();
+const questionJournal: QuestionJournal = createQuestionJournal({
+  fs,
+  dir: path.join(promptDir, 'questions'),
+  logger,
+});
+const questionLifecycle: QuestionLifecycle = createQuestionLifecycle({
+  store: questionStore,
+  journal: questionJournal,
+  broadcast: bus.broadcast,
+  logger,
+});
 const questions: QuestionUsecases = {
   registerQuestion: registerQuestionFactory({
     store: questionStore,
-    broadcast: bus.broadcast,
+    lifecycle: questionLifecycle,
     locateRun: locateQuestionRunFactory({
       collectRunRecords: runServices.collectRunRecords,
       readSessionMeta,
@@ -222,6 +284,22 @@ const questions: QuestionUsecases = {
   resolveQuestion: resolveQuestionFactory({ store: questionStore }),
   listPending: questionStore.list,
 };
+const reconcileQuestions = reconcileQuestionsFactory({
+  store: questionStore,
+  lifecycle: questionLifecycle,
+});
+// Before the API listens: a hook asking again must find its question under the old promptId.
+const restored: number = await restoreQuestionsFactory({
+  journal: questionJournal,
+  lifecycle: questionLifecycle,
+  logger,
+})().catch((error: unknown): number => {
+  logger.error('could not restore the pending questions', {
+    message: error instanceof Error ? error.message : String(error),
+  });
+  return 0;
+});
+if (restored > 0) logger.info('pending questions restored', { count: restored });
 
 // The live chat: a tail per watched session's transcript, fed to the subscribed sockets.
 const chatHub: ChatHub = createChatHub({
@@ -292,12 +370,51 @@ const server: Server = createApp({
   });
 });
 
+// The live feed: what the browser used to poll (runs, sessions, workspaces, memory) is pushed
+// to the clients that subscribe to it, from disk watchers and the herdr poller.
+const registry: SubscriptionRegistry = createSubscriptionRegistry();
+const tracker: ActiveRunTracker = createActiveRunTracker();
+const runPublisher: RunChangePublisher = publishRunChangeFactory({
+  registry,
+  readRunRecord: readRunRecordFactory({ fs, workDir, logger }),
+  listRuns: runs.listRuns,
+  listWorkspaces: workspaces.listWorkspaces,
+  tracker,
+  logger,
+});
+// The safety net under the watcher: the active runs' state.json / cost.json by mtime, every 5 s.
+const sweeper: RunSweeper = createRunSweeper({
+  fs,
+  workDir,
+  tracker,
+  onChanged: (key: RunKey, paths: string[]): void =>
+    void runPublisher.runChanged({ ...key, paths }),
+  logger,
+});
+const memoryTicker: MemoryTicker = createMemoryTicker({
+  readMemory: system.readMemory,
+  registry,
+  logger,
+});
+
 const handleClientMessage = handleClientMessageFactory({
   usecases: questions,
   replySession: sessions.replySession,
   logger,
 });
 const handleChatMessage = handleChatMessageFactory({ hub: chatHub, logger });
+const handleLiveMessage = handleLiveMessageFactory({
+  registry,
+  sendSnapshot: sendSnapshotFactory({
+    listRuns: runs.listRuns,
+    listSessions,
+    listWorkspaces: workspaces.listWorkspaces,
+    readMemory: system.readMemory,
+    onRuns: tracker.noteRecords,
+    logger,
+  }),
+  logger,
+});
 const hub: WsHub = attachWebSocket({
   server,
   path: `${API_PREFIX}/ws`,
@@ -305,19 +422,51 @@ const hub: WsHub = attachWebSocket({
   logger,
   onConnect: (): unknown => ({ type: 'hello', pending: questions.listPending() }),
   onMessage: (raw: string, client: WsClient): Promise<unknown> =>
-    isChatFrame(raw) ? handleChatMessage(raw, client) : handleClientMessage(raw),
-  onDisconnect: (client: WsClient): void => chatHub.dropClient(client.id),
+    isChatFrame(raw)
+      ? handleChatMessage(raw, client)
+      : isLiveFrame(raw)
+        ? handleLiveMessage(raw, client)
+        : handleClientMessage(raw),
+  onDisconnect: (client: WsClient): void => {
+    chatHub.dropClient(client.id);
+    registry.drop(client.id);
+  },
 });
 bus.bind(hub);
 
 const statusPoller = pollSessionStatusFactory({
   listSessions,
   broadcast: bus.broadcast,
-  onSessions: (live: readonly FactorySession[]): Promise<void> =>
-    chatHub.reconcile(live.map((session: FactorySession): string => session.session)),
+  onSessions: (live: readonly FactorySession[]): Promise<void> => {
+    const names: string[] = live.map((session: FactorySession): string => session.session);
+    reconcileQuestions(names);
+    return chatHub.reconcile(names);
+  },
+  onChanged: (live: readonly FactorySession[]): void =>
+    registry.publish('sessions', { type: 'sessions.changed', sessions: [...live] }),
   logger,
 });
 statusPoller.start();
+memoryTicker.start();
+const heartbeat: Heartbeat = createHeartbeat({ broadcast: hub.broadcast });
+heartbeat.start();
+// Seed the sweep with the runs as they are now, then keep it fed by every read.
+runServices
+  .collectRunRecords()
+  .then(tracker.noteRecords)
+  .catch((error: unknown): void => {
+    logger.warn('could not seed the active runs', {
+      message: error instanceof Error ? error.message : String(error),
+    });
+  });
+sweeper.start();
+const watchers: LiveWatchers = watchLiveSourcesFactory({
+  watch,
+  workDir,
+  publisher: runPublisher,
+  publishPipelines: publishPipelinesChangeFactory({ ...pipelineServices, registry, logger }),
+  logger,
+})();
 herdr.ensureServer().catch((error: unknown): void => {
   logger.error('herdr server is not available', {
     message: error instanceof Error ? error.message : String(error),
@@ -328,6 +477,10 @@ const shutdown = (signal: string): void => {
   logger.info('shutting down', { signal });
   // The herdr sessions are not ours to stop: they outlive the API on purpose (BR42).
   statusPoller.stop();
+  memoryTicker.stop();
+  heartbeat.stop();
+  sweeper.stop();
+  watchers.stop();
   chatHub.close();
   void hub.close();
   server.close((): void => process.exit(0));

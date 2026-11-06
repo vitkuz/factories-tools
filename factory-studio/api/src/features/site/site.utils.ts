@@ -3,8 +3,8 @@ import type { DirEntry } from '../documents/documents.types.js';
 import { MIME } from '../documents/documents.utils.js';
 
 /**
- * The browser's own types: E7 serves every page and script as plain text so it never runs on
- * the Studio origin; E17 renders them, inside the sandbox `SITE_HEADERS` puts every answer in.
+ * The browser's own types: E7 serves every page and script as plain text so it never runs;
+ * E17 renders them as a normal page on the Studio origin.
  * Markdown stays text: a browser would offer to download `text/markdown`.
  */
 export const SITE_MIME: Readonly<Record<string, string>> = {
@@ -33,12 +33,12 @@ export const siteContentTypeFor = (file: string): string =>
   SITE_MIME[path.extname(file).toLowerCase()] ?? 'application/octet-stream';
 
 /**
- * On every E17 answer, errors and redirects included. `sandbox` without `allow-same-origin`
- * gives the page an opaque origin: it renders and runs its scripts, but every request it makes
- * to `/api/v1` is cross-origin, and the API sends no CORS headers.
+ * On every E17/E18 answer, errors and redirects included. No sandbox CSP: a preview runs as a
+ * normal page on the Studio origin, so its own fonts, `fetch()` of its files, module scripts and
+ * `localStorage` work. That also means its scripts can call `/api/v1` with the viewer's access:
+ * preview only run folders you trust.
  */
 export const SITE_HEADERS: Readonly<Record<string, string>> = {
-  'Content-Security-Policy': 'sandbox allow-scripts allow-forms allow-popups allow-modals',
   'X-Content-Type-Options': 'nosniff',
   'Referrer-Policy': 'no-referrer',
 };

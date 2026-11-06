@@ -14,6 +14,7 @@ import { QuestionStepper, panelId, tabId } from './QuestionStepper';
 import { CardHead } from './CardHead';
 import { StopButton } from './StopButton';
 import { ChatButton } from './ChatButton';
+import { TerminalQuestions } from './TerminalQuestions';
 
 interface QuestionCardProps {
   question: PendingQuestion;
@@ -37,7 +38,11 @@ interface QuestionCardProps {
   onOpenChat?: () => void;
 }
 
-/** One question Claude is asking, as a "Needs you" card: a line and Answer, or the stepper, the active question and Submit. */
+/**
+ * One question Claude is asking, as a "Needs you" card: a line and Answer, or the stepper, the
+ * active question and Submit. A question that fell to the terminal (its hook is gone) keeps
+ * its text and options on the card but points to the pane instead of offering a form.
+ */
 export const QuestionCard = ({
   question,
   send,
@@ -55,6 +60,7 @@ export const QuestionCard = ({
   const [drafts, setDrafts] = useState<Draft[]>(() => draftsFor(question.questions));
   const [active, setActive] = useState<number>(0);
   const idPrefix = `ask-${question.promptId}`;
+  const terminal: boolean = question.channel === 'terminal';
   const total: number = question.questions.length;
   const answered: number = answeredCount(drafts);
   const complete: boolean = isComplete(question.questions, drafts);
@@ -88,16 +94,29 @@ export const QuestionCard = ({
           </time>
         ) : null}
       </CardHead>
+      {terminal ? <span className="ask-title">Waiting in the terminal</span> : null}
       {!open ? (
         <div className="board-card-row">
           <span className="board-card-preview">{questionPreview(question.questions, drafts)}</span>
           <span className="board-card-actions">
             {onOpenChat ? <ChatButton session={question.sessionId} onOpen={onOpenChat} /> : null}
-            <button type="button" className="answer-button" onClick={onOpen}>
-              Answer
+            <button type="button" className="btn btn--warn" onClick={onOpen}>
+              {terminal ? 'Show' : 'Answer'}
             </button>
           </span>
         </div>
+      ) : terminal ? (
+        <>
+          <TerminalQuestions sessionId={question.sessionId} questions={question.questions} />
+          <footer className="ask-foot">
+            <div className="ask-aside-actions">
+              <button type="button" className="btn" onClick={onLater}>
+                Later
+              </button>
+              {onStop ? <StopButton stopping={stopping} onStop={onStop} /> : null}
+            </div>
+          </footer>
+        </>
       ) : (
         <>
           {total > 1 ? (
@@ -137,7 +156,7 @@ export const QuestionCard = ({
               {answered} of {total} answered
             </span>
             <div className="ask-aside-actions">
-              <button type="button" className="ghost-button" onClick={onLater}>
+              <button type="button" className="btn" onClick={onLater}>
                 Later
               </button>
               {onStop ? <StopButton stopping={stopping} onStop={onStop} /> : null}
@@ -146,7 +165,7 @@ export const QuestionCard = ({
               {active < total - 1 ? (
                 <button
                   type="button"
-                  className="ghost-button"
+                  className="btn"
                   disabled={locked}
                   onClick={(): void => setActive(active + 1)}
                 >
@@ -155,7 +174,7 @@ export const QuestionCard = ({
               ) : null}
               <button
                 type="button"
-                className="primary-button"
+                className="btn btn--warn"
                 disabled={!complete || locked || !connected}
                 onClick={submit}
               >

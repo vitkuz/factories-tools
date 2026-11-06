@@ -102,19 +102,41 @@ factory's own state file; usage is matched to it in this order:
 1. **session-id**: the state file records the provider session a step ran in (`steps.<name>.sessionId`,
    and one per pass in `history[].details.sessionId`). That session's whole usage is that step's work —
    exact, not a guess, and the only rule that works for a runner that starts one headless process per
-   step, where a step's session has no subagents to recognise. A session id no run recorded is claimed
-   by no one; a session id another run recorded is never counted here.
-2. **prompt-ref**: the subagent's task prompt names the step's output file (`11-test-frontend/feedback.md`). Strongest of the guesses, and immune to the harness spawning a different agent type than the step declares.
-3. **agent+window**: the subagent's name equals the step's `agent` and their time spans overlap.
-4. **window**: for harnesses that expose no subagent identity, the harness's own usage during a step window is that step's work.
-5. Nested subagents inherit their parent's step. Main-harness usage is reported separately as **orchestrator**. Anything inside the window that matches no step stays **unattributed**; human steps never receive usage.
+   step. A session id no run recorded is claimed by no one; a session id another run recorded is never
+   counted here.
+2. **run session**: the state file records the session the run itself ran in (`PIPELINE_INIT.details.sessionId`,
+   what the any-factory runner writes). That session is linked exactly; its main conversation is the
+   **orchestrator** and its subagents are split over the steps by the rules below. A run that named
+   its session takes no other session, however well another one overlaps it in the same folder.
+3. **Subagent → step**, inside a linked session. Every pass window of every step is rebuilt from the
+   run history (`STEP_START` … `STEP_EVENT`), and every step's output folders come from the outputs the
+   recorder kept and the `output` globs of the run's `pipeline.json` snapshot — a step's folder need not
+   carry its name (`verify-lead-example-landing` writes `7-verify-demo-landing/`). For each subagent the
+   candidate steps are ranked by **time fit first** (how much of the subagent's life fell inside one pass
+   window: a step's own agent lives inside its pass, a reader of the step's files runs after it), then by
+   evidence: `output-file` (it wrote into the step's output folder — from the Write/Edit calls in its
+   transcript), `prompt-ref` (its task named the step's folder, or its description named the step),
+   `agent+window` (the declared agent name), `window` (time alone). One subagent tree owns one pass
+   window: a later, weaker claimant never displaces the agent the evidence already put there.
+4. **Nesting, any depth**: a nested subagent inherits the step of the nearest attributed ancestor.
+   Claude Code writes every nested transcript flat under `<session>/subagents/agent-<id>.jsonl`, with the
+   parent in `agent-<id>.meta.json` (`parentAgentId`), so the chain is known even while the parent is
+   still running. A subagent whose children were matched to two or more different steps (a factory
+   run from inside a subagent) is a coordinator: its own usage is orchestrator, not a step.
+5. **Whose work it is**: what a subagent wrote decides — into this run's folders → this run's; into
+   another run's folders → left out with its whole subtree; what it merely read counts only when it wrote
+   nothing decisive. A subagent that only read this run's files and fitted no pass window is a reader
+   from elsewhere and is left out. One that wrote into the run folder outside the run's window (an
+   earlier attempt in the same folder) is counted as **unattributed**, visibly, never pinned to a step.
+6. For harnesses that expose no subagent identity, the harness's own usage during a step window is that
+   step's work. Human steps never receive usage. Anything in the window that matches no step stays
+   **unattributed**; every exclusion is listed in `notes`.
 
-Rules 2–5 need a session whose cwd is under the factory root; a session the run named is taken wherever
+Rules 3–6 need a session whose cwd is under the factory root; a session the run named is taken wherever
 it ran, because some harnesses (Antigravity) record no working directory at all.
 
-**A run that named its own sessions takes nothing else.** No other session is added to it by a time
-window, however well it overlaps — that is what kept an unrelated interactive session, open in the same
-folder while a run went by, from being billed to it.
+Every block (`totals`, `orchestrator`, each step, `unattributed`) carries `byModel`: tokens, requests and
+list price per model, from the usage records — Studio's "Model" column reads it.
 
 ## What is in `~/.ai-usage/` (override with `AI_USAGE_HOME`)
 

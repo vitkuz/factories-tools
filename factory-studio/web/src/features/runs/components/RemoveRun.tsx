@@ -108,13 +108,13 @@ export const RemoveRunConfirm = ({
         <button
           type="button"
           ref={confirmRef}
-          className="danger-button"
+          className="btn btn--danger"
           disabled={busy}
           onClick={onConfirm}
         >
           {busy ? 'Moving…' : 'Move to trash'}
         </button>
-        <button type="button" className="ghost-button" disabled={busy} onClick={onCancel}>
+        <button type="button" className="btn" disabled={busy} onClick={onCancel}>
           Cancel
         </button>
       </div>

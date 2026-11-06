@@ -14,10 +14,11 @@ import {
 /**
  * The shell: the sidebar down the left edge (the brand, then every run; it folds to a rail),
  * and beside it the top bar (the screen tabs and the line of the screen on show) over the
- * screen the route names. The run list is fetched here once, so the sidebar has it on every
- * screen; the Runs screen decides how often it is refreshed. The question socket is opened
- * here too, once, so a question can be answered on Sessions or on its run's page, and the
- * workspaces are read here once, so every screen filters by the same choice.
+ * screen the route names. The socket is opened once (`QuestionsProvider`), so a question can
+ * be answered on Sessions or on its run's page; the run list, the sessions, the workspaces
+ * and the memory meter all arrive over it, pushed by the server — nothing here polls. The run
+ * list is held here so the sidebar has it on every screen, and the workspaces so every screen
+ * filters by the same choice.
  */
 export default function App(): ReactNode {
   return (
@@ -43,7 +44,7 @@ const Shell = (): ReactNode => {
     route.screen === 'runs' ? (
       <RunsScreen feed={feed} workspace={selected} run={route.run} view={view} tab={tab} />
     ) : (
-      <SessionsScreen chat={route.chat ?? null} />
+      <SessionsScreen chat={route.chat ?? null} data={feed.data} />
     );
 
   return (
@@ -56,7 +57,7 @@ const Shell = (): ReactNode => {
       />
       <div className="app-body">
         <TopbarSlotContext.Provider value={slot}>
-          <Topbar route={route} onNavigate={navigate} onSlot={setSlot} data={feed.data} />
+          <Topbar route={route} onNavigate={navigate} onSlot={setSlot} />
           {screen}
         </TopbarSlotContext.Provider>
       </div>

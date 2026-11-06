@@ -8,6 +8,15 @@ import type {
 } from "../../contract/usage-event.types.js";
 import type { TokenTotals } from "../../contract/usage-summary.types.js";
 
+/** One model's share of a block: which model did how much of the work, from the usage records. */
+export type ModelCost = {
+  model: string;
+  requestCount: number;
+  totals: TokenTotals;
+  estimatedListPriceUsd?: number;
+  unpricedTokens: number;
+};
+
 export type CostBlock = {
   requestCount: number;
   totals: TokenTotals;
@@ -17,10 +26,18 @@ export type CostBlock = {
   providerUnits: ProviderUnit[];
   certainty: CostCertainty;
   unpricedTokens: number;
+  /** Per model, most tokens first. Sums to the block. */
+  byModel: ModelCost[];
 };
 
-/** How a step's usage was identified. `session-id` is the only one that is not a guess. */
-export type StepAttribution = "session-id" | "prompt-ref" | "agent+window" | "window" | "none";
+/**
+ * How a step's usage was identified. `session-id` is the only one that is not a guess; `output-file`
+ * (the subagent wrote into the step's output folder) is the strongest of the guesses, then
+ * `prompt-ref` (its task named the folder), then the declared agent name plus the pass window, then
+ * the pass window alone.
+ */
+export type StepAttribution =
+  "session-id" | "output-file" | "prompt-ref" | "agent+window" | "window" | "none";
 
 export type StepActorRef = {
   provider: Provider;

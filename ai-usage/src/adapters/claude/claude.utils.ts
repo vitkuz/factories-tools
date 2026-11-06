@@ -14,7 +14,7 @@ import { asString, extractPromptRefs, isRecord, withTotal } from "../adapter.uti
 export { extractPromptRefs };
 import { MAIN_ACTOR_ID } from "../../aggregation/hierarchy.js";
 
-export const CLAUDE_ADAPTER_VERSION = "1.0.0";
+export const CLAUDE_ADAPTER_VERSION = "1.1.0";
 export const CLAUDE_PROVIDER = "anthropic-claude" as const;
 
 export const claudeRunId = (sessionId: string): string => `${CLAUDE_PROVIDER}:${sessionId}`;
@@ -156,6 +156,27 @@ export const transcriptRecordToEvent = (
   };
 };
 
+const WRITE_TOOLS: Set<string> = new Set<string>(["Write", "Edit", "MultiEdit", "NotebookEdit"]);
+
+/** Files an agent wrote through the file tools, in order of first appearance. The step is known by its output folder. */
+export const extractWrittenPaths = (records: ClaudeTranscriptRecord[]): string[] =>
+  Array.from(
+    new Set<string>(
+      records.flatMap((record: ClaudeTranscriptRecord): string[] => {
+        const content: unknown = record.message?.content;
+        if (record.type !== "assistant" || !Array.isArray(content)) return [];
+        return content.flatMap((block: unknown): string[] => {
+          if (!isRecord(block) || block.type !== "tool_use") return [];
+          const tool: string | undefined = asString(block.name);
+          if (!tool || !WRITE_TOOLS.has(tool) || !isRecord(block.input)) return [];
+          const file: string | undefined =
+            asString(block.input.file_path) ?? asString(block.input.notebook_path);
+          return file ? [file] : [];
+        });
+      }),
+    ),
+  ).slice(0, 256);
+
 export const linkToActorFact = (sessionId: string, link: ClaudeAgentLink): ActorFact => ({
   runId: claudeRunId(sessionId),
   provider: CLAUDE_PROVIDER,
@@ -168,6 +189,7 @@ export const linkToActorFact = (sessionId: string, link: ClaudeAgentLink): Actor
   ...(link.startedAt ? { startedAt: link.startedAt } : {}),
   ...(link.endedAt ? { endedAt: link.endedAt } : {}),
   ...(link.refs && link.refs.length > 0 ? { refs: link.refs } : {}),
+  ...(link.writes && link.writes.length > 0 ? { writes: link.writes } : {}),
 });
 
 export const firstUserPromptText = (records: ClaudeTranscriptRecord[]): string => {

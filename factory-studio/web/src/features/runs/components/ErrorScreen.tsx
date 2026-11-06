@@ -31,7 +31,7 @@ export default function ErrorScreen({ title, detail, issues = [], command, onRet
         </p>
       )}
       {onRetry && (
-        <button type="button" className="feed-refresh" onClick={onRetry}>
+        <button type="button" className="btn" onClick={onRetry}>
           Try again
         </button>
       )}

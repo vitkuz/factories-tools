@@ -1,4 +1,12 @@
-import type { Answer, PendingQuestion, Question } from './questions.types.js';
+import type {
+  Answer,
+  PendingEntry,
+  PendingQuestion,
+  Question,
+  QuestionRecord,
+  QuestionSource,
+  QuestionStatus,
+} from './questions.types.js';
 
 /** `"A, B"` for a multi-select, the label for a single one, the text alone, or both joined. */
 export const answerToValue = (answer: Answer): string => {
@@ -48,13 +56,62 @@ export const validateAnswers = (
   return null;
 };
 
-export const toPendingQuestion = (
-  args: Pick<PendingQuestion, 'sessionId' | 'promptId' | 'toolUseId' | 'questions' | 'run'>,
-  askedAt: Date,
-): PendingQuestion => {
-  const {
-    run,
-    ...rest
-  }: Pick<PendingQuestion, 'sessionId' | 'promptId' | 'toolUseId' | 'questions' | 'run'> = args;
-  return { ...rest, askedAt: askedAt.toISOString(), ...(run === undefined ? {} : { run }) };
+type PendingQuestionArgs = Pick<
+  PendingQuestion,
+  'sessionId' | 'promptId' | 'toolUseId' | 'questions' | 'run'
+>;
+
+export const toPendingQuestion = (args: PendingQuestionArgs, askedAt: Date): PendingQuestion => {
+  const { run, ...rest }: PendingQuestionArgs = args;
+  return {
+    ...rest,
+    askedAt: askedAt.toISOString(),
+    channel: 'hook',
+    ...(run === undefined ? {} : { run }),
+  };
 };
+
+/** `<promptId>.json`; the id is a uuid the API minted, so it is one safe file name. */
+export const questionFileName = (promptId: string): string => `${promptId}.json`;
+
+/** Only what the record keeps: neither the waiter nor the timers. */
+const definedOnly = <T extends object>(value: T): Partial<T> =>
+  Object.fromEntries(
+    Object.entries(value).filter(([, v]: [string, unknown]): boolean => v !== undefined),
+  ) as Partial<T>;
+
+/** The record on disk for an entry in a given state. Pure. */
+export const toQuestionRecord = (
+  entry: Pick<PendingEntry, 'question' | 'source'>,
+  status: QuestionStatus,
+  extra: Pick<QuestionRecord, 'answers' | 'resolvedAt' | 'delivered'> = {},
+): QuestionRecord => ({
+  ...entry.question,
+  ...definedOnly<QuestionSource>(entry.source),
+  status,
+  ...definedOnly(extra),
+});
+
+/** The pending question a record describes, and where it came from; the live state is fresh. */
+export const fromQuestionRecord = (
+  record: QuestionRecord,
+): Pick<PendingEntry, 'question' | 'source'> => {
+  const {
+    status: _status,
+    claudeSessionId,
+    transcriptPath,
+    answers: _answers,
+    resolvedAt: _resolvedAt,
+    delivered: _delivered,
+    ...question
+  }: QuestionRecord = record;
+  return {
+    question,
+    source: definedOnly<QuestionSource>({ claudeSessionId, transcriptPath }),
+  };
+};
+
+/** Records the API must take up again after a restart: pending, or answered but not yet collected by the hook. */
+export const isUnfinished = (record: QuestionRecord): boolean =>
+  record.status === 'pending' ||
+  ((record.status === 'answered' || record.status === 'dismissed') && record.delivered === false);

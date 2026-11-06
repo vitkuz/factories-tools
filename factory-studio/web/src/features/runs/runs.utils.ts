@@ -1,5 +1,5 @@
 import { RUN_STATUS_META, runStatusWord } from './lib/run';
-import { attemptSpanMs, attemptsOf, type Attempt } from './lib/attempts';
+import { attemptSpanMs, attemptsOf, humanWaitMs, type Attempt } from './lib/attempts';
 import { formatDay, formatDurationMs, formatTokens } from './lib/format';
 import type { StepNodeData, StepStatusKey } from './lib/graph';
 import { END_ID } from '../../shared/graph';
@@ -10,11 +10,13 @@ import type {
   DayGroup,
   Overview,
   OverviewTotals,
+  PipelineAverages,
   PipelineOverview,
   PlainTransition,
   RunFilter,
   RunGroup,
   RunOverview,
+  RunScale,
   RemoveRunOutcome,
   RemovedRun,
   RunRecord,
@@ -87,13 +89,17 @@ const parseMs = (iso: string | null | undefined): number | null => {
   return Number.isFinite(ms) ? ms : null;
 };
 
-/** Wall-clock seconds from `createdAt` to `updatedAt`, or to `now` while the run is moving. */
+/**
+ * Running time: wall clock from `createdAt` to `updatedAt` (or to `now` while the run is moving),
+ * minus the time human gates waited for a person.
+ */
 export const runDurationSeconds = (run: RunRecord, now: number): number | null => {
   const start: number | null = parseMs(run.state?.createdAt);
   if (start === null) return null;
   const end: number | null = isActiveRun(run) ? now : parseMs(run.state?.updatedAt);
   if (end === null || end < start) return null;
-  return Math.round((end - start) / 1000);
+  const waited: number = humanWaitMs(run.state ?? null)(now);
+  return Math.round(Math.max(0, end - start - waited) / 1000);
 };
 
 const countStatus = (run: RunRecord, status: string): number =>
@@ -207,6 +213,59 @@ export const pipelineSummary = (pipeline: PipelineOverview): string =>
 /** Absent is not zero: a pipeline whose every run lacks a cost.json has no cost to state. */
 export const isAllUnpriced = (pipeline: PipelineOverview): boolean =>
   pipeline.runs > 0 && pipeline.unpriced === pipeline.runs;
+
+/** The run the panel shows: the one asked for while the pipeline lists it, else the newest. */
+export const pickRun =
+  (wanted: string | null) =>
+  (runs: readonly RunOverview[]): RunOverview | null =>
+    runs.find((run: RunOverview): boolean => run.runId === wanted) ?? runs[0] ?? null;
+
+const average = (values: readonly (number | null)[]): number | null => {
+  const known: number[] = values.filter((v: number | null): v is number => v !== null);
+  return known.length === 0
+    ? null
+    : known.reduce((a: number, b: number): number => a + b, 0) / known.length;
+};
+
+/** Per-run averages, each over the runs that carry the figure (an unpriced run is not $0). */
+export const pipelineAveragesOf = (runs: readonly RunOverview[]): PipelineAverages => ({
+  costUsd: average(runs.map((r: RunOverview): number | null => (r.priced ? r.costUsd : null))),
+  totalTokens: average(runs.map((r: RunOverview): number | null => r.totalTokens)),
+  durationSeconds: average(runs.map((r: RunOverview): number | null => r.durationSeconds)),
+});
+
+/** "all completed", "1 running · 6 completed": the runs counted by status word, in first-seen order. */
+export const statusSummary = (runs: readonly RunOverview[]): string => {
+  const counts: [string, number][] = runs.reduce(
+    (acc: [string, number][], run: RunOverview): [string, number][] =>
+      acc.some(([word]: [string, number]): boolean => word === run.status)
+        ? acc.map(([word, n]: [string, number]): [string, number] =>
+            word === run.status ? [word, n + 1] : [word, n],
+          )
+        : [...acc, [run.status, 1]],
+    [],
+  );
+  const only: [string, number] | undefined = counts[0];
+  if (only === undefined) return '';
+  if (counts.length === 1) return only[1] === 1 ? only[0] : `all ${only[0]}`;
+  return counts.map(([word, n]: [string, number]): string => `${n} ${word}`).join(' · ');
+};
+
+/** The longest cost, tokens and time among the runs; 0 when none carries the figure. */
+export const runScaleOf = (runs: readonly RunOverview[]): RunScale => ({
+  costUsd: Math.max(0, ...runs.map((r: RunOverview): number => (r.priced ? (r.costUsd ?? 0) : 0))),
+  totalTokens: Math.max(0, ...runs.map((r: RunOverview): number => r.totalTokens ?? 0)),
+  durationSeconds: Math.max(0, ...runs.map((r: RunOverview): number => r.durationSeconds ?? 0)),
+});
+
+/** A bar length, 0..100: the value over the longest one; 0 for an absent value or an empty scale. */
+export const barPercent =
+  (max: number) =>
+  (value: number | null): number =>
+    value === null || max <= 0 ? 0 : Math.min(100, Math.max(0, (value / max) * 100));
+
+/** A run past this wall time draws its time bar in the warm colour. */
+export const LONG_RUN_SECONDS: number = 90 * 60;
 
 const startOfDay = (ms: number): number => {
   const d: Date = new Date(ms);

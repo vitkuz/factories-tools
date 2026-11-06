@@ -25,3 +25,8 @@ export const createdWorkspaceSchema = z.object({ workspace: workspaceSchema });
 
 /** `DELETE /api/v1/workspaces/:id`: the workspace that went. */
 export const removedWorkspaceSchema = z.object({ removed: workspaceSchema });
+
+/** The `workspaces` topic of the socket: the list, on subscribe and whenever the file changes. */
+export const workspacesSnapshotMessageSchema = workspacesListSchema.extend({
+  type: z.literal('workspaces.snapshot'),
+});

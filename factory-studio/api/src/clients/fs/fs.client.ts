@@ -40,7 +40,12 @@ const statFactory =
   async (file: string): Promise<FileInfo | null> => {
     try {
       const info: fs.Stats = await stat(file);
-      return { isFile: info.isFile(), isDirectory: info.isDirectory(), size: info.size };
+      return {
+        isFile: info.isFile(),
+        isDirectory: info.isDirectory(),
+        size: info.size,
+        mtimeMs: info.mtimeMs,
+      };
     } catch (error: unknown) {
       if (isAbsent(error)) return null;
       throw error;

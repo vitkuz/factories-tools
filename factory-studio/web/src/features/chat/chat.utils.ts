@@ -1,5 +1,12 @@
 import type { SessionRunLink } from '../sessions/sessions.types';
-import type { ChatAction, ChatItem, ChatRow, ChatState } from './chat.types';
+import type {
+  ChatAction,
+  ChatItem,
+  ChatRow,
+  ChatState,
+  ComposerGate,
+  ComposerInput,
+} from './chat.types';
 
 /** Items the app keeps per chat; a factory run writes thousands. */
 export const MAX_ITEMS = 3000;
@@ -28,22 +35,73 @@ const appendItems = (held: readonly ChatItem[], fresh: readonly ChatItem[]): Cha
   return [...held, ...fresh.filter((item: ChatItem): boolean => !ids.has(item.id))];
 };
 
+/* ---------------------------------------------------------------- sent messages */
+
+const PENDING_PREFIX = 'pending:';
+
+/** A message of the person's that the transcript has not echoed yet. Pure. */
+export const isPending = (item: ChatItem): boolean => item.id.startsWith(PENDING_PREFIX);
+
+/** The bubble shown the moment a message is sent, before Claude Code writes it down. Pure. */
+export const pendingItem = (id: string, text: string, at: Date): ChatItem => ({
+  id: `${PENDING_PREFIX}${id}`,
+  kind: 'user',
+  text,
+  ts: at.toISOString(),
+});
+
+/** Line endings and outer blanks aside: the transcript's copy is compared to what was typed. Pure. */
+export const normalizeText = (text: string): string => text.replace(/\r\n/g, '\n').trim();
+
+/**
+ * The transcript echoed one of the person's messages: the oldest pending bubble with the same
+ * words goes, the transcript's own item stands in its place. Pure.
+ */
+const settlePending = (held: readonly ChatItem[], fresh: readonly ChatItem[]): ChatItem[] => {
+  const echoed: string[] = fresh
+    .filter((item: ChatItem): boolean => item.kind === 'user' && !isPending(item))
+    .map((item: ChatItem): string => normalizeText(item.text));
+  return held.reduce((kept: ChatItem[], item: ChatItem): ChatItem[] => {
+    if (!isPending(item)) return [...kept, item];
+    const match: number = echoed.indexOf(normalizeText(item.text));
+    if (match < 0) return [...kept, item];
+    echoed.splice(match, 1);
+    return kept;
+  }, []);
+};
+
+/** Items in transcript order, then the pending bubbles after them. Pure. */
+const pendingLast = (items: readonly ChatItem[]): ChatItem[] => [
+  ...items.filter((item: ChatItem): boolean => !isPending(item)),
+  ...items.filter(isPending),
+];
+
 /** Pure reducer of what the socket says about one session's chat. */
 export const reduceChat = (state: ChatState, action: ChatAction): ChatState => {
   switch (action.kind) {
     case 'backlog': {
+      // A reconnect's backlog replaces the held items; a bubble not echoed yet stays after them.
+      const pending: ChatItem[] = settlePending(state.items.filter(isPending), action.items);
       const kept = capped(action.items, MAX_ITEMS);
       return {
-        items: kept.items,
+        items: [...kept.items, ...pending],
         dropped: action.dropped + kept.dropped,
         phase: 'live',
         reason: null,
       };
     }
     case 'items': {
-      const kept = capped(appendItems(state.items, action.items), MAX_ITEMS);
+      const settled: ChatItem[] = settlePending(state.items, action.items);
+      const kept = capped(pendingLast(appendItems(settled, action.items)), MAX_ITEMS);
       return { ...state, items: kept.items, dropped: state.dropped + kept.dropped };
     }
+    case 'pending':
+      return { ...state, items: [...state.items, action.item] };
+    case 'unsent':
+      return {
+        ...state,
+        items: state.items.filter((item: ChatItem): boolean => item.id !== action.id),
+      };
     case 'unavailable':
       // Rows already on screen stay; only an empty chat says why it is empty.
       return {
@@ -193,6 +251,63 @@ export const clockTime = (ts: string): string => {
     ? ''
     : at.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 };
+
+/* ---------------------------------------------------------------- message box */
+
+/**
+ * Whether the message box takes a message, in the order a person would want to hear it: the
+ * session is over, the socket is down, a question waits, a send is on its way, Claude is
+ * busy or in a dialog. `idle` and `done` are the two states herdr means "at the prompt". The
+ * API is the real gate (409 when not); this one only keeps the box honest. Pure.
+ */
+export const composerGate = ({
+  status,
+  phase,
+  asked,
+  connected,
+  sending,
+}: ComposerInput): ComposerGate => {
+  if (phase === 'ended') return { enabled: false, reason: 'The session has ended.' };
+  if (!connected) return { enabled: false, reason: 'Live connection is down. Reconnecting…' };
+  if (asked) {
+    return { enabled: false, reason: 'Claude is waiting for your answer. Use the question card.' };
+  }
+  if (sending) return { enabled: false, reason: 'Sending…' };
+  switch (status) {
+    case 'idle':
+    case 'done':
+      return { enabled: true, reason: null };
+    case 'working':
+      return { enabled: false, reason: 'Claude is working. The box opens when the turn ends.' };
+    case 'blocked':
+      return {
+        enabled: false,
+        reason: 'Claude is waiting in the terminal. Answer there (herdr session attach).',
+      };
+    default:
+      return { enabled: false, reason: 'Waiting for Claude to be ready…' };
+  }
+};
+
+/**
+ * Enter alone sends; Shift+Enter (and Ctrl/Alt/Meta+Enter) puts a newline; an Enter that
+ * ends an IME composition is neither. A paste never comes through here, so a newline inside
+ * pasted text cannot submit. Pure.
+ */
+export const isSendKey = (key: {
+  key: string;
+  shiftKey: boolean;
+  ctrlKey: boolean;
+  altKey: boolean;
+  metaKey: boolean;
+  isComposing: boolean;
+}): boolean =>
+  key.key === 'Enter' &&
+  !key.shiftKey &&
+  !key.ctrlKey &&
+  !key.altKey &&
+  !key.metaKey &&
+  !key.isComposing;
 
 /** Close enough to the bottom to keep following new rows. Pure. */
 export const isNearBottom = (

@@ -5,6 +5,8 @@ export interface FileInfo {
   isFile: boolean;
   isDirectory: boolean;
   size: number;
+  /** Last modification, ms since the epoch: what the live sweep compares. */
+  mtimeMs: number;
 }
 
 export interface LinkInfo {

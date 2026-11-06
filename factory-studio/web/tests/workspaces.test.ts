@@ -28,14 +28,12 @@ const data: DashboardData = {
 const feed: RunsFeed = {
   data,
   source: 'live',
-  updatedAt: 0,
   settled: true,
-  refreshing: false,
-  error: null,
   invalid: false,
   invalidIssues: [],
   dropped: [],
-  refresh: (): void => undefined,
+  connection: 'open',
+  resync: (): void => undefined,
   forget: (): void => undefined,
 };
 
@@ -85,7 +83,7 @@ describe('filterFeed', () => {
     expect(Object.keys(shown.data.pipelines).sort()).toEqual(['beta', 'gamma']);
     expect(shown.data.pipelines.beta).toBe(data.pipelines.beta);
     expect(shown.data.generatedAt).toBe(data.generatedAt);
-    expect(shown.refresh).toBe(feed.refresh);
+    expect(shown.resync).toBe(feed.resync);
     expect(shown.forget).toBe(feed.forget);
     expect(feed.data.runs).toHaveLength(4);
   });

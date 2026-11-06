@@ -5,9 +5,9 @@ export interface ResolveQuestionSettings {
 }
 
 /**
- * PostToolUse: Claude got an answer. When the question is still pending here, it was answered
+ * PostToolUse: Claude got an answer. When the question is still held here, it was answered
  * in the terminal (or by another path): settle it as `terminal`, which clears it from every
- * client. Already settled: nothing to do.
+ * client and ends the record on disk. Already settled: nothing to do.
  */
 export const resolveQuestionFactory =
   ({ store }: ResolveQuestionSettings) =>

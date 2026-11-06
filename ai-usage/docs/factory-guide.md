@@ -46,9 +46,12 @@ Or run `ai-usage ingest` yourself whenever you want fresh numbers. It is idempot
 - **orchestrator** is the main harness itself: reading state, spawning steps, waiting. On Claude it
   runs on the most expensive model and is often the biggest line.
 - **attribution** says how the step was matched: `session-id` (the run recorded the provider session
-  the step ran in — exact), then the guesses, `prompt-ref` (the subagent's prompt named the step's
-  output path), `agent+window`, `window`, or `none`. A run driven by `pipeline-runner` should read
-  `session-id` on every agent step; anything weaker there means a session id went unrecorded.
+  the step ran in — exact), then the guesses, ranked by time fit inside the step's pass windows and then
+  by evidence: `output-file` (the subagent wrote into the step's output folder), `prompt-ref` (its task
+  named the step's folder or its description named the step), `agent+window`, `window`, or `none`. A run
+  driven by `pipeline-runner` should read `session-id` on every agent step; a run driven by the
+  any-factory runner links its orchestrator session by `PIPELINE_INIT.details.sessionId` and should read
+  `output-file` or `prompt-ref` on every step. Nested subagents inherit their parent's step at any depth.
 - **unattributed** is usage inside the run window that matched no step. It is never hidden inside
   a step.
 
@@ -69,7 +72,8 @@ This repo tracks the cost of every pipeline run with the `ai-usage` tool in fact
 Set it up: run `npm run setup` inside factories-tools/ai-usage (or `task cost:init`), then `task cost:report`. Confirm that run/**/cost.json exists for
 the latest run and that every completed agent step has a cost line. If a step shows attribution
 `none` or usage lands in `unattributed`, read factories-tools/ai-usage/src/features/factory/attribute-run-cost.ts
-and explain which rule failed (session-id, prompt-ref, agent+window, window) before changing anything.
+and explain which rule failed (session-id, output-file, prompt-ref, agent+window, window) and what the
+run's `notes` say before changing anything.
 Never edit .state.json or cost.json by hand; they are generated.
 ```
 

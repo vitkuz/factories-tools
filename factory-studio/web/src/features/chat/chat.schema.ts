@@ -59,3 +59,10 @@ export const chatUnsubscribeMessageSchema = z.object({
 
 /** `GET /sessions/:id/chat/items/:itemId?ref=`: one item, uncut. */
 export const chatItemResponseSchema = z.object({ item: chatItemSchema });
+
+/** `POST /sessions/:id/messages`: herdr took the text; `started` says Claude was seen working. */
+export const sentMessageSchema = z.object({
+  ok: z.literal(true),
+  sessionId: z.string(),
+  started: z.boolean(),
+});

@@ -39,6 +39,14 @@ export interface RunRecord {
   pipeline?: DiscoveredPipeline;
 }
 
+/** One run folder read on its own (the live feed): the record, or why there is none. */
+export type RunRecordRead =
+  | { kind: 'record'; run: RunRecord }
+  /** No such folder any more (removed, moved to `.trash`). */
+  | { kind: 'gone' }
+  /** The folder is there but its `state.json` does not parse; the list skips it too. */
+  | { kind: 'unreadable' };
+
 export interface RunsPayload {
   generatedAt: string;
   pipelines: Record<string, DiscoveredPipeline>;

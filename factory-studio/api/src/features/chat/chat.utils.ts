@@ -213,8 +213,22 @@ const commandText = (text: string): string | null => {
   return `${name.startsWith('/') ? name : `/${name}`}${args === '' ? '' : ` ${args}`}`;
 };
 
+/**
+ * A multi-line prompt pasted into Claude Code (the studio's own message box sends every
+ * message as a paste) is recorded wrapped in `<pasted_content id="…">…</pasted_content>`;
+ * the person typed the inside. Pure.
+ */
+export const unwrapPastedContent = (text: string): string =>
+  text.includes('<pasted_content')
+    ? text
+        .replace(/<pasted_content[^>]*>\n?/g, '')
+        .replace(/\n?<\/pasted_content[^>]*>/g, '')
+        .trim()
+    : text;
+
 /** A string the user record carries: a command, a background task notice, local output, or words. */
-const userStringDraft = (text: string, ctx: MapContext): Draft | null => {
+const userStringDraft = (raw: string, ctx: MapContext): Draft | null => {
+  const text: string = unwrapPastedContent(raw);
   const command: string | null = commandText(text);
   if (command !== null) return { kind: 'user', text: command };
   if (text.includes('<task-notification>')) {

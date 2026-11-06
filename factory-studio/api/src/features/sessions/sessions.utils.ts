@@ -9,6 +9,7 @@ import type {
   ResolveParamsResult,
   ResolvedParam,
   SessionMeta,
+  SessionStatus,
 } from './sessions.types.js';
 
 export const SESSION_PREFIX = 'factory-';
@@ -214,6 +215,14 @@ export const shellQuote = (value: string): string => `'${value.replace(/'/g, `'\
 export const settingsFileName = (session: string): string => `${session}.settings.json`;
 
 /**
+ * How long the PreToolUse hook may hold a question for the app: a run may wait for a person
+ * for days. Seven days, in seconds; it must stay under Node's timer limit (2^31-1 ms, about
+ * 24.8 days), past which Claude Code's timer would fire at once. After this Claude opens its
+ * own dialog in the pane.
+ */
+export const QUESTION_HOOK_TIMEOUT_S = 7 * 24 * 3600;
+
+/**
  * Every hook runs the same script; it tells them apart by `hook_event_name` on stdin.
  * SessionStart reports the transcript path (for the live chat), the two on AskUserQuestion
  * carry the question to the app and back.
@@ -227,7 +236,10 @@ export const buildHookSettings = (
     hooks: {
       SessionStart: [{ hooks: [{ type: 'command', command, timeout: 15 }] }],
       PreToolUse: [
-        { matcher: 'AskUserQuestion', hooks: [{ type: 'command', command, timeout: 3600 }] },
+        {
+          matcher: 'AskUserQuestion',
+          hooks: [{ type: 'command', command, timeout: QUESTION_HOOK_TIMEOUT_S }],
+        },
       ],
       PostToolUse: [{ matcher: 'AskUserQuestion', hooks: [{ type: 'command', command }] }],
     },
@@ -239,3 +251,11 @@ export const buildSessionEnv = (
   base: Readonly<Record<string, string>>,
   session: string,
 ): Record<string, string> => ({ ...base, STUDIO_SESSION_ID: session });
+
+/**
+ * Can the session take a typed message now? herdr's `idle` and `done` both mean the agent
+ * sits at its prompt; `working` would queue the text behind the turn, `blocked` would feed
+ * it to a dialog, `unknown` is no proof of anything. Pure.
+ */
+export const acceptsMessage = (status: SessionStatus | undefined): boolean =>
+  status === 'idle' || status === 'done';

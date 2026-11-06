@@ -188,6 +188,15 @@ export const providerUnitSchema = z.looseObject({
   amount: z.number(),
 });
 
+/** One model's share of a bucket, from the usage records: which model did how much of the work. */
+export const modelCostSchema = z.looseObject({
+  model: z.string(),
+  requestCount: z.number().default(0),
+  totals: usageTotalsSchema.optional(),
+  estimatedListPriceUsd: z.number().optional(),
+  unpricedTokens: z.number().optional(),
+});
+
 /** Money plus usage for one bucket: the whole run, the orchestrator, a step. */
 export const costBucketSchema = z.looseObject({
   requestCount: z.number().default(0),
@@ -197,6 +206,8 @@ export const costBucketSchema = z.looseObject({
   /** How much to trust the money: `local-estimate`, `provider-reported`, `unknown`. */
   certainty: z.string().optional(),
   unpricedTokens: z.number().optional(),
+  /** Per model, most tokens first; older cost.json files have none. */
+  byModel: z.array(modelCostSchema).default([]),
 });
 
 /** An agent that did work inside a step — the step's own agent, or one it spawned. */

@@ -3,6 +3,8 @@ import type { ParamValue } from '../pipelines/pipelines.types.js';
 import type {
   harnessSchema,
   replySessionPayloadSchema,
+  sendMessagePayloadSchema,
+  sessionIdParamsSchema,
   sessionMetaSchema,
   sessionStatusSchema,
   startSessionPayloadSchema,
@@ -13,6 +15,8 @@ export type Harness = z.infer<typeof harnessSchema>;
 export type StartSessionPayload = z.infer<typeof startSessionPayloadSchema>;
 export type StopSessionPayload = z.infer<typeof stopSessionPayloadSchema>;
 export type ReplySessionPayload = z.infer<typeof replySessionPayloadSchema>;
+export type SendMessagePayload = z.infer<typeof sendMessagePayloadSchema>;
+export type SessionIdParams = z.infer<typeof sessionIdParamsSchema>;
 export type SessionMeta = z.infer<typeof sessionMetaSchema>;
 export type SessionStatus = z.infer<typeof sessionStatusSchema>;
 
@@ -86,6 +90,22 @@ export interface StartSessionArgs {
 
 export type ReplySessionResult = { ok: true } | { ok: false; reason: 'not-found' };
 
+/**
+ * What sending a chat message to a session came to. `started: false`: herdr wrote the text
+ * and Enter but did not see Claude start a turn in time; the person should look at the pane.
+ */
+export type SendMessageResult =
+  | { ok: true; started: boolean }
+  | { ok: false; reason: 'not-found' }
+  /** Another message to this session is on its way: the double send guard. */
+  | { ok: false; reason: 'in-flight' }
+  /** Claude asked a question the studio holds; the answer goes through the question card. */
+  | { ok: false; reason: 'question' }
+  /** herdr reports the session is not ready for input (working, blocked, unknown). */
+  | { ok: false; reason: 'not-idle'; status: SessionStatus }
+  /** herdr refused or failed: `agent_blocked` for a dialog open in the pane, else a fault. */
+  | { ok: false; reason: 'herdr'; code: string; message: string };
+
 /** What `server.ts` hands the routes. */
 export interface SessionUsecases {
   startFactorySession: (payload: StartSessionPayload) => Promise<StartFactoryResult>;
@@ -93,4 +113,6 @@ export interface SessionUsecases {
   stopSession: (target: string) => Promise<StopSessionResult>;
   /** Types `text` and Enter into the pane of the session named `sessionId`. */
   replySession: (sessionId: string, text: string) => Promise<ReplySessionResult>;
+  /** A chat message to an idle session; refused while it works, waits, or is being sent to. */
+  sendMessage: (sessionId: string, text: string) => Promise<SendMessageResult>;
 }

@@ -9,3 +9,8 @@ export const systemMemorySchema = z.object({
   loadAverage: z.array(z.number()),
   cpuCount: z.number(),
 });
+
+/** The `system` topic of the socket: the same reading, pushed every few seconds. */
+export const systemMemoryMessageSchema = systemMemorySchema.extend({
+  type: z.literal('system.memory'),
+});

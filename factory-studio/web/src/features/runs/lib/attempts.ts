@@ -114,6 +114,18 @@ export const runWorkingTimeMs =
     }, null);
   };
 
+/** Time the run spent waiting for people: every wait attempt of every human gate (an open one to `now`). */
+export const humanWaitMs =
+  (state: RunState | null) =>
+  (now: number): number =>
+    Object.keys(state?.steps ?? {}).reduce(
+      (total: number, slug: string): number =>
+        attemptsOf(state)(slug)
+          .filter((a: Attempt): boolean => a.kind === 'wait')
+          .reduce((t: number, a: Attempt): number => t + (attemptSpanMs(a, now) ?? 0), total),
+      0,
+    );
+
 /** The [start, end] span of every work attempt with a start time (an open one ends at `now`). */
 const workSpans = (attempts: readonly Attempt[], now: number): Array<[number, number]> =>
   attempts.flatMap((a: Attempt): Array<[number, number]> => {

@@ -15,16 +15,19 @@ import type {
   ClaudeAgentLink,
   ClaudeTranscriptRecord,
 } from "./claude.types.js";
+import { asString, isRecord } from "../adapter.utils.js";
 import {
   CLAUDE_PROVIDER,
   claudeRunId,
   extractAgentToolResult,
   extractAgentToolUses,
   extractPromptRefs,
+  extractWrittenPaths,
   firstUserPromptText,
   linkToActorFact,
   transcriptRecordToEvent,
 } from "./claude.utils.js";
+import type { ClaudeAgentMeta } from "./claude.types.js";
 
 export type ClaudeSessionFiles = {
   sessionId: string;
@@ -101,6 +104,51 @@ const readAll = async (file: string): Promise<ClaudeTranscriptRecord[]> => {
   return parseJsonLines<ClaudeTranscriptRecord>(chunk.lines);
 };
 
+/**
+ * Claude Code writes `agent-<id>.meta.json` next to every subagent transcript (since 2.1.x): the
+ * agent type, description, model and — for a nested agent — `parentAgentId`. It is the authoritative
+ * parent link: a tool_result in the parent's transcript appears only once the child has returned.
+ */
+const readAgentMeta = async (agentFile: string): Promise<ClaudeAgentMeta | null> => {
+  const metaFile: string = agentFile.replace(/\.jsonl$/, ".meta.json");
+  if (!(await fileExists(metaFile))) return null;
+  try {
+    const raw: unknown = JSON.parse(await fsp.readFile(metaFile, "utf8"));
+    if (!isRecord(raw)) return null;
+    return {
+      ...(asString(raw.agentType) ? { agentType: asString(raw.agentType) } : {}),
+      ...(asString(raw.description) ? { description: asString(raw.description) } : {}),
+      ...(asString(raw.toolUseId) ? { toolUseId: asString(raw.toolUseId) } : {}),
+      ...(asString(raw.parentAgentId) ? { parentAgentId: asString(raw.parentAgentId) } : {}),
+      ...(typeof raw.spawnDepth === "number" ? { spawnDepth: raw.spawnDepth } : {}),
+      ...(asString(raw.model) ? { model: asString(raw.model) } : {}),
+      ...(typeof raw.finished === "boolean" ? { finished: raw.finished } : {}),
+    };
+  } catch {
+    return null;
+  }
+};
+
+/**
+ * One link per subagent transcript: the meta file's parent and name first, the Agent tool_result
+ * scan second, and — for an agent whose parent never recorded a result (still running, killed) —
+ * the main conversation as parent, so no transcript is left without an actor.
+ */
+const mergeLink = (
+  agentId: string,
+  meta: ClaudeAgentMeta | null,
+  scanned: ClaudeAgentLink | undefined,
+): ClaudeAgentLink => ({
+  agentId,
+  parentActorId: meta?.parentAgentId ?? scanned?.parentActorId ?? MAIN_ACTOR_ID,
+  name: meta?.agentType ?? scanned?.name ?? "agent",
+  ...((meta?.description ?? scanned?.description)
+    ? { description: meta?.description ?? scanned?.description }
+    : {}),
+  ...((scanned?.model ?? meta?.model) ? { model: scanned?.model ?? meta?.model } : {}),
+  ...(scanned?.startedAt ? { startedAt: scanned.startedAt } : {}),
+});
+
 const matchesProject = (cwd: string | undefined, filter: string[] | undefined): boolean =>
   !filter ||
   filter.length === 0 ||
@@ -148,16 +196,24 @@ export const readClaudeTranscripts = async (
       fullRecords.set(file, records);
       scanLinks(records, fileActorIdOf(file), scan);
     }
-    scan.links.forEach((link: ClaudeAgentLink): void => {
-      const agentFile: string | undefined = allFiles.find(
-        (f: string): boolean => fileActorIdOf(f) === link.agentId,
+    // Every subagent with a transcript gets a link, whether or not its parent recorded a result.
+    const agentIds: string[] = Array.from(
+      new Set<string>([...session.subagentFiles.map(fileActorIdOf), ...scan.links.keys()]),
+    );
+    for (const agentId of agentIds) {
+      const agentFile: string | undefined = session.subagentFiles.find(
+        (f: string): boolean => fileActorIdOf(f) === agentId,
       );
+      const meta: ClaudeAgentMeta | null = agentFile ? await readAgentMeta(agentFile) : null;
+      const link: ClaudeAgentLink = mergeLink(agentId, meta, scan.links.get(agentId));
+      scan.links.set(agentId, link);
       const records: ClaudeTranscriptRecord[] = agentFile ? (fullRecords.get(agentFile) ?? []) : [];
       const timestamps: string[] = records
         .map((r: ClaudeTranscriptRecord): string => r.timestamp ?? "")
         .filter(Boolean)
         .sort();
       const refs: string[] = extractPromptRefs(firstUserPromptText(records));
+      const writes: string[] = extractWrittenPaths(records);
       const enriched: ClaudeAgentLink = {
         ...link,
         ...(!link.startedAt && timestamps[0] ? { startedAt: timestamps[0] } : {}),
@@ -165,9 +221,10 @@ export const readClaudeTranscripts = async (
           ? { endedAt: timestamps[timestamps.length - 1] }
           : {}),
         ...(refs.length > 0 ? { refs } : {}),
+        ...(writes.length > 0 ? { writes } : {}),
       };
       actors.push(linkToActorFact(session.sessionId, enriched));
-    });
+    }
 
     // Phase 2: incremental usage from each file offset.
     let runRecorded = false;

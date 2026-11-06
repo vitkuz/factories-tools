@@ -26,6 +26,10 @@ import {
   type TextStats,
 } from './highlight.utils';
 import { formatBytes } from '../../features/runs/lib/format';
+import { touchesDocument } from '../../features/runs/runs-feed.utils';
+import { useQuestions } from '../../features/sessions/hooks/use-questions';
+import type { SessionQuestions } from '../../features/sessions/hooks/use-session-questions';
+import type { ServerMessage } from '../../features/sessions/sessions.types';
 import { copyText } from '../lib/clipboard';
 import { displayDocPath, pathBasename } from '../graph/text';
 
@@ -423,6 +427,24 @@ export default function DocModal({ doc, editable, canBack, onBack, onClose, onOp
     if (!confirmDiscard()) return;
     setReloadKey((key: number): number => key + 1);
   };
+
+  // A run document follows the file: when the server's watcher names this path (a step wrote
+  // it, a save in another tab), the reading modes fetch it again. The editor is never
+  // interrupted — a save then meets the usual 409 with Reload / Overwrite.
+  const { channel }: SessionQuestions = useQuestions();
+  const modeRef = useRef<Mode>(mode);
+  modeRef.current = mode;
+  useEffect((): (() => void) | void => {
+    if (doc.scope !== 'run') return;
+    const ref: { pipelineId: string; runId: string } = {
+      pipelineId: doc.pipelineId,
+      runId: doc.runId,
+    };
+    return channel.listen((message: ServerMessage): void => {
+      if (message.type !== 'run.changed' || modeRef.current === 'edit') return;
+      if (touchesDocument(message, ref, doc.path)) setReloadKey((key: number): number => key + 1);
+    });
+  }, [channel, doc]);
 
   // The editor takes focus when it appears, with the caret at the start of the document.
   useEffect(() => {

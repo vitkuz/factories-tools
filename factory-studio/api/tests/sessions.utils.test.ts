@@ -135,7 +135,7 @@ describe('hook settings', () => {
     };
     const command = `'/opt/node 22/bin/node' '/srv/api/hooks/h.mjs'`;
     expect(settings.hooks.PreToolUse).toEqual([
-      { matcher: 'AskUserQuestion', hooks: [{ type: 'command', command, timeout: 3600 }] },
+      { matcher: 'AskUserQuestion', hooks: [{ type: 'command', command, timeout: 604800 }] },
     ]);
     expect(settings.hooks.PostToolUse).toEqual([
       { matcher: 'AskUserQuestion', hooks: [{ type: 'command', command }] },

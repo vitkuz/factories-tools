@@ -26,9 +26,9 @@ export interface WorkspacesState {
   exists: boolean;
   /** The file is there but cannot be read; writes are refused until it is fixed by hand. */
   problem: string | null;
-  /** The first fetch has not answered yet. */
+  /** No list has arrived over the socket yet. */
   loading: boolean;
-  /** The last fetch failed (the API is down, or answered with an unexpected shape). */
+  /** Nothing has ever arrived and the socket is down. */
   error: string | null;
 }
 
@@ -43,7 +43,6 @@ export interface Workspaces extends WorkspacesState {
   /** The id kept in localStorage, even while it is not (or no longer) listed. */
   selectedId: string | null;
   select: (id: string | null) => void;
-  refresh: () => void;
   create: (payload: WorkspacePayload) => Promise<WorkspaceWriteResult>;
   update: (id: string, payload: WorkspacePayload) => Promise<WorkspaceWriteResult>;
   remove: (id: string) => Promise<WorkspaceWriteResult>;

@@ -382,3 +382,444 @@ describe("attribution by the session id the run recorded", () => {
     expect(sessionClaims([runnerRun!]).get("p2")).toBe("harness-smoke/smoke-2026-09-01");
   });
 });
+
+/**
+ * What the any-factory runner records today: one orchestrator session (its id in PIPELINE_INIT),
+ * every pass as STEP_START/STEP_EVENT in the run history, output folders that need not carry the
+ * step's name, and subagents nested several levels deep.
+ */
+const R = (m: number, s = 0): string => new Date(Date.UTC(2026, 10, 1, 15, m, s)).toISOString();
+const kpState = {
+  pipelineName: "kp",
+  status: "COMPLETED",
+  createdAt: R(0),
+  updatedAt: R(16),
+  steps: {
+    "prepare-kp": {
+      order: 2,
+      agent: "general-purpose",
+      status: "COMPLETED",
+      startedAt: R(0),
+      completedAt: R(4),
+      outputs: ["2-prepare-kp/fields.json"],
+      passes: 1,
+    },
+    "check-facts": {
+      order: 3,
+      agent: "general-purpose",
+      status: "COMPLETED",
+      startedAt: R(4),
+      completedAt: R(6),
+      outputs: ["3-check-facts/edit-report-1.md"],
+      passes: 1,
+    },
+    "build-demo": {
+      order: 7,
+      agent: "general-purpose",
+      status: "COMPLETED",
+      startedAt: R(12),
+      completedAt: R(14),
+      outputs: ["7-brand/*", "7-build-demo/index.html"],
+      passes: 2,
+    },
+    "verify-demo-landing": {
+      order: 8,
+      agent: "general-purpose",
+      status: "COMPLETED",
+      startedAt: R(14),
+      completedAt: R(16),
+      outputs: ["7-verify-demo/report-1.md", "7-verify-demo/report-2.md"],
+      passes: 2,
+    },
+    "review-gaps": {
+      order: 5,
+      agent: "human",
+      status: "COMPLETED",
+      startedAt: R(6),
+      completedAt: R(10),
+    },
+  },
+  history: [
+    { timestamp: R(0), type: "PIPELINE_INIT", message: "", details: { sessionId: "orch" } },
+    { timestamp: R(0), type: "STEP_START", step: "prepare-kp", message: "" },
+    {
+      timestamp: R(4),
+      type: "STEP_EVENT",
+      step: "prepare-kp",
+      message: "",
+      details: { event: "DONE" },
+    },
+    { timestamp: R(4), type: "STEP_START", step: "check-facts", message: "" },
+    {
+      timestamp: R(6),
+      type: "STEP_EVENT",
+      step: "check-facts",
+      message: "",
+      details: { event: "PASS" },
+    },
+    { timestamp: R(6), type: "STEP_START", step: "review-gaps", message: "" },
+    { timestamp: R(10), type: "HUMAN_ANSWER", step: "review-gaps", message: "" },
+    { timestamp: R(6), type: "STEP_START", step: "build-demo", message: "" },
+    {
+      timestamp: R(10),
+      type: "STEP_EVENT",
+      step: "build-demo",
+      message: "",
+      details: { event: "DONE" },
+    },
+    { timestamp: R(10), type: "STEP_START", step: "verify-demo-landing", message: "" },
+    {
+      timestamp: R(12),
+      type: "STEP_EVENT",
+      step: "verify-demo-landing",
+      message: "",
+      details: { event: "REVISE" },
+    },
+    { timestamp: R(12), type: "STEP_START", step: "build-demo", message: "", details: { pass: 2 } },
+    {
+      timestamp: R(14),
+      type: "STEP_EVENT",
+      step: "build-demo",
+      message: "",
+      details: { event: "DONE" },
+    },
+    {
+      timestamp: R(14),
+      type: "STEP_START",
+      step: "verify-demo-landing",
+      message: "",
+      details: { pass: 2 },
+    },
+    {
+      timestamp: R(16),
+      type: "STEP_EVENT",
+      step: "verify-demo-landing",
+      message: "",
+      details: { event: "DONE" },
+    },
+    { timestamp: R(16), type: "PIPELINE_COMPLETE", message: "" },
+  ],
+};
+const kpDir = "/f/run/kp/acme-2026-11-01";
+const kpRun = parsePipelineState(kpState, {
+  root: "/f",
+  runDir: kpDir,
+  stateFile: `${kpDir}/state.json`,
+  pipeline: { steps: { "verify-demo-landing": { output: ["7-verify-demo/report-*.md"] } } },
+});
+
+const kpActor = (
+  id: string,
+  from: number,
+  to: number,
+  extra: Partial<ActorFact> = {},
+  runId = "anthropic-claude:orch",
+): ActorFact => ({
+  runId,
+  provider: "anthropic-claude",
+  id,
+  kind: "subagent",
+  name: "general-purpose",
+  parentId: "main",
+  startedAt: R(from, 5),
+  endedAt: R(to, -5),
+  ...extra,
+});
+const kpEv = (
+  key: string,
+  actor: string,
+  minute: number,
+  tokens: number,
+  model: string,
+  runId = "anthropic-claude:orch",
+) =>
+  makeEvent({
+    key,
+    timestamp: R(minute, 30),
+    run: { runId, providerSessionId: runId.split(":")[1] as string, project: "/f" },
+    actor: actor === "main" ? { kind: "main", id: "main" } : { kind: "subagent", id: actor },
+    model: { reported: model },
+    usage: { scope: "request", inputTokens: tokens, outputTokens: 0, totalTokens: tokens },
+    billing: {
+      mode: "subscription",
+      certainty: "local-estimate",
+      estimatedListPriceUsd: tokens / 1e6,
+    },
+  });
+
+describe("reading the runner's state", () => {
+  it("rebuilds every pass window from the run history, the run's own session id, and output folders from outputs and the pipeline snapshot", () => {
+    const step = (n: string) => kpRun!.steps.find((s) => s.name === n)!;
+    expect(kpRun?.sessionIds).toEqual(["orch"]);
+    expect(step("build-demo").windows).toEqual([
+      { from: R(6), to: R(10) },
+      { from: R(12), to: R(14) },
+    ]);
+    expect(step("verify-demo-landing").windows).toHaveLength(2);
+    expect(step("build-demo").outputFolders).toEqual(["7-brand", "7-build-demo"]);
+    expect(step("verify-demo-landing").outputFolders).toEqual(["7-verify-demo"]);
+    expect(sessionClaims([kpRun!]).size).toBe(0); // a run-level id is not a step claim
+  });
+});
+
+describe("attribution inside one orchestrator session", () => {
+  const orchRun = sessionRun("orch");
+  const actors: ActorFact[] = [
+    // prepare-kp: its task lists the NEXT step's folder as an input (the loop's feedback file)
+    kpActor("prep", 0, 4, {
+      description: "prepare-kp for acme",
+      refs: [
+        "run/kp/acme-2026-11-01",
+        "1-get-lead/lead.json",
+        "3-check-facts/edit-report-*.md",
+        "2-prepare-kp/fields.json",
+      ],
+      writes: [`${kpDir}/2-prepare-kp/fields.json`],
+    }),
+    // check-facts edits the previous step's file as well as writing its own report
+    kpActor("check", 4, 6, {
+      description: "check-facts for acme",
+      refs: ["2-prepare-kp/fields.json", "3-check-facts/edit-report-1.md"],
+      writes: [`${kpDir}/3-check-facts/edit-report-1.md`, `${kpDir}/2-prepare-kp/fields.json`],
+    }),
+    kpActor("build1", 6, 10, {
+      description: "build demo acme",
+      refs: ["7-build-demo/index.html", "7-verify-demo/report-*.md"],
+      writes: [`${kpDir}/7-build-demo/index.html`],
+    }),
+    // nested under build1 (depth 2) and under that (depth 3): neither names a step
+    kpActor("brand", 7, 9, {
+      parentId: "build1",
+      description: "capture brand",
+      writes: [`${kpDir}/7-brand/brand.json`],
+    }),
+    kpActor("brand-helper", 8, 9, { parentId: "brand", description: "screenshot" }),
+    // verify pass 1: the folder it writes (7-verify-demo) does not carry the step's name, and its task
+    // names the build folder it reads; no writes recorded
+    kpActor("verify1", 10, 12, {
+      description: "verify demo pass 1",
+      refs: ["7-build-demo/index.html", "6-research/brief.md"],
+    }),
+    kpActor("build2", 12, 14, {
+      description: "build demo revision",
+      refs: ["7-build-demo/index.html", "7-verify-demo/report-1.md"],
+      writes: [`${kpDir}/7-build-demo/index.html`],
+    }),
+    kpActor("verify2", 14, 16, {
+      description: "verify demo pass 2",
+      refs: ["7-build-demo/index.html"],
+      writes: [`${kpDir}/7-verify-demo/report-2.md`],
+    }),
+  ];
+  const events = [
+    kpEv("m0", "main", 0, 100, "claude-opus-5-5"),
+    kpEv("m1", "main", 15, 100, "claude-opus-5-5"),
+    kpEv("m2", "main", 25, 100, "claude-opus-5-5"), // after the run (+3 min slack): not the run's
+    kpEv("p1", "prep", 1, 1000, "claude-sonnet-5-5"),
+    kpEv("c1", "check", 5, 500, "claude-sonnet-5-5"),
+    kpEv("b1", "build1", 7, 2000, "claude-opus-5-5"),
+    kpEv("br1", "brand", 8, 300, "claude-opus-5-5"),
+    kpEv("bh1", "brand-helper", 8, 50, "claude-haiku-5-5"),
+    kpEv("v1", "verify1", 11, 400, "claude-sonnet-5-5"),
+    kpEv("b2", "build2", 13, 800, "claude-opus-5-5"),
+    kpEv("v2", "verify2", 15, 200, "claude-sonnet-5-5"),
+  ];
+  // an interactive session in the same folder at the same time, with a subagent that even names a step folder
+  const other: RunFact = sessionRun("chat");
+  const otherActors: ActorFact[] = [
+    kpActor("dev", 2, 9, { refs: ["2-prepare-kp/fields.json"] }, "anthropic-claude:chat"),
+  ];
+  const otherEvents = [
+    kpEv("x1", "main", 3, 9000, "claude-opus-5-5", "anthropic-claude:chat"),
+    kpEv("x2", "dev", 5, 9000, "claude-opus-5-5", "anthropic-claude:chat"),
+  ];
+
+  const sessions = bundleSessions(
+    "/f",
+    [...events, ...otherEvents],
+    [...actors, ...otherActors],
+    [orchRun, other],
+  );
+  const cost = attributeRunCost(kpRun!, sessions, R(60));
+  const step = (n: string) => cost.steps.find((s) => s.step === n)!;
+
+  it("links the orchestrator session by the id the run recorded and takes no other session", () => {
+    expect(cost.sessions.map((s) => [s.providerSessionId, s.linkedBy])).toEqual([
+      ["orch", "state-session-id"],
+    ]);
+    expect(cost.totals.totals.totalTokens).toBe(
+      200 + 1000 + 500 + 2000 + 300 + 50 + 400 + 800 + 200,
+    );
+    expect(cost.orchestrator.totals.totalTokens).toBe(200);
+    expect(cost.unattributed.requestCount).toBe(0);
+  });
+
+  it("gives a step its own agent even when the task names a later step's folder: the pass window decides", () => {
+    expect(step("prepare-kp").cost.totals.totalTokens).toBe(1000);
+    expect(step("prepare-kp").attribution).toBe("output-file");
+    expect(step("check-facts").cost.totals.totalTokens).toBe(500);
+  });
+
+  it("finds a step whose output folder does not carry its name, and does not hand its agent to the step it read from", () => {
+    expect(step("verify-demo-landing").cost.totals.totalTokens).toBe(400 + 200);
+    expect(
+      step("verify-demo-landing")
+        .actors.map((a) => a.id)
+        .sort(),
+    ).toEqual(["verify1", "verify2"]);
+    expect(
+      step("build-demo")
+        .actors.map((a) => a.id)
+        .sort(),
+    ).toEqual(["brand", "brand-helper", "build1", "build2"]);
+  });
+
+  it("nested subagents at any depth inherit the step of the nearest attributed ancestor", () => {
+    expect(step("build-demo").cost.totals.totalTokens).toBe(2000 + 300 + 50 + 800);
+    expect(step("review-gaps").cost.requestCount).toBe(0);
+  });
+
+  it("splits every block by model, from the usage records", () => {
+    expect(step("build-demo").cost.byModel.map((m) => [m.model, m.totals.totalTokens])).toEqual([
+      ["claude-opus-5-5", 3100],
+      ["claude-haiku-5-5", 50],
+    ]);
+    expect(step("build-demo").models.sort()).toEqual(["claude-haiku-5-5", "claude-opus-5-5"]);
+    expect(cost.orchestrator.byModel).toEqual([
+      expect.objectContaining({ model: "claude-opus-5-5", requestCount: 2 }),
+    ]);
+    const sum = cost.totals.byModel.reduce((n, m) => n + m.totals.totalTokens, 0);
+    expect(sum).toBe(cost.totals.totals.totalTokens);
+  });
+});
+
+describe("a run driven from inside a subagent, readers from elsewhere, earlier attempts", () => {
+  const twoStep = parsePipelineState(
+    {
+      pipelineName: "qr",
+      status: "COMPLETED",
+      createdAt: R(0),
+      updatedAt: R(10),
+      steps: {
+        a: {
+          order: 1,
+          agent: "general-purpose",
+          status: "COMPLETED",
+          startedAt: R(0),
+          completedAt: R(5),
+          outputs: ["1-a/x.md"],
+          passes: 1,
+        },
+        b: {
+          order: 2,
+          agent: "general-purpose",
+          status: "COMPLETED",
+          startedAt: R(5),
+          completedAt: R(10),
+          outputs: ["2-b/y.md"],
+          passes: 1,
+        },
+      },
+    },
+    { root: "/f", runDir: "/f/run/qr/t-2026-11-01", stateFile: "s" },
+  );
+  const dir = "/f/run/qr/t-2026-11-01";
+  const actors: ActorFact[] = [
+    kpActor(
+      "runner",
+      0,
+      10,
+      { description: "run the qr factory", refs: ["run/qr/t-2026-11-01"] },
+      "anthropic-claude:s",
+    ),
+    kpActor(
+      "A",
+      0,
+      5,
+      { parentId: "runner", description: "step a", writes: [`${dir}/1-a/x.md`] },
+      "anthropic-claude:s",
+    ),
+    kpActor(
+      "B",
+      5,
+      10,
+      {
+        parentId: "runner",
+        description: "step b",
+        refs: ["1-a/x.md"],
+        writes: [`${dir}/2-b/y.md`],
+      },
+      "anthropic-claude:s",
+    ),
+    // another factory's step reading this run's output while b runs: wrote nothing here
+    kpActor(
+      "reader",
+      6,
+      9,
+      {
+        description: "KP step 7: demo buyer",
+        refs: ["run/qr/t-2026-11-01", "1-a/x.md", "2-b/y.md"],
+      },
+      "anthropic-claude:s",
+    ),
+    // a step of another run in the same session, by the folders it wrote
+    kpActor(
+      "elsewhere",
+      6,
+      9,
+      { description: "KP step 6", writes: ["6-calc-mediaplan/mediaplan.md"] },
+      "anthropic-claude:s",
+    ),
+    // an earlier attempt in the same run folder, an hour before the recorded run
+    kpActor(
+      "early",
+      -60,
+      -55,
+      { description: "step a", writes: [`${dir}/1-a/x.md`] },
+      "anthropic-claude:s",
+    ),
+  ];
+  const events = [
+    kpEv("r1", "runner", 1, 100, "claude-opus-5-5", "anthropic-claude:s"),
+    kpEv("r2", "runner", 7, 100, "claude-opus-5-5", "anthropic-claude:s"),
+    kpEv("a1", "A", 2, 1000, "claude-sonnet-5-5", "anthropic-claude:s"),
+    kpEv("b1", "B", 7, 2000, "claude-sonnet-5-5", "anthropic-claude:s"),
+    kpEv("rd", "reader", 7, 5000, "claude-opus-5-5", "anthropic-claude:s"),
+    kpEv("el", "elsewhere", 7, 7000, "claude-opus-5-5", "anthropic-claude:s"),
+    kpEv("ea", "early", -58, 300, "claude-sonnet-5-5", "anthropic-claude:s"),
+  ];
+  const cost = attributeRunCost(
+    twoStep!,
+    bundleSessions("/f", events, actors, [sessionRun("s")]),
+    R(60),
+  );
+  const step = (n: string) => cost.steps.find((s) => s.step === n)!;
+
+  it("a subagent whose children did different steps is the orchestrator", () => {
+    expect(step("a").cost.totals.totalTokens).toBe(1000);
+    expect(step("b").cost.totals.totalTokens).toBe(2000);
+    expect(cost.orchestrator.totals.totalTokens).toBe(200);
+    expect(cost.notes).toContain(
+      "subagent run the qr factory drove 2 steps: counted as orchestrator",
+    );
+  });
+
+  it("leaves out a reader of this run's files that fitted no pass, and another run's step, both named in the notes", () => {
+    expect(cost.notes).toContain(
+      "1 subagent(s) only read this run's files and fitted no pass window: left out",
+    );
+    expect(cost.notes).toContain(
+      "1 subagent(s) in this session worked for another run and were left out",
+    );
+    expect(cost.totals.totals.totalTokens).toBe(1000 + 2000 + 200 + 300);
+  });
+
+  it("counts an earlier attempt that wrote into the run folder as unattributed, not as a step", () => {
+    expect(cost.unattributed.totals.totalTokens).toBe(300);
+    expect(
+      cost.notes.some((n) =>
+        n.startsWith("1 subagent(s) wrote into this run's folders outside its window"),
+      ),
+    ).toBe(true);
+  });
+});

@@ -10,6 +10,7 @@ export {
   locateRemovableRunFactory,
   locateRunDirFactory,
   moveRunToTrashFactory,
+  readRunRecordFactory,
 } from './services/index.js';
 export {
   costFileSchema,
@@ -32,6 +33,7 @@ export type {
   RemoveRunResult,
   RemovedRun,
   RunRecord,
+  RunRecordRead,
   RunServices,
   RunStateFile,
   SessionRunLink,

@@ -2,14 +2,34 @@
 /* Tokens. Graphite-blue ground with real tonal steps; chroma = status. */
 /* ------------------------------------------------------------------ */
 
+/* The palette, the layout measures and the type scale every screen uses. The Runs home is the
+   reference: its panels, bars, labels and controls are drawn from these and nothing else. */
 :root {
-  --ground: #151b26;
-  --panel: #1c2432;
-  --raised: #242f40;
-  --line: #334154;
-  --ink: #e9edf2;
-  --ink-2: #9aa6b8;
-  --mask: rgb(21 27 38 / 0.3);
+  /* Surfaces: the page ground, panels on it, controls and table heads between. */
+  --ground: #131b2a;
+  --panel: #1c2537;
+  --raised: #232d42;
+  --control: #232d42;
+  --head-ground: #18212f;
+  --picked: #22304a;
+  --picked-line: #3b4d6e;
+  /* Lines: hairlines between parts, a stronger one round controls, a quieter one between rows. */
+  --line: #2c364a;
+  --line-strong: #3a4560;
+  --row-line: #2a3446;
+  /* The graph keeps its own, lighter hairline: node borders and routes must read on the ground. */
+  --graph-line: #334154;
+  /* Ink: text, quiet text, labels. */
+  --ink: #e8ecf2;
+  --ink-2: #a9b3c4;
+  --ink-3: #c7cfdc;
+  /* Figures: money, tokens, and what runs long or costs most. */
+  --money: #3dd68c;
+  --tokens: #7aa2e3;
+  --hot: #f2b544;
+  --hot-ground: #3d2f12;
+  --hot-row: #222b3e;
+  --mask: rgb(19 27 42 / 0.3);
   /* Focus: how far everything outside the focused card steps back, and how faint a quiet route is. */
   --dim-opacity: 0.25;
   --quiet-opacity: 0.18;
@@ -27,8 +47,63 @@
   --sans: 'IBM Plex Sans', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
 
+  /* Page: the space round the panels and between them, and how wide they grow. */
+  --page-pad-y: 24px;
+  --page-pad-x: 30px;
+  --page-pad-end: 48px;
+  --page-gap: 20px;
+  --page-max: 1540px;
+
+  /* Panels: frame, the roomy padding of a panel's intro, the tighter one of its head row and
+     of a bar, the list inside a panel and the cards in it. */
+  --radius: 10px;
+  --radius-card: 8px;
+  --radius-control: 6px;
+  --border: 1px solid var(--line);
+  --panel-pad-y: 22px;
+  --panel-pad-x: 26px;
+  --head-pad-y: 18px;
+  --head-pad-x: 20px;
+  --bar-pad-y: 14px;
+  --bar-pad-x: 20px;
+  --list-pad: 8px;
+  --list-gap: 6px;
+  --card-pad-y: 14px;
+  --card-pad-x: 16px;
+
+  /* Controls: selects, inputs and buttons in a bar (38) and inside a panel (36). */
+  --control-h: 38px;
+  --control-h-sm: 36px;
+  --control-pad-x: 10px;
+  --button-pad-x: 14px;
+  --button-pad-x-sm: 12px;
+
+  /* Type: hero and panel titles (mono names), figures, body, meta, small, and the label. */
+  --fs-hero: 26px;
+  --fs-title: 20px;
+  --fs-stat: 22px;
+  --fs-stat-sm: 18px;
+  --fs-body: 14px;
+  --fs-meta: 13px;
+  --fs-small: 12px;
+  --fs-label: 12px;
+  --label-weight: 600;
+  --label-track: 0.1em;
+  --label-track-tight: 0.08em;
+
   color-scheme: dark;
   font-family: var(--sans);
+}
+
+/* A narrow screen keeps the same system with tighter margins. */
+@media (max-width: 900px) {
+  :root {
+    --page-pad-y: 16px;
+    --page-pad-x: 16px;
+    --page-pad-end: 16px;
+    --page-gap: 16px;
+    --panel-pad-x: 18px;
+  }
 }
 
 * {
@@ -62,6 +137,260 @@ select {
 .mono {
   font-family: var(--mono);
   font-size: 0.93em;
+}
+
+/* Every inner scroller is a containing block, for the same reason as .page (below): an
+   absolutely placed child must scroll with it, not stretch the document. */
+.inspector-scroll,
+.timeline-wrap,
+.runs-sidebar-list,
+.chat-scroll {
+  position: relative;
+}
+
+/* ------------------------------------------------------------------ */
+/* Shared surfaces: the page, panels, bars, labels and controls. Every  */
+/* screen builds from these, so padding, gaps, radii and type match.    */
+/* ------------------------------------------------------------------ */
+
+/* A screen's scrolling page: the same margins and the same gap between panels everywhere. */
+.page {
+  /* the containing block of what sits absolutely inside it (the visually hidden labels), so
+     nothing escapes the page's own scroll and stretches the document: one scrollbar only */
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: var(--page-pad-y) var(--page-pad-x) var(--page-pad-end);
+  display: flex;
+  flex-direction: column;
+  gap: var(--page-gap);
+  background: var(--ground);
+  color: var(--ink);
+}
+
+/* Every block keeps its height: the page scrolls, a panel never squeezes. */
+.page > * {
+  flex: 0 0 auto;
+  width: 100%;
+  max-width: var(--page-max);
+}
+
+.panel {
+  min-width: 0;
+  background: var(--panel);
+  border: var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+}
+
+/* A panel's head row: its label on the left, a note or a count on the right, a hairline under. */
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: var(--head-pad-y) var(--head-pad-x);
+  border-bottom: var(--border);
+}
+
+/* A panel's intro: the label over a title, a note on the right; roomier than a head row. */
+.panel-intro {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px 16px;
+  padding: var(--panel-pad-y) var(--panel-pad-x);
+}
+
+.panel-intro-title {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 0;
+}
+
+.panel-body {
+  padding: var(--panel-pad-y) var(--panel-pad-x);
+}
+
+/* The quiet note in a head row or an intro ("sorted by start", "Last run Nov 1"). */
+.panel-note {
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+
+/* The panel title: an id or a name, in mono. */
+.panel-name {
+  margin: 0;
+  font: 600 var(--fs-title)/1.3 var(--mono);
+  overflow-wrap: anywhere;
+}
+
+/* The label: FACTORY, PIPELINE, RUNS — small, upper case, letter-spaced. */
+.kicker {
+  margin: 0;
+  font-size: var(--fs-label);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--ink-3);
+}
+
+/* A bar: one row of labelled controls in a panel frame (the factory bar). */
+.bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px 16px;
+  padding: var(--bar-pad-y) var(--bar-pad-x);
+  background: var(--panel);
+  border: var(--border);
+  border-radius: var(--radius);
+}
+
+.bar-field {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.bar-rule {
+  width: 1px;
+  height: 28px;
+  background: var(--line);
+}
+
+.bar-fill {
+  flex: 1 1 auto;
+}
+
+/* A select or an input: one height, one frame, one type size on every screen. */
+.control {
+  min-width: 0;
+  height: var(--control-h);
+  max-width: 100%;
+  padding: 0 var(--control-pad-x);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--ground);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-body);
+}
+
+select.control {
+  cursor: pointer;
+}
+
+textarea.control {
+  height: auto;
+  min-height: var(--control-h);
+  padding: 8px var(--control-pad-x);
+  line-height: 20px;
+}
+
+.control::placeholder {
+  color: var(--ink-2);
+}
+
+.control:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.control:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+/* A mono control: ids and names (pipelines, factories). */
+.control.is-mono {
+  font-family: var(--mono);
+  font-weight: 500;
+}
+
+/* Buttons: a quiet control-toned one by default; primary, warn and danger for the few that act.
+   36 px inside a panel, 38 px in a bar (.btn--bar). */
+.btn {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  min-height: var(--control-h-sm);
+  padding: 0 var(--button-pad-x-sm);
+  background: var(--control);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-meta);
+  font-weight: 500;
+  line-height: 1.2;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.btn--bar {
+  min-height: var(--control-h);
+  padding: 0 var(--button-pad-x);
+  font-size: var(--fs-body);
+}
+
+.btn:hover:not(:disabled) {
+  border-color: var(--ink-2);
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 1px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.btn--primary {
+  background: var(--st-running);
+  border-color: var(--st-running);
+  color: #000;
+  font-weight: 600;
+}
+
+.btn--primary:hover:not(:disabled) {
+  border-color: var(--ink);
+}
+
+.btn--warn {
+  background: var(--st-waiting);
+  border-color: var(--st-waiting);
+  color: #000;
+  font-weight: 600;
+}
+
+.btn--danger {
+  background: transparent;
+  border-color: color-mix(in srgb, var(--st-failed) 55%, var(--ground));
+  color: color-mix(in srgb, var(--st-failed) 70%, var(--ink));
+  font-weight: 600;
+}
+
+.btn--danger:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--st-failed) 75%, var(--ground));
+  background: color-mix(in srgb, var(--st-failed) 18%, transparent);
+}
+
+/* A quiet empty state inside a panel. */
+.panel-empty {
+  margin: 0;
+  padding: var(--head-pad-y) var(--panel-pad-x);
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
 }
 
 /* The shell: the sidebar down the left edge, the body (top bar over the screen) beside it. */
@@ -112,38 +441,12 @@ select {
   border-left: 1px solid var(--line);
 }
 
-/* The workspace picker, between the tabs and the slot, set off the tabs by a hairline. */
+/* The workspace picker, in the factory bar of Runs and Sessions: its label, the select, Manage. */
 .workspace-picker {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   gap: 8px;
-  align-self: stretch;
-  padding-left: 16px;
-  border-left: 1px solid var(--line);
-}
-
-.workspace-select {
-  height: 28px;
-  max-width: 200px;
-  padding: 0 8px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--ground);
-  color: var(--ink);
-  font-size: 13px;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.workspace-select:focus-visible {
-  outline: 2px solid var(--ink);
-  outline-offset: 1px;
-}
-
-.workspace-select:disabled {
-  opacity: 0.6;
-  cursor: default;
 }
 
 .workspace-flag {
@@ -264,10 +567,15 @@ select {
 /* Main split                                                            */
 /* ------------------------------------------------------------------ */
 
+/* The run page: the page margins round two panels, the tabbed run on the left and the inspector
+   on the right, the panel gap between. The page does not scroll; the panels do. */
 .main {
   flex: 1;
   display: flex;
+  gap: var(--page-gap);
   min-height: 0;
+  padding: var(--page-pad-y) var(--page-pad-x);
+  background: var(--ground);
 }
 
 /* the tab bar over the active tab: Graph fills the column, Timeline scrolls in it; the inspector stays put */
@@ -277,9 +585,15 @@ select {
   min-height: 0;
   display: flex;
   flex-direction: column;
+  background: var(--panel);
+  border: var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .graph-wrap {
+  /* the graph keeps its lighter hairline (see the tokens) */
+  --line: var(--graph-line);
   flex: 0 0 auto;
   height: clamp(360px, 60vh, 760px);
   min-width: 0;
@@ -300,24 +614,28 @@ select {
   overflow: auto;
 }
 
+/* The tabs are the panel's head row: its labels, the chosen one underlined. */
 .run-tabs {
   flex: 0 0 auto;
   display: flex;
   align-items: stretch;
-  gap: 4px;
-  padding: 0 16px;
-  border-bottom: 1px solid var(--line);
+  gap: 24px;
+  min-height: 56px;
+  padding: 0 var(--head-pad-x);
+  border-bottom: var(--border);
   background: var(--panel);
 }
 
 .run-tab {
   margin: 0 0 -1px;
-  padding: 9px 12px 8px;
+  padding: 0;
   background: none;
   border: 0;
   border-bottom: 2px solid transparent;
-  font-size: 13px;
-  font-weight: 500;
+  font-size: var(--fs-label);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
   color: var(--ink-2);
   cursor: pointer;
 }
@@ -338,25 +656,27 @@ select {
 }
 
 .inspector {
-  width: clamp(300px, 24vw, 352px);
+  width: clamp(320px, 26vw, 400px);
   flex: 0 0 auto;
   display: flex;
   flex-direction: column;
   min-height: 0;
-  border-left: 1px solid var(--line);
   background: var(--panel);
+  border: var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
 }
 
 .inspector-scroll {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
-  padding: 0 20px;
+  padding: 0 var(--head-pad-x);
 }
 
 .pane {
-  padding: 18px 0;
-  border-bottom: 1px solid var(--line);
+  padding: var(--head-pad-y) 0;
+  border-bottom: var(--border);
 }
 
 .pane:last-child {
@@ -377,13 +697,12 @@ select {
   gap: 12px;
 }
 
+/* the run id, as the Runs home names a run: the panel title in mono */
 .run-head h2 {
   margin: 0;
   min-width: 0;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.25;
-  overflow-wrap: break-word; /* breaks after "-" first */
+  font: 600 var(--fs-title)/1.3 var(--mono);
+  overflow-wrap: anywhere;
 }
 
 .run-head .status-badge {
@@ -440,19 +759,22 @@ select {
   overflow: hidden;
 }
 
+/* the step id, in mono like every step name */
 .pane-title {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
-  line-height: 1.25;
+  font: 600 var(--fs-stat-sm)/1.3 var(--mono);
+  overflow-wrap: anywhere;
 }
 
+/* a section of the inspector: the shared label */
 .sub-title {
-  margin: 16px 0 0;
-  font-size: 13px;
-  font-weight: 600;
+  margin: 20px 0 0;
+  font-size: var(--fs-label);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
   line-height: 1.3;
-  color: var(--ink-2);
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
 .step-sub {
@@ -466,8 +788,8 @@ select {
   grid-template-columns: 7.5rem minmax(0, 1fr);
   column-gap: 12px;
   row-gap: 6px;
-  margin: 16px 0 0;
-  font-size: 13px;
+  margin: 12px 0 0;
+  font-size: var(--fs-meta);
   line-height: 1.45;
 }
 
@@ -832,16 +1154,6 @@ select {
   align-items: center;
   gap: 16px;
   flex: 0 0 auto;
-}
-
-.feed-detail {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.feed-bar .feed-detail {
-  font-size: 13px;
-  color: var(--ink-2);
 }
 
 .feed-bar .feed-refresh {
@@ -1896,14 +2208,14 @@ dt .folder-actions {
   padding: 0;
   background: var(--panel);
   color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: var(--border);
+  border-radius: var(--radius);
   box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
   overflow: hidden;
 }
 
 .doc-dialog::backdrop {
-  background: rgb(21 27 38 / 0.7);
+  background: rgb(19 27 42 / 0.7);
 }
 
 /* a one-paragraph state hugs its sentence, and an image hugs the picture, instead of inheriting
@@ -1927,12 +2239,14 @@ dt .folder-actions {
   min-height: 0;
 }
 
+/* the dialog's head row: as tall as a panel head, its buttons the shared 36 px ones */
 .doc-modal-head {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 10px 14px 10px 16px;
-  border-bottom: 1px solid var(--line);
+  min-height: 56px;
+  padding: 10px var(--head-pad-x);
+  border-bottom: var(--border);
   flex: 0 0 auto;
 }
 
@@ -1980,27 +2294,30 @@ dt .folder-actions {
 }
 
 .doc-mode .doc-modal-btn:first-child {
-  border-radius: 6px 0 0 6px;
+  border-radius: var(--radius-control) 0 0 var(--radius-control);
 }
 
 .doc-mode .doc-modal-btn:last-child {
-  border-radius: 0 6px 6px 0;
+  border-radius: 0 var(--radius-control) var(--radius-control) 0;
   margin-left: -1px;
 }
 
+/* the shared button (.btn) in the dialogs' own tones: quiet until hovered or pressed */
 .doc-modal-btn {
   box-sizing: border-box;
-  min-height: 30px;
-  padding: 0 10px;
+  min-height: var(--control-h-sm);
+  padding: 0 var(--button-pad-x-sm);
   display: inline-flex;
   align-items: center;
   font: inherit;
-  font-size: 12px;
+  font-size: var(--fs-meta);
+  font-weight: 500;
   line-height: 1;
-  color: var(--ink-2);
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  color: var(--ink);
+  background: var(--control);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  white-space: nowrap;
   cursor: pointer;
 }
 
@@ -2010,10 +2327,15 @@ dt .folder-actions {
   position: relative;
 }
 
+.doc-mode .doc-modal-btn[aria-pressed='false'] {
+  color: var(--ink-2);
+  background: var(--panel);
+}
+
 .doc-modal-btn[aria-pressed='true'] {
   color: var(--ink);
-  background: var(--raised);
-  border-color: var(--ink-2);
+  background: var(--picked);
+  border-color: var(--picked-line);
   position: relative;
 }
 
@@ -2028,7 +2350,7 @@ dt .folder-actions {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
-  padding: 24px 40px 32px;
+  padding: var(--panel-pad-y) 40px 32px;
   outline: none;
 }
 
@@ -2184,8 +2506,8 @@ dt .folder-actions {
   padding: 14px 16px;
   color: var(--ink);
   background: var(--ground);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
   font-family: var(--mono);
   font-size: 12px;
   line-height: 1.55;
@@ -2204,7 +2526,7 @@ dt .folder-actions {
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  padding: 16px 24px 24px;
+  padding: var(--head-pad-y) var(--head-pad-x) var(--head-pad-x);
 }
 
 /* a knowledge file: where the save lands and when a running factory sees it */
@@ -2234,14 +2556,17 @@ dt .folder-actions {
   color: var(--st-failed);
 }
 
+/* the dialogs' primary is the shared primary (.btn--primary) */
 .doc-modal-btn.is-primary {
-  color: var(--ground);
-  background: var(--ink);
-  border-color: var(--ink);
+  color: #000;
+  background: var(--st-running);
+  border-color: var(--st-running);
+  font-weight: 600;
 }
 
 .doc-modal-btn.is-primary:hover {
-  color: var(--ground);
+  color: #000;
+  border-color: var(--ink);
 }
 
 .doc-modal-btn:disabled {
@@ -2250,7 +2575,7 @@ dt .folder-actions {
 }
 
 .doc-modal-btn.is-primary:disabled:hover {
-  border-color: var(--ink);
+  border-color: var(--st-running);
 }
 
 /* ---- rendered markdown: quiet Plex Sans prose, chroma stays status-only ---- */
@@ -2482,7 +2807,7 @@ dt .folder-actions {
 
 .timeline {
   max-width: 980px;
-  padding: 20px 24px 28px;
+  padding: var(--panel-pad-y) var(--panel-pad-x) 28px;
 }
 
 .pv-head {
@@ -2496,13 +2821,16 @@ dt .folder-actions {
 
 .pv-title {
   margin: 0;
-  font-size: 16px;
-  font-weight: 600;
+  font-size: var(--fs-label);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
 .pv-meta {
   min-width: 0;
-  font-size: 11px;
+  font-size: var(--fs-small);
   color: var(--ink-2);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -3150,6 +3478,10 @@ button.pv-prompt-toggle:focus-visible {
     flex-direction: column;
   }
 
+  .run-column {
+    flex: none;
+  }
+
   /* the page scrolls as one here: the timeline takes its own height, no scroll inside a scroll */
   .timeline-wrap {
     flex: none;
@@ -3170,13 +3502,10 @@ button.pv-prompt-toggle:focus-visible {
 
   .inspector {
     width: 100%;
-    border-left: 0;
-    border-top: 1px solid var(--line);
   }
 
   .inspector-scroll {
     overflow: visible;
-    padding: 0 16px;
   }
 }
 
@@ -3266,340 +3595,491 @@ button.pv-prompt-toggle:focus-visible {
 
 /* ---------------------------------------------------------- runs index */
 
-/* The home: the totals, then two columns — the pipelines, and the runs of the one picked.
-   The columns wrap under each other when the screen is too narrow for both. */
-.runs-index {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 20px 24px 24px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
+/* The home: the factory bar, the picked pipeline with its sums, then two columns — its runs as
+   cards and the picked run with its steps. The columns wrap under each other when the screen is
+   too narrow for both. The page, panels, bar and controls are the shared ones (see the top). */
+
+.runs-index .is-absent {
+  color: var(--ink-2);
 }
 
-.screen-runs .panel-title,
-.screen-sessions .panel-title {
-  margin: 0;
-  font-size: 11px;
+/* ---- the factory bar (Runs and Sessions) ---- */
+.workspace-picker.workspace-picker--bar {
+  flex: 0 1 auto;
+  min-width: 0;
+  align-self: auto;
+  gap: 10px 16px;
+  flex-wrap: wrap;
+  padding-left: 0;
+  border-left: 0;
+}
+
+.workspace-picker--bar .workspace-select {
+  min-width: 200px;
   font-weight: 600;
-  letter-spacing: 0.08em;
+}
+
+.bar-note {
+  font-size: var(--fs-meta);
+  color: var(--ink-2);
+}
+
+/* ---- the picked pipeline ---- */
+.pipeline-hero-name {
+  margin: 0;
+  font: 600 var(--fs-hero)/1.25 var(--mono);
+  overflow-wrap: anywhere;
+}
+
+.pipeline-hero-description {
+  margin: 8px 0 0;
+  max-width: 80ch;
+  color: var(--ink-2);
+  font-size: var(--fs-body);
+  line-height: 1.5;
+}
+
+/* The sums: cells on a hairline grid. Each cell draws its right and bottom line; the strip
+   reaches 1px past the panel (which clips) on the right and bottom, so the outer lines vanish. */
+.ri-stats {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  margin: 0 -1px -1px 0;
+  border-top: 1px solid var(--line);
+}
+
+.ri-stats--run {
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  margin-bottom: 0;
+}
+
+.ri-stat {
+  display: flex;
+  flex-direction: column;
+  padding: 16px var(--panel-pad-x);
+  border-right: var(--border);
+  border-bottom: var(--border);
+}
+
+.ri-stat--run {
+  padding: 14px var(--panel-pad-x);
+}
+
+.ri-stat-label {
+  font-size: var(--fs-label);
+  letter-spacing: var(--label-track-tight);
   text-transform: uppercase;
   color: var(--ink-2);
 }
 
-.runs-home {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-start;
-  gap: 16px;
+.ri-stat-value {
+  margin-top: 6px;
+  font-size: var(--fs-stat);
+  font-weight: 600;
+  line-height: 1.3;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.pipeline-panel,
-.pipeline-runs {
-  min-width: 0;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
-  overflow: hidden;
+.ri-stat--run .ri-stat-value {
+  margin-top: 4px;
+  font-size: var(--fs-stat-sm);
 }
 
-/* ---- left column: the pipelines ---- */
-.pipeline-panel {
-  flex: 1 1 340px;
-  max-width: 460px;
+.ri-stat-value.is-money {
+  color: var(--money);
 }
 
-.pipeline-panel-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: baseline;
-  gap: 12px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line);
+.ri-stat-value.is-absent {
+  color: var(--ink-2);
 }
 
-.pipeline-panel .panel-title,
-.pipeline-runs .panel-title {
-  letter-spacing: 0.1em;
-}
-
-.pipeline-panel-note {
+.ri-stat-note {
+  margin-top: 2px;
   font-size: 12px;
   color: var(--ink-2);
 }
 
-.pipeline-rows {
-  list-style: none;
-  margin: 0;
-  padding: 6px;
+/* ---- the two columns ---- */
+.runs-home {
   display: flex;
-  flex-direction: column;
-  gap: 2px;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 20px;
 }
 
-.pipeline-row {
-  width: 100%;
-  min-height: 56px;
+/* Bars: a dark track, filled in the figure's colour. */
+.ri-track {
+  display: block;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--ground);
+  overflow: hidden;
+}
+
+.ri-fill {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: var(--tokens);
+}
+
+.ri-fill.is-money {
+  background: var(--money);
+}
+
+.ri-fill.is-time {
+  background: var(--ink-3);
+}
+
+.ri-fill.is-long,
+.ri-fill.is-hot {
+  background: var(--hot);
+}
+
+/* ---- left: the runs as cards ---- */
+.run-cards {
+  flex: 1 1 400px;
+}
+
+.run-cards-list {
+  list-style: none;
+  margin: 0;
+  padding: var(--list-pad);
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  flex-direction: column;
+  gap: var(--list-gap);
+}
+
+.run-card {
+  display: block;
+  width: 100%;
+  padding: var(--card-pad-y) var(--card-pad-x);
   border: 1px solid transparent;
-  border-radius: 8px;
+  border-radius: var(--radius-card);
   background: transparent;
   color: var(--ink);
   text-align: left;
   cursor: pointer;
 }
 
-.pipeline-row:hover {
-  background: var(--raised);
+.run-card:hover {
+  background: color-mix(in srgb, var(--picked) 55%, var(--panel));
 }
 
-.pipeline-row:focus-visible {
+.run-card:focus-visible {
   outline: 2px solid var(--ink);
   outline-offset: -2px;
 }
 
-/* The picked pipeline: a blue-tinted tile, the one place the running hue marks a choice. */
-.pipeline-row[aria-pressed='true'] {
-  background: color-mix(in srgb, var(--st-running) 12%, var(--panel));
-  border-color: color-mix(in srgb, var(--st-running) 45%, var(--line));
+.run-card[aria-pressed='true'] {
+  background: var(--picked);
+  border-color: var(--picked-line);
 }
 
-.pipeline-row-main,
-.pipeline-row-side {
+.run-card-head {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 12px;
 }
 
-.pipeline-row-main {
+.run-card-name {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
   min-width: 0;
-}
-
-.pipeline-row-side {
-  align-items: flex-end;
-  flex-shrink: 0;
-}
-
-.pipeline-row-name {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   overflow-wrap: anywhere;
 }
 
-.pipeline-row-meta {
-  font-size: 12px;
+.run-card-name .mono {
+  font-size: 14px;
+}
+
+.run-card-name .status-dot {
+  position: relative;
+  top: -1px;
+}
+
+.run-card-day {
+  font-size: 13px;
   color: var(--ink-2);
   white-space: nowrap;
 }
 
-.pipeline-row-main .pipeline-row-meta {
-  white-space: normal;
+.run-card-bars {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) 88px;
+  gap: 6px 10px;
+  align-items: center;
+  margin-top: 10px;
+  font-size: 12px;
 }
 
-.pipeline-row-cost {
-  font-family: var(--mono);
-  font-size: 13px;
-  font-variant-numeric: tabular-nums;
-  color: var(--st-completed);
-}
-
-.pipeline-row-cost.is-unpriced {
+.run-card-label {
   color: var(--ink-2);
 }
 
-/* ---- right column: the runs of the picked pipeline ---- */
-.pipeline-runs {
-  flex: 999 1 560px;
+.run-card-value {
+  font-family: var(--mono);
+  text-align: right;
+  white-space: nowrap;
+  color: var(--ink);
 }
 
-.pipeline-runs-head {
+.run-card-value.is-money {
+  color: var(--money);
+}
+
+.run-card-value.is-time {
+  color: var(--ink-3);
+}
+
+.run-card-value.is-long {
+  color: var(--hot);
+}
+
+/* ---- right: the picked run ---- */
+.run-panel {
+  flex: 999 1 600px;
+}
+
+.run-panel-head {
+  padding-bottom: var(--head-pad-y);
+}
+
+.run-panel .panel-name a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.run-panel .panel-name a:hover {
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+
+.run-panel-side {
   display: flex;
   flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: flex-end;
-  gap: 12px;
-  padding: 18px 20px;
-  border-bottom: 1px solid var(--line);
+  align-items: center;
+  gap: 10px 14px;
 }
 
-.pipeline-runs-title {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-
-.pipeline-runs-name {
-  margin: 0;
-  font-size: 20px;
-  font-weight: 600;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
-
-.pipeline-runs-last {
-  font-size: 13px;
+.run-panel-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
   color: var(--ink-2);
 }
 
-/* The four sums: cells on a hairline grid. Each cell draws its right and bottom line; the
-   strip reaches 1px past the panel (which clips) on the right and under the table on the
-   bottom, so the outer lines vanish and a short last row leaves a plain cell, not a block of
-   line. The line under the strip is the table's own top border. */
-.pipeline-stats {
-  --stat-ground: color-mix(in srgb, var(--raised) 40%, var(--panel));
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
-  margin: 0 -1px -1px 0;
-  background: var(--stat-ground);
+.run-panel-side .chip {
+  margin-left: 0;
 }
 
-.pipeline-stat {
-  display: flex;
-  flex-direction: column;
-  padding: 12px 20px;
-  border-right: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+.run-panel-actions {
+  display: inline-flex;
+  gap: 8px;
 }
 
-.pipeline-runs .grid-scroll {
-  position: relative;
-  border-top: 1px solid var(--line);
+.run-panel-confirm {
+  padding: 0 var(--panel-pad-x) var(--head-pad-y);
 }
 
-.pipeline-stat-label {
-  font-size: 11px;
+/* The steps: the run's money per step, as figures and as a share of the run. */
+.steps-scroll {
+  overflow-x: auto;
+}
+
+.steps-table {
+  width: 100%;
+  min-width: 660px;
+  border-collapse: collapse;
+  font-size: 13px;
+  font-variant-numeric: tabular-nums;
+}
+
+.steps-table th {
+  padding: 12px 8px;
+  background: var(--head-ground);
+  color: var(--ink-3);
+  font-size: 12px;
+  font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-2);
-}
-
-.pipeline-stat-value {
-  margin-top: 4px;
-  font-size: 18px;
-  font-weight: 600;
-  line-height: 1.3;
-  font-variant-numeric: tabular-nums;
+  text-align: left;
   white-space: nowrap;
 }
 
-.pipeline-stat-value.is-money {
-  color: var(--st-completed);
+.steps-table td {
+  padding: 11px 8px;
+  border-top: 1px solid var(--row-line);
+  vertical-align: middle;
 }
 
-.pipeline-stat-value.is-absent {
+.steps-table th:first-child,
+.steps-table td:first-child {
+  padding-left: var(--panel-pad-x);
+}
+
+.steps-table th:last-child,
+.steps-table td:last-child {
+  padding-right: var(--panel-pad-x);
+}
+
+.steps-table .numeric {
+  text-align: right;
+  white-space: nowrap;
+}
+
+.steps-table .is-center {
+  text-align: center;
+}
+
+.steps-table .is-money {
+  color: var(--money);
+}
+
+.steps-share-head {
+  width: 32%;
+}
+
+.steps-name {
+  white-space: nowrap;
+}
+
+.steps-name .mono {
+  font-size: 13px;
+}
+
+.steps-name .cell-note {
+  display: inline;
+  margin-left: 8px;
+}
+
+.steps-time {
+  color: var(--ink-3);
+}
+
+.steps-table tbody tr.is-hot {
+  background: var(--hot-row);
+}
+
+.steps-table tbody tr.is-skipped td,
+.steps-table tbody tr.is-other .steps-name {
   color: var(--ink-2);
 }
 
-.pipeline-stat-note {
-  font-size: 11px;
-  color: var(--ink-2);
+.passes-pill {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: var(--hot-ground);
+  color: var(--hot);
+  font-size: 12px;
+  font-weight: 600;
 }
 
-.run-status {
-  display: inline-flex;
+.share {
+  display: flex;
   align-items: center;
   gap: 8px;
 }
 
-.run-status-word {
+.share-track {
+  flex: 1 1 auto;
+  height: 8px;
+  border-radius: 4px;
+}
+
+.share-pct {
+  width: 36px;
+  text-align: right;
+  font-family: var(--mono);
+  font-size: 12px;
   color: var(--ink-2);
 }
 
-.run-status .chip {
-  margin-left: 0;
+.steps-table tfoot td {
+  padding-top: 14px;
+  padding-bottom: 14px;
+  border-top: 1px solid var(--line-strong);
+  font-weight: 600;
+}
+
+.steps-table tfoot .steps-total-note {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--ink-2);
+}
+
+.page > .notice {
+  overflow-wrap: anywhere;
 }
 
 @media (max-width: 900px) {
-  .runs-index {
-    padding: 16px;
+  .ri-stats {
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   }
 
-  /* stacked, the pipelines take the full width like the runs under them */
-  .pipeline-panel {
-    max-width: none;
+  .bar-rule {
+    display: none;
+  }
+
+  .bar-field,
+  .bar-field .control,
+  .workspace-picker--bar .workspace-select {
+    flex: 1 1 auto;
+    min-width: 0;
   }
 }
 
 /* ------------------------------------------------------------ sessions */
 
-/* The start form across the top, then the board: three columns that wrap under each other
-   when the screen is too narrow for them. */
-.sessions {
-  flex: 1;
-  min-height: 0;
-  overflow: auto;
-  padding: 20px 24px 24px;
+/* Laid out like the Runs home (the shared page, bar and panels): the factory bar, the start form
+   as a panel, then the board — three column panels that wrap under each other when the screen
+   is too narrow for them. */
+
+/* The pipeline, the prompt or the pipeline's description, and Start. */
+.sessions-form-body {
   display: flex;
   flex-direction: column;
   gap: 16px;
 }
 
-.sessions-form {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 10px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
-}
-
-/* The factory, the prompt or the factory's description, and Start. */
 .sessions-form-row {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-start;
-  gap: 10px;
+  gap: 12px 16px;
 }
 
-.sessions-form .input {
-  min-width: 0;
-  min-height: 44px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--ground);
-  color: var(--ink);
-  font: inherit;
-}
-
-.sessions-form .input:focus {
-  outline: none;
-  border-color: var(--st-running);
+.sessions-factory-field {
+  flex: 0 1 auto;
 }
 
 .sessions-form .sessions-factory {
-  flex: 0 1 280px;
-  height: 44px;
-  padding: 0 12px;
-  font-family: var(--mono);
-  font-size: 13px;
+  width: 300px;
 }
 
 /* One line until the text needs more; it grows up to a few lines, then scrolls. */
 .sessions-form .sessions-prompt {
   flex: 1 1 320px;
   max-height: 220px;
-  padding: 11px 14px;
   resize: vertical;
   field-sizing: content;
-  line-height: 20px;
 }
 
-/* The factory's description beside the picker: two lines at most, the rest in the tooltip. */
+/* The pipeline's description beside the picker: two lines at most, the rest in the tooltip. */
 .sessions-form .sessions-hint {
   flex: 1 1 320px;
   min-width: 0;
   margin: 0;
   align-self: center;
   color: var(--ink-2);
-  font-size: 13px;
-  line-height: 18px;
+  font-size: var(--fs-meta);
+  line-height: 19px;
   display: -webkit-box;
   -webkit-box-orient: vertical;
   -webkit-line-clamp: 2;
@@ -3610,14 +4090,14 @@ button.pv-prompt-toggle:focus-visible {
 /* One field per param: as many columns as fit, free-text fields across the whole row. */
 .sessions-params {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 8px 10px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 14px 16px;
 }
 
 .sessions-param {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   min-width: 0;
 }
 
@@ -3625,15 +4105,16 @@ button.pv-prompt-toggle:focus-visible {
   grid-column: 1 / -1;
 }
 
+/* A param's name is an identifier: mono, like step and pipeline names. */
 .sessions-param-label,
 .sessions-param-check {
   display: flex;
   align-items: baseline;
   gap: 6px;
   min-width: 0;
-  color: var(--ink-2);
+  color: var(--ink-3);
   font-family: var(--mono);
-  font-size: 12px;
+  font-size: var(--fs-small);
   line-height: 16px;
 }
 
@@ -3651,12 +4132,12 @@ button.pv-prompt-toggle:focus-visible {
 .sessions-param-optional {
   font-family: var(--sans);
   font-size: 11px;
-  opacity: 0.8;
+  color: var(--ink-2);
 }
 
 .sessions-param-tag {
   padding: 0 6px;
-  border: 1px solid var(--line);
+  border: 1px solid var(--line-strong);
   border-radius: 999px;
 }
 
@@ -3664,7 +4145,7 @@ button.pv-prompt-toggle:focus-visible {
 .sessions-param-description {
   margin: 0;
   color: var(--ink-2);
-  font-size: 12px;
+  font-size: var(--fs-small);
   line-height: 16px;
 }
 
@@ -3681,7 +4162,7 @@ button.pv-prompt-toggle:focus-visible {
 .sessions-param-check {
   align-self: end;
   align-items: center;
-  min-height: 36px;
+  min-height: var(--control-h);
   color: var(--ink);
   cursor: pointer;
 }
@@ -3693,83 +4174,22 @@ button.pv-prompt-toggle:focus-visible {
   accent-color: var(--st-running);
 }
 
-.sessions-form .sessions-param-input {
-  min-height: 36px;
-  height: 36px;
-  padding: 0 10px;
-  font-size: 13px;
-}
-
-.sessions-form .sessions-param-select {
-  font-family: var(--mono);
-}
-
 .sessions-form .sessions-param-textarea {
-  height: auto;
   max-height: 180px;
-  padding: 7px 10px;
   resize: vertical;
   field-sizing: content;
-  line-height: 20px;
-}
-
-.sessions-form .sessions-start {
-  height: 44px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: 8px;
-  font-weight: 600;
-}
-
-.sessions .primary-button,
-.sessions .danger-button {
-  padding: 6px 14px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.sessions .primary-button {
-  background: var(--st-running);
-  color: #000;
-}
-
-.sessions .primary-button:disabled {
-  opacity: 0.45;
-  cursor: default;
-}
-
-.sessions .danger-button {
-  flex-shrink: 0;
-  height: 34px;
-  padding: 0 12px;
-  background: transparent;
-  border-color: color-mix(in srgb, var(--st-failed) 55%, var(--ground));
-  color: color-mix(in srgb, var(--st-failed) 70%, var(--ink));
-  font-weight: 600;
-}
-
-.sessions .danger-button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--st-failed) 18%, transparent);
-}
-
-.sessions .danger-button:disabled {
-  opacity: 0.5;
-  cursor: default;
 }
 
 .sessions-notice {
   display: flex;
   align-items: flex-start;
   gap: 12px;
-  padding: 10px 12px;
-  border: 1px solid var(--line);
+  padding: 12px 16px;
+  border: var(--border);
   border-left-width: 3px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--panel);
-  font-size: 13px;
+  font-size: var(--fs-meta);
 }
 
 .sessions-notice.is-ok {
@@ -3791,7 +4211,7 @@ button.pv-prompt-toggle:focus-visible {
 .sessions-notice ul {
   margin: 0;
   padding-left: 18px;
-  font-size: 12px;
+  font-size: var(--fs-small);
   color: var(--ink-2);
   overflow-wrap: anywhere;
 }
@@ -3811,18 +4231,14 @@ button.pv-prompt-toggle:focus-visible {
 
 .board {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr));
-  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 320px), 1fr));
+  gap: var(--page-gap);
   align-items: start;
 }
 
 .board-column {
-  min-width: 0;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--line);
-  border-radius: 10px;
-  background: var(--panel);
 }
 
 .board-column.is-needs-you {
@@ -3830,26 +4246,8 @@ button.pv-prompt-toggle:focus-visible {
   background: color-mix(in srgb, var(--st-waiting) 4%, var(--panel));
 }
 
-.board-column-head {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 8px;
-  padding: 14px 16px;
-  border-bottom: 1px solid var(--line);
-}
-
 .board-column.is-needs-you .board-column-head {
   border-bottom-color: color-mix(in srgb, var(--st-waiting) 18%, var(--line));
-}
-
-.board-column-title {
-  margin: 0;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--ink-2);
 }
 
 .board-column.is-needs-you .board-column-title {
@@ -3861,8 +4259,7 @@ button.pv-prompt-toggle:focus-visible {
 }
 
 .board-column-count {
-  font-size: 12px;
-  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
 }
 
 .board-column-badge {
@@ -3872,24 +4269,26 @@ button.pv-prompt-toggle:focus-visible {
   border-radius: 999px;
   background: var(--st-waiting);
   color: #000;
-  font-size: 12px;
+  font-size: var(--fs-small);
   font-weight: 700;
   display: inline-flex;
   align-items: center;
   justify-content: center;
 }
 
+/* The cards: the run cards' list measures. */
 .board-column-body {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: 12px;
+  gap: var(--list-gap);
+  padding: var(--list-pad);
 }
 
 .board-column-empty {
   margin: 0;
-  padding: 16px 4px;
+  padding: var(--head-pad-y) var(--card-pad-x);
+  font-size: var(--fs-meta);
   color: var(--ink-2);
   text-align: center;
 }
@@ -3898,18 +4297,18 @@ button.pv-prompt-toggle:focus-visible {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 6px;
-  padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 8px;
-  background: var(--ground);
+  gap: 8px;
+  padding: var(--card-pad-y) var(--card-pad-x);
+  border: var(--border);
+  border-radius: var(--radius-card);
+  background: color-mix(in srgb, var(--ground) 45%, var(--panel));
 }
 
 .board-card.is-row {
   flex-direction: row;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .board-card-text {
@@ -3923,24 +4322,29 @@ button.pv-prompt-toggle:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: baseline;
-  gap: 8px;
+  gap: 12px;
 }
 
+/* The session name reads like a run card's name. */
 .board-card-name {
   min-width: 0;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-body);
+  font-weight: 500;
   overflow-wrap: anywhere;
 }
 
+.board-card-name.mono {
+  font-size: var(--fs-body);
+}
+
 .board-card-aside {
-  font-size: 12px;
+  font-size: var(--fs-meta);
   color: var(--ink-2);
   white-space: nowrap;
 }
 
 .board-card-factory {
-  font-size: 12px;
+  font-size: var(--fs-small);
   color: var(--ink-2);
   overflow-wrap: anywhere;
 }
@@ -3949,7 +4353,7 @@ button.pv-prompt-toggle:focus-visible {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
 }
 
 .board-card-row.is-end {
@@ -3958,14 +4362,14 @@ button.pv-prompt-toggle:focus-visible {
 
 .board-card-preview {
   min-width: 0;
-  font-size: 13px;
-  color: color-mix(in srgb, var(--ink) 80%, var(--ink-2));
+  font-size: var(--fs-meta);
+  color: var(--ink-3);
   overflow-wrap: anywhere;
 }
 
 .board-card-meta {
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--fs-small);
   color: var(--ink-2);
 }
 
@@ -3973,7 +4377,7 @@ button.pv-prompt-toggle:focus-visible {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 12px;
+  font-size: var(--fs-small);
   white-space: nowrap;
 }
 
@@ -3988,34 +4392,14 @@ button.pv-prompt-toggle:focus-visible {
   background: var(--st-running);
 }
 
-.answer-button {
-  flex-shrink: 0;
-  height: 36px;
-  padding: 0 14px;
-  border: 0;
-  border-radius: 6px;
-  background: var(--st-waiting);
-  color: #000;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.answer-button:focus-visible {
-  outline: none;
-  box-shadow: 0 0 0 2px var(--ink);
-}
-
 @media (max-width: 600px) {
-  .sessions {
-    padding: 16px;
-  }
-
+  .sessions-factory-field,
   .sessions-form .sessions-factory,
   .sessions-form .sessions-prompt,
   .sessions-form .sessions-hint,
   .sessions-form .sessions-start {
     flex: 1 1 100%;
+    width: auto;
   }
 
   .sessions-params {
@@ -4039,12 +4423,12 @@ button.pv-prompt-toggle:focus-visible {
 }
 
 .notice {
-  padding: 8px 12px;
-  border: 1px solid var(--line);
+  padding: 12px 16px;
+  border: var(--border);
   border-left-width: 3px;
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--panel);
-  font-size: 13px;
+  font-size: var(--fs-meta);
 }
 
 .notice--ok {
@@ -4089,7 +4473,7 @@ button.pv-prompt-toggle:focus-visible {
 
 .run-ask-title {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--fs-label);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -4323,6 +4707,53 @@ button.pv-prompt-toggle:focus-visible {
   white-space: nowrap;
 }
 
+/* The questions of a terminal-bound card, read-only: what Claude's dialog in the pane asks. */
+.ask-terminal {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ask-terminal-list {
+  margin: 0;
+  padding: 0 0 0 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.ask-terminal-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ask-terminal-header {
+  font-size: 11px;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.ask-terminal-options {
+  margin: 2px 0 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ask-terminal-option {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 6px;
+  background: var(--raised);
+}
+
 .ask-aside-actions {
   display: flex;
   flex-wrap: wrap;
@@ -4337,54 +4768,16 @@ button.pv-prompt-toggle:focus-visible {
   gap: 8px;
 }
 
-.ask-card .primary-button,
-.ghost-button {
-  padding: 6px 14px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  font: inherit;
-  font-weight: 500;
-  cursor: pointer;
-}
-
-.ask-card .primary-button {
-  background: var(--st-waiting);
-  color: #000;
-  font-weight: 600;
-}
-
 /* Until every question is answered it reads "1 / 3 answered" on a flat ground. */
-.ask-card .primary-button:disabled {
+.ask-card .btn--warn:disabled {
+  opacity: 1;
   background: var(--raised);
+  border-color: var(--line-strong);
   color: var(--ink-2);
-  cursor: default;
-}
-
-.ghost-button {
-  background: transparent;
-  border-color: var(--line);
-  color: var(--ink);
-}
-
-.ghost-button:hover:not(:disabled) {
-  background: var(--raised);
-}
-
-.ask-card .primary-button,
-.ask-card .ghost-button,
-.ask-card .danger-button {
-  height: 36px;
-  padding: 0 14px;
-}
-
-.ghost-button:disabled {
-  opacity: 0.5;
-  cursor: default;
 }
 
 .ask-card button:focus-visible,
-.ask-tab:focus-visible,
-.ghost-button:focus-visible {
+.ask-tab:focus-visible {
   outline: none;
   box-shadow: 0 0 0 2px var(--ink);
 }
@@ -4670,9 +5063,12 @@ button.pv-prompt-toggle:focus-visible {
 }
 
 /* the folded inspector: the same rail, mirrored onto the right edge */
+/* the folded inspector: a slim panel beside the run panel */
 .runs-rail.is-right {
-  border-right: 0;
-  border-left: 1px solid var(--line);
+  width: 44px;
+  padding-top: 12px;
+  border: var(--border);
+  border-radius: var(--radius);
 }
 
 /* in the inspector the fold button closes the title row, after the status and cost */
@@ -4770,10 +5166,10 @@ button.pv-prompt-toggle:focus-visible {
 @media (max-width: 900px) {
   /* the inspector stacks under the graph: its rail is a full-width row, the button on the right */
   .runs-rail.is-right {
+    width: 100%;
     justify-content: flex-end;
-    border-left: 0;
-    border-bottom: 0;
-    border-top: 1px solid var(--line);
+    padding: 6px 10px;
+    border: var(--border);
   }
 }
 
@@ -4786,14 +5182,6 @@ button.pv-prompt-toggle:focus-visible {
   align-items: center;
   gap: 8px;
   flex-shrink: 0;
-}
-
-.chat-open-button {
-  padding: 6px 12px;
-}
-
-.ask-card .chat-open-button {
-  height: 36px;
 }
 
 .chat-layer {
@@ -4833,8 +5221,9 @@ button.pv-prompt-toggle:focus-visible {
   display: flex;
   align-items: center;
   gap: 12px;
-  padding: 12px 16px;
-  border-bottom: 1px solid var(--line);
+  min-height: 56px;
+  padding: 12px var(--head-pad-x);
+  border-bottom: var(--border);
   background: var(--panel);
 }
 
@@ -4846,15 +5235,15 @@ button.pv-prompt-toggle:focus-visible {
 }
 
 .chat-head-name {
-  font-size: 14px;
-  font-weight: 600;
+  font: 600 var(--fs-body)/1.4 var(--mono);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .chat-head-factory {
-  font-size: 12px;
+  font-family: var(--mono);
+  font-size: var(--fs-small);
   color: var(--ink-2);
 }
 
@@ -4889,7 +5278,7 @@ button.pv-prompt-toggle:focus-visible {
 }
 
 .chat > .notice {
-  margin: 8px 16px 0;
+  margin: 12px var(--head-pad-x) 0;
 }
 
 .chat-scroll {
@@ -4897,7 +5286,7 @@ button.pv-prompt-toggle:focus-visible {
   min-height: 0;
   overflow-y: auto;
   overscroll-behavior: contain;
-  padding: 16px 16px 72px;
+  padding: var(--head-pad-y) var(--head-pad-x) 72px;
 }
 
 .chat-rows {
@@ -5210,7 +5599,7 @@ button.pv-prompt-toggle:focus-visible {
 
 .live-session-title {
   margin: 0;
-  font-size: 11px;
+  font-size: var(--fs-label);
   font-weight: 600;
   letter-spacing: 0.1em;
   text-transform: uppercase;
@@ -5233,13 +5622,93 @@ button.pv-prompt-toggle:focus-visible {
   white-space: nowrap;
 }
 
-.live-session .answer-button {
-  background: var(--st-running);
+/* The message box under the rows: a follow-up to Claude while the session is at its prompt. */
+.chat-body {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.chat-composer {
+  flex-shrink: 0;
+  padding: 10px var(--head-pad-x) 12px;
+  border-top: var(--border);
+  background: var(--panel);
+}
+
+.chat-composer-box {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 6px 6px 6px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--raised);
+  transition: border-color 120ms ease;
+}
+
+.chat-composer-box:focus-within {
+  border-color: var(--ink-2);
+}
+
+.chat-composer-box.is-off {
+  opacity: 0.6;
+}
+
+.chat-composer-input {
+  flex: 1;
+  min-width: 0;
+  min-height: 32px;
+  max-height: 40vh;
+  padding: 6px 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-body);
+  line-height: 20px;
+  resize: none;
+  outline: none;
+  field-sizing: content;
+  overflow-y: auto;
+}
+
+.chat-composer-input::placeholder {
+  color: var(--ink-2);
+}
+
+.chat-composer-input:disabled {
+  cursor: not-allowed;
+}
+
+.chat-composer-send {
+  flex-shrink: 0;
+}
+
+.chat-composer-hint {
+  margin: 6px 2px 0;
+  min-height: 1.2em;
+  font-size: var(--fs-small);
+  color: var(--ink-2);
+}
+
+.chat-composer-error {
+  color: var(--st-failed);
+}
+
+.chat-composer-notice {
+  color: var(--st-waiting);
 }
 
 @media (max-width: 600px) {
   .chat-drawer {
     border-left: 0;
+  }
+
+  .chat-composer {
+    padding: 8px 12px 10px;
   }
 
   .chat-head {
@@ -5276,8 +5745,8 @@ button.pv-prompt-toggle:focus-visible {
   padding: 0;
   background: var(--panel);
   color: var(--ink);
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: var(--border);
+  border-radius: var(--radius);
   box-shadow: 0 24px 64px rgb(0 0 0 / 0.5);
   overflow: hidden;
 }
@@ -5288,7 +5757,7 @@ button.pv-prompt-toggle:focus-visible {
 }
 
 .ws-dialog::backdrop {
-  background: rgb(21 27 38 / 0.7);
+  background: rgb(19 27 42 / 0.7);
 }
 
 .ws-modal {
@@ -5298,35 +5767,29 @@ button.pv-prompt-toggle:focus-visible {
   flex-direction: column;
 }
 
-.ws-modal-title {
-  margin: 0;
-  font-size: 14px;
-  font-weight: 600;
-}
-
 .ws-modal-hint {
   flex: 1 1 auto;
   min-width: 0;
-  font-size: 12px;
+  font-size: var(--fs-meta);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .ws-problem {
-  margin: 12px 16px 0;
-  padding: 8px 12px;
-  border: 1px solid var(--line);
+  margin: var(--head-pad-y) var(--head-pad-x) 0;
+  padding: 12px 16px;
+  border: var(--border);
   border-left: 3px solid var(--st-waiting);
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: var(--radius-control);
+  font-size: var(--fs-meta);
 }
 
 .ws-modal-body {
   flex: 1 1 auto;
   min-height: 0;
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 240px 1fr;
   grid-template-rows: minmax(0, 1fr);
 }
 
@@ -5335,18 +5798,19 @@ button.pv-prompt-toggle:focus-visible {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px;
-  border-right: 1px solid var(--line);
+  padding: var(--list-pad);
+  border-right: var(--border);
   overflow: auto;
 }
 
+/* the workspaces read like the run cards: a picked one on the picked ground */
 .ws-list-rows {
   margin: 0;
   padding: 0;
   list-style: none;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--list-gap);
 }
 
 .ws-list-row {
@@ -5354,10 +5818,10 @@ button.pv-prompt-toggle:focus-visible {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 1px;
-  padding: 6px 8px;
+  gap: 2px;
+  padding: 10px 12px;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--radius-card);
   background: none;
   color: var(--ink);
   text-align: left;
@@ -5365,12 +5829,12 @@ button.pv-prompt-toggle:focus-visible {
 }
 
 .ws-list-row:hover:not(:disabled) {
-  background: var(--raised);
+  background: color-mix(in srgb, var(--picked) 55%, var(--panel));
 }
 
 .ws-list-row[aria-current='true'] {
-  background: var(--raised);
-  border-color: var(--ink-2);
+  background: var(--picked);
+  border-color: var(--picked-line);
 }
 
 .ws-list-row:focus-visible {
@@ -5384,7 +5848,7 @@ button.pv-prompt-toggle:focus-visible {
 
 .ws-list-name {
   max-width: 100%;
-  font-size: 13px;
+  font-size: var(--fs-body);
   font-weight: 500;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -5392,12 +5856,13 @@ button.pv-prompt-toggle:focus-visible {
 }
 
 .ws-list-count {
-  font-size: 11px;
+  font-size: var(--fs-small);
   color: var(--ink-2);
 }
 
 .ws-new {
   align-self: flex-start;
+  margin: 0 4px 4px;
 }
 
 .ws-empty {
@@ -5409,42 +5874,34 @@ button.pv-prompt-toggle:focus-visible {
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px 16px 14px;
+  gap: 16px;
+  padding: var(--head-pad-y) var(--head-pad-x);
   overflow: auto;
 }
 
 .ws-form-title {
   margin: 0;
-  font-size: 13px;
-  font-weight: 600;
+  font: 600 var(--fs-stat-sm)/1.3 var(--sans);
 }
 
 .ws-field {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .ws-field-label {
-  font-size: 12px;
-  color: var(--ink-2);
+  font-size: var(--fs-label);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--ink-3);
 }
 
-.ws-name {
-  height: 32px;
-  padding: 0 10px;
-  border: 1px solid var(--line);
-  border-radius: 6px;
-  background: var(--ground);
-  color: var(--ink);
-  font: inherit;
-  font-size: 13px;
-}
-
-.ws-name:focus {
-  outline: none;
-  border-color: var(--st-running);
+.ws-field-label .mono {
+  letter-spacing: 0;
+  text-transform: none;
+  font-weight: 400;
 }
 
 .ws-factories {
@@ -5456,7 +5913,7 @@ button.pv-prompt-toggle:focus-visible {
 
 .ws-factories legend {
   padding: 0;
-  margin-bottom: 4px;
+  margin-bottom: 6px;
 }
 
 .ws-factory-rows {
@@ -5465,8 +5922,8 @@ button.pv-prompt-toggle:focus-visible {
   list-style: none;
   max-height: 320px;
   overflow: auto;
-  border: 1px solid var(--line);
-  border-radius: 6px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
   background: var(--ground);
 }
 
@@ -5474,9 +5931,9 @@ button.pv-prompt-toggle:focus-visible {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 4px;
+  padding: 4px 6px;
   border-radius: 4px;
-  font-size: 13px;
+  font-size: var(--fs-meta);
   cursor: pointer;
 }
 
@@ -5527,7 +5984,7 @@ button.pv-prompt-toggle:focus-visible {
 
 .ws-confirm {
   margin-right: auto;
-  font-size: 13px;
+  font-size: var(--fs-meta);
 }
 
 .doc-modal-btn.ws-danger {

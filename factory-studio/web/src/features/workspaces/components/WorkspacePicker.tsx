@@ -7,14 +7,18 @@ import { WorkspacesDialog } from './WorkspacesDialog';
 interface WorkspacePickerProps {
   /** The run list's data: the factories the dialog offers come from it. */
   data: DashboardData;
+  /** A visible label before the select (the Runs page's "Factory"); hidden when absent. */
+  label?: string;
+  /** Extra class on the wrapper, for where it sits (`workspace-picker--bar` in a factory bar). */
+  className?: string;
 }
 
 /**
- * The top bar's workspace control: a select (All factories, then each workspace) that filters
+ * The factory bar's workspace control (Runs and Sessions): a select (All factories, then each workspace) that filters
  * the sidebar, the Runs home and the Sessions start form, and Manage, which opens the dialog.
  * An unreadable `run/workspaces.json` or an unreachable API is flagged beside it.
  */
-export const WorkspacePicker = ({ data }: WorkspacePickerProps): ReactNode => {
+export const WorkspacePicker = ({ data, label, className }: WorkspacePickerProps): ReactNode => {
   const workspaces: Workspaces = useWorkspacesContext();
   const [open, setOpen] = useState<boolean>(false);
   const flag: string | null = workspaces.problem
@@ -24,13 +28,13 @@ export const WorkspacePicker = ({ data }: WorkspacePickerProps): ReactNode => {
       : null;
 
   return (
-    <div className="workspace-picker">
-      <label className="visually-hidden" htmlFor="workspace-select">
-        Workspace
+    <div className={['workspace-picker', className ?? ''].filter(Boolean).join(' ')}>
+      <label className={label ? 'kicker' : 'visually-hidden'} htmlFor="workspace-select">
+        {label ?? 'Workspace'}
       </label>
       <select
         id="workspace-select"
-        className="input select workspace-select"
+        className="control workspace-select"
         value={workspaces.selected?.id ?? ''}
         disabled={workspaces.loading && workspaces.list.length === 0}
         title={
@@ -57,7 +61,7 @@ export const WorkspacePicker = ({ data }: WorkspacePickerProps): ReactNode => {
       ) : null}
       <button
         type="button"
-        className="feed-refresh workspace-manage"
+        className="btn btn--bar workspace-manage"
         onClick={(): void => setOpen(true)}
         title="Create, edit or delete workspaces"
       >

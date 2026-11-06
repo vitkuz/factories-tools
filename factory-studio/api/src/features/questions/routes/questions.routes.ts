@@ -4,6 +4,7 @@ import {
   answerQuestionControllerFactory,
   askUserQuestionControllerFactory,
   dismissQuestionControllerFactory,
+  listQuestionsControllerFactory,
   questionResolvedControllerFactory,
 } from '../controllers/index.js';
 import {
@@ -15,12 +16,14 @@ import {
 import type { QuestionUsecases } from '../questions.types.js';
 
 /**
- * The hook endpoints (called by `hooks/studio-question-hook.mjs`) and the REST mirror of the
- * WebSocket answer/dismiss. The API key is checked one level up.
+ * The hook endpoints (called by `hooks/studio-question-hook.mjs`), the REST mirror of the
+ * WebSocket answer/dismiss, and the pending list for a plain read. The API key is checked
+ * one level up.
  */
 export const createQuestionsRoutes = (usecases: QuestionUsecases): Router => {
   const router: Router = Router();
   const jsonBody: RequestHandler = express.json({ limit: '1mb' });
+  router.get('/questions', listQuestionsControllerFactory(usecases));
   router.post(
     '/hooks/ask-user-question',
     jsonBody,

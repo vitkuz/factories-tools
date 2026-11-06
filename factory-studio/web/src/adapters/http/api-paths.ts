@@ -59,6 +59,10 @@ export const chatItemPath = (session: string, itemId: string): string =>
 
 export const stopSessionPath = (): string => `${API_PREFIX}/sessions/stop`;
 
+/** The chat drawer's message box: a follow-up typed into an idle session. */
+export const sessionMessagesPath = (session: string): string =>
+  `${API_PREFIX}/sessions/${encodeURIComponent(session)}/messages`;
+
 /** The WebSocket of the API (path only; the scheme and host come from the page). */
 export const socketPath = (): string => `${API_PREFIX}/ws`;
 

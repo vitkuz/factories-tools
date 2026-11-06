@@ -12,12 +12,9 @@ import {
   type WorkDir,
 } from './work-dir.js';
 
-const CSP = 'sandbox allow-scripts allow-forms allow-popups allow-modals';
-
-/** The headers every E17 answer carries, whatever it is. */
-const expectSandboxed = (res: Response): void => {
-  expect(res.headers.get('content-security-policy')).toBe(CSP);
-  expect(res.headers.get('content-security-policy')).not.toContain('allow-same-origin');
+/** The headers every E17 answer carries, whatever it is. No sandbox CSP: a normal page. */
+const expectSiteHeaders = (res: Response): void => {
+  expect(res.headers.get('content-security-policy')).toBeNull();
   expect(res.headers.get('x-content-type-options')).toBe('nosniff');
   expect(res.headers.get('referrer-policy')).toBe('no-referrer');
   expect(res.headers.get('cache-control')).toBe('no-store');
@@ -52,22 +49,22 @@ describe('site and zip', () => {
   const zip = (rest: string): string => `${base}/zip/canonical-factory/run-a/${rest}`;
 
   describe('E17 GET /site/:pipelineId/:runId/*path', () => {
-    it("serves a folder's index.html as a page, sandboxed", async () => {
+    it("serves a folder's index.html as a page", async () => {
       const res: Response = await fetch(site('4-site/'));
       expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8');
-      expectSandboxed(res);
+      expectSiteHeaders(res);
       expect(res.headers.get('etag')).toBeNull();
       expect(res.headers.get('x-doc-writable')).toBeNull();
       expect(await res.text()).toContain("<script>document.title='x'</script>");
     });
 
-    it('sends a folder named without its / to the folder URL, sandboxed', async () => {
+    it('sends a folder named without its / to the folder URL', async () => {
       const res: Response = await fetch(site('4-site'), { redirect: 'manual' });
       expect(res.status).toBe(302);
       expect(res.headers.get('location')).toMatch(/\/4-site\/$/);
       expect(new URL(res.headers.get('location') ?? '', site('4-site')).href).toBe(site('4-site/'));
-      expectSandboxed(res);
+      expectSiteHeaders(res);
     });
 
     it('sends the run root named without its / to the root URL', async () => {
@@ -81,7 +78,7 @@ describe('site and zip', () => {
     it('serves each file with the type a browser renders', async () => {
       const css: Response = await fetch(site('4-site/css/site.css'));
       expect(css.headers.get('content-type')).toBe('text/css; charset=utf-8');
-      expectSandboxed(css);
+      expectSiteHeaders(css);
       const png: Response = await fetch(site('4-site/img/logo.png'));
       expect(png.headers.get('content-type')).toBe('image/png');
       expect(png.headers.get('content-length')).toBe('3');
@@ -96,7 +93,7 @@ describe('site and zip', () => {
       const res: Response = await fetch(site('5-plain/'));
       expect(res.status).toBe(200);
       expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8');
-      expectSandboxed(res);
+      expectSiteHeaders(res);
       expect(res.headers.get('etag')).toBeNull();
       const html: string = await res.text();
       expect(html).toContain('href="report.md"');
@@ -120,14 +117,14 @@ describe('site and zip', () => {
     it('never serves a dotfile', async () => {
       const res: Response = await fetch(site('4-site/.secret'));
       expect(res.status).toBe(404);
-      expectSandboxed(res);
+      expectSiteHeaders(res);
     });
 
     it('refuses a symlink that leads outside the run', async () => {
       const file: Response = await fetch(site('5-plain/escape.md'));
       expect(file.status).toBe(403);
       expect(await file.json()).toMatchObject({ error: 'outside the run folder' });
-      expectSandboxed(file);
+      expectSiteHeaders(file);
       const folder: Response = await fetch(site('5-plain/linked/sync.sh'));
       expect(folder.status).toBe(403);
     });
@@ -158,7 +155,7 @@ describe('site and zip', () => {
       const asFolder: Response = await fetch(site('4-site/index.html/'));
       expect(asFolder.status).toBe(404);
       expect(await asFolder.json()).toMatchObject({ error: 'not found' });
-      expectSandboxed(asFolder);
+      expectSiteHeaders(asFolder);
       expect((await fetch(site('nope/'))).status).toBe(404);
       const run: Response = await fetch(`${base}/site/canonical-factory/no-such-run/x`);
       expect(run.status).toBe(404);
@@ -171,7 +168,7 @@ describe('site and zip', () => {
       const res: Response = await fetch(site('4-site/notes.md'), { method: 'HEAD' });
       expect(res.status).toBe(200);
       expect(res.headers.get('content-length')).toBe('8');
-      expectSandboxed(res);
+      expectSiteHeaders(res);
       expect(await res.text()).toBe('');
     });
 
@@ -282,7 +279,7 @@ describe('site and zip', () => {
     });
   });
 
-  describe('what a sandboxed page can send', () => {
+  describe('what a page on another site can send', () => {
     it('cannot start a session with a text/plain POST: the body is never parsed', async () => {
       const res: Response = await fetch(`${base}/sessions`, {
         method: 'POST',

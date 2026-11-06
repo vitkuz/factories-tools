@@ -37,7 +37,7 @@ export const RunQuestionPanel = ({ run }: RunQuestionPanelProps): ReactNode => {
       {questions.state.lastError !== null ? (
         <div className="ask-error">
           <Notice tone="refusal">{questions.state.lastError}</Notice>
-          <button type="button" className="ghost-button" onClick={questions.clearError}>
+          <button type="button" className="btn" onClick={questions.clearError}>
             Dismiss
           </button>
         </div>

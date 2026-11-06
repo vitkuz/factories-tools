@@ -48,6 +48,19 @@ export type ClaudeAgentLink = {
   startedAt?: string;
   endedAt?: string;
   refs?: string[];
+  writes?: string[];
+};
+
+/** `<session>/subagents/agent-<id>.meta.json`: what Claude Code records about a spawned agent. */
+export type ClaudeAgentMeta = {
+  agentType?: string;
+  description?: string;
+  toolUseId?: string;
+  /** Absent for a depth-1 agent (spawned by the main conversation). */
+  parentAgentId?: string;
+  spawnDepth?: number;
+  model?: string;
+  finished?: boolean;
 };
 
 export type ClaudeHeadlessResult = {

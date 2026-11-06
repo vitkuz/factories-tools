@@ -1,11 +1,9 @@
 import { useCallback, useEffect, useMemo, type ReactNode } from 'react';
 import { buildGraph, EMPTY_BOUNDS, type GraphResult, type ViewMode } from './lib/graph';
 import { pickDefaultRun, resolvePipeline, type RunsFeed } from './hooks/use-runs-feed';
-import { isActiveRun } from './runs.utils';
 import type { DashboardData, Pipeline, RunRecord } from './runs.types';
 import { navigate, writeRunTab, writeView, type RunRef, type RunTab } from '../../shared/lib/route';
 import { readJson, writeJson } from '../../shared/lib/storage';
-import { usePolling } from '../../shared/lib/polling';
 import { questionsForRun, titleWithCount, useQuestions, type PendingQuestion } from '../sessions';
 import { isTypingTarget } from '../../shared/lib/keys';
 import { filterFeed } from '../workspaces/workspaces.utils';
@@ -15,8 +13,6 @@ import { RunView } from './components/RunView';
 import { RunsIndex } from './components/RunsIndex';
 
 const APP_NAME = 'Factory Studio';
-const FAST_POLL_MS = 5_000;
-const SLOW_POLL_MS = 30_000;
 const EMPTY_GRAPH: GraphResult = { nodes: [], edges: [], bounds: EMPTY_BOUNDS, focusId: null };
 /** The viewer's last chosen run tab: what a link without `?view=` opens on. */
 const TAB_STORAGE_KEY = 'factory-studio.run-tab';
@@ -45,8 +41,8 @@ const sameRef = (a: RunRef | null, b: RunRef | null): boolean =>
 
 /**
  * The Runs screen: the index (tables and the grouped list) at `/runs`, one run at
- * `/runs/<pipelineId>/<runId>`. The list is polled here — fast while the shown run is moving,
- * slowly otherwise — and a refresh never touches the viewport.
+ * `/runs/<pipelineId>/<runId>`. The list is pushed over the socket (see `useRunsFeed`); a
+ * pushed change never touches the viewport.
  */
 export const RunsScreen = ({
   feed,
@@ -77,9 +73,6 @@ export const RunsScreen = ({
   // Claude's questions waiting in the studio: all of them for the tab title, this run's for the graph.
   const asked: PendingQuestion[] = useQuestions().state.pending;
   const asking: boolean = run !== undefined && questionsForRun(asked, run).length > 0;
-
-  // Poll fast while the shown run is moving, slowly otherwise.
-  usePolling(feed.refresh, isActiveRun(run) ? FAST_POLL_MS : SLOW_POLL_MS);
 
   useEffect(() => {
     if (pending) return;
@@ -136,7 +129,7 @@ export const RunsScreen = ({
           title="The run list is not valid"
           detail="GET /api/v1/runs answered with a body that does not match the run list schema, so nothing can be drawn from it."
           issues={feed.invalidIssues}
-          onRetry={feed.refresh}
+          onRetry={feed.resync}
         />
       </div>
     );
@@ -147,6 +140,7 @@ export const RunsScreen = ({
       <div className="screen screen-runs">
         <RunsIndex
           feed={indexFeed}
+          allData={data}
           workspace={workspace}
           totalRuns={runs.length}
           onOpen={openRun}
@@ -171,6 +165,7 @@ export const RunsScreen = ({
       <div className="screen screen-runs">
         <RunsIndex
           feed={indexFeed}
+          allData={data}
           workspace={workspace}
           totalRuns={runs.length}
           onOpen={openRun}

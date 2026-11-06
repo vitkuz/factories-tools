@@ -1,48 +1,47 @@
 import type { ReactNode } from 'react';
 import type { RunsFeed } from '../hooks/use-runs-feed';
-import { useNow } from '../../../shared/lib/polling';
 import { FeedBar, type FeedTone } from '../../../shared/components/FeedBar';
-import { formatClock, formatRelative } from '../lib/format';
 
 interface Copy {
   word: string;
-  detail: string;
   tone: FeedTone;
-  refreshTitle: string;
+  /** The tooltip: what the word means right now. */
+  title: string;
 }
 
-/** "1 run with an invalid state.json (content-pipeline/x)" for the bar. */
+/** "1 run with an invalid state.json (content-pipeline/x)" for the tooltip. */
 const droppedNote = (dropped: string[]): string =>
   `${dropped.length} run${dropped.length === 1 ? '' : 's'} with an invalid state.json (${dropped.join(', ')})`;
 
-/** One word for the header, one sentence for the bar. Any error means Offline. */
-export const describeFeed = (feed: RunsFeed, now: number): Copy => {
-  if (feed.error) {
+/**
+ * One word for the indicator. The socket decides: closed is Offline (the data on screen stays,
+ * the reconnect is automatic), open without a snapshot yet is Connecting, open with one is
+ * Live. Pure.
+ */
+export const describeFeed = (
+  feed: Pick<RunsFeed, 'connection' | 'settled' | 'source' | 'invalid' | 'dropped'>,
+): Copy => {
+  if (feed.connection === 'closed') {
     return {
       word: 'Offline',
-      detail: `Can't reach run data (${feed.error}). Showing what was loaded ${formatRelative(feed.updatedAt, now)}.`,
       tone: 'unreachable',
-      refreshTitle: 'Try reaching the run data again',
+      title:
+        feed.source === 'live'
+          ? 'Disconnected, reconnecting… The last data stays on screen.'
+          : 'Disconnected, reconnecting…',
     };
   }
-  if (feed.source === 'live') {
-    return {
-      word: 'Live',
-      detail: feed.invalid
-        ? `Last update was invalid — showing data from ${formatRelative(feed.updatedAt, now)}`
-        : feed.dropped.length > 0
-          ? `Updated ${formatRelative(feed.updatedAt, now)}; hiding ${droppedNote(feed.dropped)}`
-          : `Updated ${formatRelative(feed.updatedAt, now)}`,
-      tone: 'live',
-      refreshTitle: 'Fetch the current run data now',
-    };
+  if (!feed.settled && feed.source !== 'live') {
+    return { word: 'Connecting', tone: 'unreachable', title: 'Waiting for the run list…' };
   }
-  // Before the first answer: nothing on screen yet, the first fetch is in flight.
   return {
-    word: 'Connecting',
-    detail: `Connecting to the API (${formatClock(feed.updatedAt)})…`,
-    tone: 'unreachable',
-    refreshTitle: 'Fetch the current run data now',
+    word: 'Live',
+    tone: 'live',
+    title: feed.invalid
+      ? 'The last run list was invalid; the previous one stays on screen.'
+      : feed.dropped.length > 0
+        ? `Changes arrive over the socket; hiding ${droppedNote(feed.dropped)}`
+        : 'Changes arrive over the socket as the runs write them.',
   };
 };
 
@@ -52,19 +51,8 @@ interface RunsFeedBarProps {
   active: boolean;
 }
 
-/** The runs feed in the shared top-bar group: the sentence, the indicator, Refresh. */
+/** The runs feed in the shared top-bar group: the indicator. */
 export const RunsFeedBar = ({ feed, active }: RunsFeedBarProps): ReactNode => {
-  const now: number = useNow(1000);
-  const copy: Copy = describeFeed(feed, now);
-  return (
-    <FeedBar
-      detail={copy.detail}
-      word={copy.word}
-      tone={copy.tone}
-      active={active}
-      refreshing={feed.refreshing}
-      refreshTitle={copy.refreshTitle}
-      onRefresh={feed.refresh}
-    />
-  );
+  const copy: Copy = describeFeed(feed);
+  return <FeedBar word={copy.word} tone={copy.tone} active={active} title={copy.title} />;
 };

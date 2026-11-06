@@ -45,11 +45,11 @@ interface ColumnProps {
 
 /** One board column: an uppercase name and a count over its cards, or a line when it has none. */
 const Column = ({ label, tone, count, empty, lead, children }: ColumnProps): ReactNode => (
-  <section className={`board-column is-${tone}`} aria-label={label}>
-    <header className="board-column-head">
-      <h2 className="board-column-title">{label}</h2>
+  <section className={`panel board-column is-${tone}`} aria-label={label}>
+    <header className="panel-head board-column-head">
+      <h2 className="kicker board-column-title">{label}</h2>
       <span
-        className={tone === 'needs-you' ? 'board-column-badge' : 'board-column-count'}
+        className={tone === 'needs-you' ? 'board-column-badge' : 'panel-note board-column-count'}
         aria-label={`${count} ${label.toLowerCase()}`}
       >
         {count}
@@ -99,7 +99,7 @@ export const SessionBoard = ({
             {state.lastError !== null ? (
               <div className="ask-error">
                 <Notice tone="refusal">{state.lastError}</Notice>
-                <button type="button" className="ghost-button" onClick={onClearError}>
+                <button type="button" className="btn" onClick={onClearError}>
                   Dismiss
                 </button>
               </div>

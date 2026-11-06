@@ -1,12 +1,4 @@
-import {
-  createContext,
-  useCallback,
-  useContext,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import {
   describeApiError,
   isApiError,
@@ -15,17 +7,19 @@ import {
 } from '../../../adapters/http/api-error.utils';
 import {
   createWorkspace,
-  listWorkspaces,
   removeWorkspace,
   updateWorkspace,
 } from '../../../adapters/http/studio-api.adapter';
 import { readJson, writeJson } from '../../../shared/lib/storage';
+import { useLiveTopics } from '../../sessions/hooks/use-live-topics';
+import { useQuestions } from '../../sessions/hooks/use-questions';
+import type { SessionQuestions } from '../../sessions/hooks/use-session-questions';
+import type { ServerMessage } from '../../sessions/sessions.types';
 import type {
   Workspace,
   WorkspacePayload,
   Workspaces,
   WorkspacesContextValue,
-  WorkspacesList,
   WorkspacesState,
   WorkspaceWriteResult,
 } from '../workspaces.types';
@@ -64,11 +58,13 @@ const asMessage = (error: unknown): string => {
 };
 
 /**
- * The workspaces: listed on mount and after every write, the chosen one kept in localStorage.
- * A chosen id that is no longer listed reads as All without being forgotten, so a workspace
- * that comes back (the file fixed by hand) is chosen again.
+ * The workspaces: the `workspaces` topic of the socket pushes `run/workspaces.json` on
+ * subscribe and whenever the file changes (a write from here, a hand edit, another tab), the
+ * chosen one is kept in localStorage. A chosen id that is no longer listed reads as All
+ * without being forgotten, so a workspace that comes back (the file fixed by hand) is chosen again.
  */
 export const useWorkspaces = (): Workspaces => {
+  const { channel, connection }: SessionQuestions = useQuestions();
   const [state, setState] = useState<WorkspacesState>({
     list: [],
     exists: false,
@@ -77,46 +73,39 @@ export const useWorkspaces = (): Workspaces => {
     error: null,
   });
   const [selectedId, setSelectedId] = useState<string | null>(readSelection);
-  const inflight = useRef<AbortController | null>(null);
+  useLiveTopics(['workspaces']);
 
-  const refresh = useCallback((): void => {
-    inflight.current?.abort();
-    const controller: AbortController = new AbortController();
-    inflight.current = controller;
-    listWorkspaces(controller.signal)
-      .then((answer: WorkspacesList): void => {
-        if (controller.signal.aborted) return;
-        inflight.current = null;
+  useEffect(
+    (): (() => void) =>
+      channel.listen((message: ServerMessage): void => {
+        if (message.type !== 'workspaces.snapshot') return;
         setState({
-          list: answer.workspaces,
-          exists: answer.exists,
-          problem: answer.problem ?? null,
+          list: message.workspaces,
+          exists: message.exists,
+          problem: message.problem ?? null,
           loading: false,
           error: null,
         });
-      })
-      .catch((error: unknown): void => {
-        if (controller.signal.aborted) return;
-        inflight.current = null;
-        setState((s: WorkspacesState): WorkspacesState => ({
-          ...s,
-          loading: false,
-          error: asMessage(error),
-        }));
-      });
-  }, []);
+      }),
+    [channel],
+  );
 
-  useEffect(() => {
-    refresh();
-    return () => inflight.current?.abort();
-  }, [refresh]);
+  // While the socket is down the last list stays; the reopen brings a fresh snapshot.
+  useEffect((): void => {
+    if (connection === 'closed')
+      setState((s: WorkspacesState): WorkspacesState => ({
+        ...s,
+        loading: false,
+        error: s.list.length === 0 && !s.exists ? 'Not connected to the API' : s.error,
+      }));
+  }, [connection]);
 
   const select = useCallback((id: string | null): void => {
     setSelectedId(id);
     writeJson(SELECTION_KEY, { id });
   }, []);
 
-  /** Puts the written workspace in the list at once, then reads the file again. */
+  /** Puts the written workspace in the list at once; the file watcher's snapshot confirms it. */
   const write = useCallback(
     async (
       run: () => Promise<Workspace>,
@@ -129,13 +118,12 @@ export const useWorkspaces = (): Workspaces => {
           list: apply(workspace)(s.list),
           exists: true,
         }));
-        refresh();
         return { ok: true, workspace };
       } catch (error: unknown) {
         return { ok: false, message: asMessage(error) };
       }
     },
-    [refresh],
+    [],
   );
 
   const create = useCallback(
@@ -163,8 +151,8 @@ export const useWorkspaces = (): Workspaces => {
 
   // One object per change, so the context's readers re-render only when something moved.
   return useMemo(
-    (): Workspaces => ({ ...state, selected, selectedId, select, refresh, create, update, remove }),
-    [state, selected, selectedId, select, refresh, create, update, remove],
+    (): Workspaces => ({ ...state, selected, selectedId, select, create, update, remove }),
+    [state, selected, selectedId, select, create, update, remove],
   );
 };
 

@@ -5,10 +5,12 @@ import type {
   factoryParamSchema,
   factorySessionSchema,
   harnessSchema,
+  liveTopicSchema,
   paramValueSchema,
   pipelineListEntrySchema,
   pipelineListSchema,
   pendingQuestionSchema,
+  questionChannelSchema,
   questionOptionSchema,
   questionSchema,
   resolveReasonSchema,
@@ -48,11 +50,13 @@ export type SessionStatus = z.infer<typeof sessionStatusSchema>;
 export type QuestionOption = z.infer<typeof questionOptionSchema>;
 export type Question = z.infer<typeof questionSchema>;
 export type PendingQuestion = z.infer<typeof pendingQuestionSchema>;
+export type QuestionChannel = z.infer<typeof questionChannelSchema>;
 export type SessionRunLink = z.infer<typeof sessionRunLinkSchema>;
 export type Answer = z.infer<typeof answerSchema>;
 export type ResolveReason = z.infer<typeof resolveReasonSchema>;
 export type ServerMessage = z.infer<typeof serverMessageSchema>;
 export type ClientMessage = z.infer<typeof clientMessageSchema>;
+export type LiveTopic = z.infer<typeof liveTopicSchema>;
 
 /** What a person has picked and typed for one question so far (not yet sent). */
 export interface Draft {
@@ -70,6 +74,10 @@ export interface QuestionsState {
   pending: PendingQuestion[];
   /** The latest status per session name, from the socket. */
   statuses: Record<string, SessionStatus>;
+  /** The running sessions, as the `sessions` topic last pushed them (oldest first). */
+  sessions: FactorySession[];
+  /** A session list has arrived since the socket opened; `false` until then and after a drop. */
+  sessionsSettled: boolean;
   /** Per promptId. */
   prompts: Record<string, SendState>;
   /** A socket `error` that names no prompt. */
@@ -99,12 +107,8 @@ export interface SessionNotice {
 }
 
 export interface SessionsState {
+  /** The pushed list, plus a row just started here until the list carries it. */
   sessions: FactorySession[];
-  /** When the list was last fetched successfully. */
-  updatedAt: number;
-  refreshing: boolean;
-  /** The list could not be fetched; the last list stays on screen. */
-  error: string | null;
   notice: SessionNotice | null;
 }
 

@@ -61,6 +61,7 @@ const pending = (promptId: string, sessionId = 's1'): PendingQuestion => ({
   toolUseId: `tu-${promptId}`,
   questions: [single, multi],
   askedAt: '2026-10-20T10:00:00.000Z',
+  channel: 'hook',
 });
 const session = (name: string, status?: FactorySession['status']): FactorySession => ({
   session: name,
@@ -221,6 +222,33 @@ describe('questions state', () => {
     expect(resolved.prompts).toEqual({});
   });
 
+  it('a question pushed again with a new channel replaces the old one in place', () => {
+    const added = reduceQuestions(hello(['p1', 'p2']), {
+      kind: 'message',
+      message: { type: 'session.question', question: { ...pending('p1'), channel: 'terminal' } },
+    });
+    expect(added.pending.map((p: PendingQuestion): string => p.promptId)).toEqual(['p1', 'p2']);
+    expect(added.pending[0]?.channel).toBe('terminal');
+    const gone = reduceQuestions(added, {
+      kind: 'message',
+      message: {
+        type: 'session.question.resolved',
+        sessionId: 's1',
+        promptId: 'p1',
+        reason: 'gone',
+      },
+    });
+    expect(gone.pending.map((p: PendingQuestion): string => p.promptId)).toEqual(['p2']);
+  });
+
+  it("a pending question without a channel (an older API) counts as the hook's", () => {
+    const { channel: _channel, ...bare }: PendingQuestion = pending('p1');
+    const parsed = serverMessageSchema.safeParse({ type: 'session.question', question: bare });
+    expect(
+      parsed.success && parsed.data.type === 'session.question' && parsed.data.question.channel,
+    ).toBe('hook');
+  });
+
   it('routes an error with a prompt ref to that prompt, others to lastError', () => {
     const sending = reduceQuestions(hello(['p1']), { kind: 'sending', promptId: 'p1' });
     const failed = reduceQuestions(sending, {
@@ -313,6 +341,17 @@ describe('session board', () => {
     expect(needsYouCount(board)).toBe(3);
   });
 
+  it('a terminal-bound question keeps its blocked session in one card, not two', () => {
+    const state: QuestionsState = withState({
+      pending: [{ ...pending('p1', 's1'), channel: 'terminal' }],
+    });
+    const board = groupSessions([session('s1', 'blocked'), session('s2', 'blocked')], state);
+    expect(board.questions.map((p: PendingQuestion) => p.promptId)).toEqual(['p1']);
+    expect(names(board.terminal)).toEqual(['s2']);
+    expect(sessionsNeedingReply([session('s1', 'blocked')], state)).toEqual([]);
+    expect(boardColumnOf(session('s1', 'blocked'), state)).toBe('needs-you');
+  });
+
   it('opens the picked card, none after Later, otherwise the oldest', () => {
     const list: PendingQuestion[] = [pending('p1'), pending('p2')];
     expect(openPromptId(list, undefined)).toBe('p1');
@@ -353,6 +392,7 @@ describe('questions on the run page', () => {
     toolUseId: '',
     questions: [single],
     askedAt: '2026-10-21T20:00:00.000Z',
+    channel: 'hook',
     ...(run ? { run } : {}),
   });
 

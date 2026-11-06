@@ -1,14 +1,17 @@
 import express, { Router, type RequestHandler } from 'express';
-import { validateBody } from '../../../shared/middleware/validate.js';
+import { validateBody, validateParams } from '../../../shared/middleware/validate.js';
 import { MAX_DOCUMENT_BYTES } from '../../documents/documents.utils.js';
 import {
   listSessionsControllerFactory,
   replySessionControllerFactory,
+  sendMessageControllerFactory,
   startSessionControllerFactory,
   stopSessionControllerFactory,
 } from '../controllers/index.js';
 import {
   replySessionPayloadSchema,
+  sendMessagePayloadSchema,
+  sessionIdParamsSchema,
   startSessionPayloadSchema,
   stopSessionPayloadSchema,
 } from '../sessions.schema.js';
@@ -39,6 +42,14 @@ export const createSessionsRoutes = (usecases: SessionUsecases): Router => {
     jsonBody,
     validateBody(replySessionPayloadSchema),
     replySessionControllerFactory(usecases),
+  );
+  // The chat drawer's message box: a follow-up to a session at its prompt.
+  router.post(
+    '/sessions/:sessionId/messages',
+    jsonBody,
+    validateParams(sessionIdParamsSchema, 'invalid session id'),
+    validateBody(sendMessagePayloadSchema),
+    sendMessageControllerFactory(usecases),
   );
   return router;
 };

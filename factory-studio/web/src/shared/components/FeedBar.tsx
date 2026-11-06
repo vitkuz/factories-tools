@@ -3,31 +3,22 @@ import type { ReactNode } from 'react';
 export type FeedTone = 'live' | 'unreachable';
 
 export interface FeedBarProps {
-  /** The sentence: "Updated 3 s ago", or the error when the data cannot be reached. */
-  detail: string;
   /** One word for the indicator: Live, Offline, Connecting. */
   word: string;
   tone: FeedTone;
   /** The dot pulses while something is running or waiting. */
   active?: boolean;
-  refreshing: boolean;
-  refreshTitle?: string;
-  onRefresh: () => void;
+  /** What the indicator means right now, as the tooltip. */
+  title?: string;
 }
 
 /**
- * The top bar's feed group, the same on every screen and at its far right: the sentence, the
- * live indicator and Refresh. Each feature passes its own wording and state.
+ * The top bar's feed group, the same on every screen and at its far right: the live indicator
+ * alone. There is no "updated n s ago" and nothing to press: the server pushes every change
+ * over the socket, a dropped socket reconnects on its own, and the run's own times are data on
+ * the run page. Each feature passes its own word.
  */
-export const FeedBar = ({
-  detail,
-  word,
-  tone,
-  active = false,
-  refreshing,
-  refreshTitle,
-  onRefresh,
-}: FeedBarProps): ReactNode => {
+export const FeedBar = ({ word, tone, active = false, title }: FeedBarProps): ReactNode => {
   const dotClass: string = [
     'live-dot',
     `live-dot--${tone}`,
@@ -37,20 +28,10 @@ export const FeedBar = ({
     .join(' ');
   return (
     <div className="feed-bar">
-      <span className="feed-detail">{detail}</span>
-      <div className="live-status" role="status" aria-live="polite" title={detail}>
+      <div className="live-status" role="status" aria-live="polite" title={title}>
         <span className={dotClass} aria-hidden="true" />
         <span className="live-word">{word}</span>
       </div>
-      <button
-        type="button"
-        className="feed-refresh"
-        onClick={onRefresh}
-        disabled={refreshing}
-        title={refreshTitle}
-      >
-        {refreshing ? 'Refreshing…' : 'Refresh'}
-      </button>
     </div>
   );
 };

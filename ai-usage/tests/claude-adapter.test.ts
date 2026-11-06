@@ -93,3 +93,39 @@ describe("claude transcript adapter", () => {
     expect(events[0]?.billing.billedUsd).toBeUndefined();
   });
 });
+
+describe("claude agent meta files", () => {
+  const metaHome: string = path.join(FIXTURES, "claude/meta-links");
+  const metaAdapter = createClaudeUsageAdapter({ homeDir: metaHome, billingMode: "subscription" });
+
+  it("links a nested agent to its parent from agent-*.meta.json when the parent recorded no tool_result, and records the files each agent wrote", async () => {
+    const result = await metaAdapter.read({});
+    const a = result.actors.find((f) => f.id === "aaaaaaaaaaaaaaaa1");
+    const b = result.actors.find((f) => f.id === "bbbbbbbbbbbbbbbb2");
+    expect(a?.parentId).toBe("main");
+    expect(a?.name).toBe("general-purpose");
+    expect(a?.description).toBe("step-one for acme");
+    expect(a?.model).toBe("claude-sonnet-5-5"); // the tool_result's resolved model beats the meta alias
+    expect(a?.refs).toEqual(["run/demo/acme-2026-11-01", "1-step-one/out.md"]);
+    expect(a?.writes).toEqual([
+      "/fixtures/claude/project/run/demo/acme-2026-11-01/1-step-one/out.md",
+    ]);
+    // B's parent never recorded a tool_result (still running): the meta file is the link.
+    expect(b?.parentId).toBe("aaaaaaaaaaaaaaaa1");
+    expect(b?.description).toBe("brand capture");
+    expect(b?.writes).toEqual([
+      "/fixtures/claude/project/run/demo/acme-2026-11-01/1-brand/brand.json",
+    ]);
+    // every transcript's usage is an event of the right actor
+    const byActor = new Map<string, number>();
+    result.events.forEach((e) =>
+      byActor.set(e.actor.id ?? "?", (byActor.get(e.actor.id ?? "?") ?? 0) + 1),
+    );
+    expect(byActor.get("main")).toBe(2);
+    expect(byActor.get("aaaaaaaaaaaaaaaa1")).toBe(2);
+    expect(byActor.get("bbbbbbbbbbbbbbbb2")).toBe(1);
+    expect(result.events.find((e) => e.actor.id === "bbbbbbbbbbbbbbbb2")?.actor.parentId).toBe(
+      "aaaaaaaaaaaaaaaa1",
+    );
+  });
+});

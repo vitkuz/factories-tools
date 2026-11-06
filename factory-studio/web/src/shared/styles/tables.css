@@ -1,253 +1,22 @@
 /* ------------------------------------------------------------------ */
-/* The tables: tools/artifact-collector/front/src/styles.css, the totals  */
-/* banner and the grid rules, scoped under .screen-runs (and the sessions */
-/* list, which is the same table).                                        */
+/* Removing a run from the Runs home: the bin and its confirm.          */
 /* ------------------------------------------------------------------ */
 
-/* ---------------------------------------------------------------- totals */
-
-/* The four numbers the tool exists to answer, before anything else on the page. */
-.screen-runs .totals,
-.screen-sessions .totals {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 12px;
-}
-
-.screen-runs .figure,
-.screen-sessions .figure {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 16px 18px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
-}
-
-.screen-runs .figure-value,
-.screen-sessions .figure-value {
-  font-size: 26px;
-  font-weight: 700;
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
-}
-
-.screen-runs .figure-value.is-accent,
-.screen-sessions .figure-value.is-accent {
-  color: var(--st-completed);
-}
-
-.screen-runs .figure-label,
-.screen-sessions .figure-label {
-  font-size: 11px;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-}
-
-/* ----------------------------------------------------------------- grids */
-
-.screen-runs .panel-title,
-.screen-sessions .panel-title {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
-
-.screen-runs .panel-note,
-.screen-sessions .panel-note {
-  font-weight: 400;
-  letter-spacing: 0;
-  text-transform: none;
-  color: var(--ink-2);
-}
-
-/* The tables keep their columns; the overflow is the panel's, not the page's. */
-.screen-runs .grid-scroll,
-.screen-sessions .grid-scroll {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.screen-runs .grid,
-.screen-sessions .grid {
-  width: 100%;
-  min-width: 620px;
-  border-collapse: collapse;
-  font-size: 13px;
-}
-
-.screen-runs .grid th,
-.screen-sessions .grid th {
-  text-align: left;
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ink-2);
-  padding: 0 8px 6px;
-  border-bottom: 1px solid var(--line);
-  white-space: nowrap;
-}
-
-.screen-runs .grid td,
-.screen-sessions .grid td {
-  padding: 7px 8px;
-  border-bottom: 1px solid var(--line);
-  vertical-align: middle;
-}
-
-.screen-runs .grid .numeric,
-.screen-sessions .grid .numeric {
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.screen-runs .grid .nowrap,
-.screen-sessions .grid .nowrap {
-  white-space: nowrap;
-}
-
-.screen-runs .grid .money,
-.screen-sessions .grid .money {
-  font-variant-numeric: tabular-nums;
-  color: var(--st-completed);
-}
-
-/* A table that fills a panel edge to edge: roomier rows, the outer cells inset like the panel. */
-.screen-runs .grid--panel {
-  min-width: 640px;
-}
-
-.screen-runs .grid--panel th {
-  padding: 12px;
-  letter-spacing: 0.08em;
-}
-
-.screen-runs .grid--panel td {
-  padding: 12px;
-  border-bottom-color: color-mix(in srgb, var(--line) 55%, var(--panel));
-}
-
-.screen-runs .grid--panel tbody tr:last-child td {
-  border-bottom: 0;
-}
-
-.screen-runs .grid--panel th:first-child,
-.screen-runs .grid--panel td:first-child {
-  padding-left: 20px;
-}
-
-.screen-runs .grid--panel th:last-child,
-.screen-runs .grid--panel td:last-child {
-  padding-right: 20px;
-}
-
-/* An incomplete figure states its own incompleteness, under the figure. */
-.screen-runs .cell-note,
-.screen-sessions .cell-note {
-  display: block;
-  font-weight: 400;
-  font-size: 11px;
-  color: var(--ink-2);
-}
-
-.screen-runs .grid .muted,
-.screen-sessions .grid .muted {
-  color: var(--ink-2);
-}
-
-.screen-runs .grid tr.is-clickable,
-.screen-sessions .grid tr.is-clickable {
-  cursor: pointer;
-}
-
-/* The real control inside the row, so the drill-down has a tab stop. */
-.screen-runs .row-button,
-.screen-sessions .row-button {
-  display: flex;
-  align-items: center;
-  gap: 0;
-  width: 100%;
-  padding: 0;
-  background: none;
-  border: 0;
-  border-radius: 0;
-  color: inherit;
-  font: inherit;
-  text-align: left;
-  cursor: pointer;
-}
-
-.screen-runs .grid tr.is-clickable:hover td,
-.screen-sessions .grid tr.is-clickable:hover td {
-  background: var(--raised);
-}
-
-.screen-runs .grid tr[aria-current='true'] td,
-.screen-sessions .grid tr[aria-current='true'] td {
-  background: var(--raised);
-}
-
-.screen-runs .chip,
-.screen-sessions .chip {
-  display: inline-block;
-  margin-left: 6px;
-  padding: 0 6px;
-  font-size: 11px;
-  line-height: 1.5;
-  border-radius: 4px;
-  white-space: nowrap;
-}
-
-.screen-runs .chip--skipped,
-.screen-sessions .chip--skipped {
-  color: var(--st-skipped);
-  border: 1px solid color-mix(in srgb, var(--st-skipped) 45%, transparent);
-}
-
-.screen-runs .chevron,
-.screen-sessions .chevron {
-  display: inline-block;
-  width: 14px;
-  color: var(--ink-2);
-}
-
-/* ---- remove a run: the bin at the row's end, the confirm under the row ---- */
-
-.screen-runs .grid th.row-actions,
-.screen-runs .grid td.row-actions {
-  width: 1%;
-  padding-left: 0;
-  text-align: right;
-  white-space: nowrap;
-}
-
-/* Quiet until the row is pointed at or reached by keyboard; always there without a hover. */
+/* The bin in the run panel's head, beside Open run. */
 .screen-runs .row-remove {
   display: inline-grid;
   place-items: center;
-  width: 28px;
-  height: 28px;
+  width: var(--control-h-sm);
+  height: var(--control-h-sm);
   padding: 0;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  background: none;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius-control);
+  background: var(--control);
   color: var(--ink-2);
   cursor: pointer;
-  opacity: 0;
   transition:
-    opacity 120ms ease,
-    color 120ms ease;
-}
-
-.screen-runs .grid tr:hover .row-remove,
-.screen-runs .grid tr:focus-within .row-remove,
-.screen-runs .grid tr.is-confirming .row-remove,
-.screen-runs .row-remove:focus-visible {
-  opacity: 1;
+    color 120ms ease,
+    border-color 120ms ease;
 }
 
 .screen-runs .row-remove:hover,
@@ -262,36 +31,19 @@
   outline-offset: 1px;
 }
 
-@media (hover: none), (max-width: 760px) {
-  .screen-runs .row-remove {
-    opacity: 1;
-  }
-}
-
-.screen-runs .grid tr.is-confirming td {
-  background: var(--raised);
-  border-bottom-color: transparent;
-}
-
-.screen-runs .grid tr.run-remove-row td {
-  padding-top: 0;
-  background: var(--raised);
-  cursor: default;
-}
-
 .run-remove-confirm {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 10px 16px;
-  padding: 10px 12px;
+  padding: 12px 16px;
   border: 1px solid color-mix(in srgb, var(--st-failed) 40%, var(--line));
   border-left-width: 3px;
   border-left-color: var(--st-failed);
-  border-radius: 6px;
+  border-radius: var(--radius-control);
   background: var(--panel);
-  font-size: 13px;
+  font-size: var(--fs-meta);
 }
 
 .run-remove-text {
@@ -320,45 +72,4 @@
 .run-remove-actions {
   display: flex;
   gap: 8px;
-}
-
-.run-remove-actions .danger-button,
-.run-remove-actions .ghost-button {
-  height: 32px;
-  padding: 0 12px;
-  border: 1px solid transparent;
-  border-radius: 6px;
-  font: inherit;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.run-remove-actions .danger-button {
-  background: transparent;
-  border-color: color-mix(in srgb, var(--st-failed) 55%, var(--ground));
-  color: color-mix(in srgb, var(--st-failed) 70%, var(--ink));
-}
-
-.run-remove-actions .danger-button:hover:not(:disabled) {
-  background: color-mix(in srgb, var(--st-failed) 18%, transparent);
-}
-
-.run-remove-actions .ghost-button {
-  border-color: var(--line);
-  color: var(--ink);
-  font-weight: 500;
-}
-
-.run-remove-actions button:disabled {
-  opacity: 0.5;
-  cursor: default;
-}
-
-.pipeline-runs-notice {
-  padding: 12px 20px 0;
-  overflow-wrap: anywhere;
-}
-
-.pipeline-runs-notice + .grid-scroll {
-  margin-top: 12px;
 }

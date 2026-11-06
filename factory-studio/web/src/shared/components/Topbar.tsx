@@ -1,8 +1,6 @@
 import type { MouseEvent, ReactNode } from 'react';
 import { buildPath, type Route } from '../lib/route';
-import type { DashboardData } from '../../features/runs/runs.types';
 import { MemoryMeter } from '../../features/system';
-import { WorkspacePicker } from '../../features/workspaces';
 
 interface NavLink {
   screen: Route['screen'];
@@ -21,18 +19,16 @@ interface TopbarProps {
   onNavigate: (route: Route) => void;
   /** Receives the slot element the screens fill (see `TopbarContent`). */
   onSlot: (element: HTMLElement | null) => void;
-  /** The run list's data, for the factories the workspace dialog offers. */
-  data: DashboardData;
 }
 
 /**
  * The bar over the content, to the right of the sidebar: a link per screen, the current one
- * marked, the workspace picker (only on the Runs home and Sessions, the lists it filters; a run
- * page shows one run whatever the workspace), then the slot the
- * screen on show fills with its own line (the run's header, the live indicator, Refresh), and
- * last the memory meter, the same on every screen. The brand lives at the top of the sidebar.
+ * marked (the workspace picker is in each screen's factory bar, Runs and Sessions alike; a run
+ * page shows one run whatever the workspace), then the slot the screen on show fills with its
+ * own line (the run's header, the live indicator), and last the memory meter, the same on
+ * every screen. The brand lives at the top of the sidebar.
  */
-export const Topbar = ({ route, onNavigate, onSlot, data }: TopbarProps): ReactNode => (
+export const Topbar = ({ route, onNavigate, onSlot }: TopbarProps): ReactNode => (
   <header className="topbar">
     <nav className="nav" aria-label="Screens">
       {LINKS.map((link: NavLink) => (
@@ -57,7 +53,6 @@ export const Topbar = ({ route, onNavigate, onSlot, data }: TopbarProps): ReactN
         </a>
       ))}
     </nav>
-    {route.screen === 'sessions' || route.run === null ? <WorkspacePicker data={data} /> : null}
     <div className="topbar-slot" ref={onSlot} />
     <MemoryMeter />
   </header>

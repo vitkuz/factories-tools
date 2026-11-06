@@ -6,10 +6,11 @@ import { listPipelines } from '../../adapters/http/studio-api.adapter';
 import { useNow } from '../../shared/lib/polling';
 import { FeedBar } from '../../shared/components/FeedBar';
 import { TopbarContent } from '../../shared/components/TopbarContent';
-import { formatRelative } from '../runs/lib/format';
+import { WorkspacePicker } from '../workspaces';
 import { useWorkspacesContext } from '../workspaces/hooks/use-workspaces';
 import { inWorkspace } from '../workspaces/workspaces.utils';
 import type { Workspace } from '../workspaces/workspaces.types';
+import type { DashboardData } from '../runs/runs.types';
 import type {
   FactorySession,
   ListState,
@@ -17,12 +18,12 @@ import type {
   PipelineListEntry,
   StartRequest,
 } from './sessions.types';
-import { REFRESH_LIVE_MS, REFRESH_MS, useSessions, type Sessions } from './hooks/use-sessions';
+import { useSessions, type Sessions } from './hooks/use-sessions';
 import type { SessionQuestions } from './hooks/use-session-questions';
 import { useQuestions } from './hooks/use-questions';
 import { useChime } from '../../shared/lib/use-chime';
 import questionChime from '../../assets/question-chime.wav';
-import { sessionsNeedingReply, titleWithCount } from './sessions.utils';
+import { sessionsLine, sessionsNeedingReply, titleWithCount, withLiveAge } from './sessions.utils';
 import { StartForm } from './components/StartForm';
 import { SessionBoard } from './components/SessionBoard';
 import { SessionNotice } from './components/SessionNotice';
@@ -32,29 +33,35 @@ const APP_NAME = 'Factory Studio';
 interface SessionsScreenProps {
   /** The session whose live chat is open over the board (`/sessions/<session>`), or `null`. */
   chat: string | null;
+  /** The run list's data: the workspace dialog in the factory bar offers every factory in it. */
+  data: DashboardData;
 }
 
 /**
- * The Sessions screen: the start form across the top, then every herdr session on a board by
- * what it needs, and a session's live chat over it when the route names one.
+ * The Sessions screen, laid out like the Runs home: the factory bar (workspace and Manage, the
+ * session counts), the start form as a panel, then every herdr session on a board by what it
+ * needs, and a session's live chat over it when the route names one.
  */
-export const SessionsScreen = ({ chat }: SessionsScreenProps): ReactNode => {
+export const SessionsScreen = ({ chat, data }: SessionsScreenProps): ReactNode => {
   const questions: SessionQuestions = useQuestions();
-  // The socket carries the live news; the list is polled fast only while the socket is down.
-  const sessions: Sessions = useSessions(
-    questions.connection === 'open' ? REFRESH_LIVE_MS : REFRESH_MS,
-  );
+  // The socket carries the list and every change to it; nothing on this screen polls.
+  const sessions: Sessions = useSessions();
   const terminalWaits: number = sessionsNeedingReply(
     sessions.state.sessions,
     questions.state,
   ).length;
   const waiting: number = questions.state.pending.length + terminalWaits;
-  const live: boolean = questions.connection === 'open' && !sessions.state.error;
+  const live: boolean = questions.connection === 'open' && questions.state.sessionsSettled;
   const [entries, setEntries] = useState<PipelineListEntry[]>([]);
   const [listState, setListState] = useState<ListState>('loading');
   const [starting, setStarting] = useState<boolean>(false);
   const [stopping, setStopping] = useState<string | null>(null);
   const now: number = useNow(1000);
+  // The list is pushed only when it changes: the ages are counted here, from `startedAt`.
+  const shown: FactorySession[] = useMemo(
+    (): FactorySession[] => sessions.state.sessions.map(withLiveAge(now)),
+    [sessions.state.sessions, now],
+  );
   // The start form offers the chosen workspace's factories only.
   const workspace: Workspace | null = useWorkspacesContext().selected;
   const offered: PipelineListEntry[] = useMemo(
@@ -113,19 +120,26 @@ export const SessionsScreen = ({ chat }: SessionsScreenProps): ReactNode => {
             </span>
           ) : null}
           <FeedBar
-            detail={
-              sessions.state.error
-                ? `Can't reach the API (${sessions.state.error})`
-                : `Updated ${formatRelative(sessions.state.updatedAt, now)}`
-            }
-            word={live ? 'Live' : questions.connection === 'connecting' ? 'Connecting' : 'Offline'}
+            word={live ? 'Live' : questions.connection === 'closed' ? 'Offline' : 'Connecting'}
             tone={live ? 'live' : 'unreachable'}
-            refreshing={sessions.state.refreshing}
-            onRefresh={sessions.refresh}
+            title={
+              questions.connection === 'closed'
+                ? 'Disconnected, reconnecting…'
+                : live
+                  ? 'The session list arrives over the socket as it changes.'
+                  : 'Waiting for the session list…'
+            }
           />
         </div>
       </TopbarContent>
-      <div className="sessions">
+      <div className="page sessions">
+        <section className="bar factory-bar" aria-label="Factory">
+          <WorkspacePicker data={data} label="Factory" className="workspace-picker--bar" />
+          <span className="bar-fill" />
+          {shown.length > 0 ? (
+            <span className="bar-note">{sessionsLine(shown.length, waiting)}</span>
+          ) : null}
+        </section>
         <StartForm
           entries={offered}
           outsideWorkspace={offered.length === 0 && entries.length > 0}
@@ -135,7 +149,7 @@ export const SessionsScreen = ({ chat }: SessionsScreenProps): ReactNode => {
         />
         <SessionNotice notice={sessions.state.notice} onDismiss={sessions.dismiss} />
         <SessionBoard
-          sessions={sessions.state.sessions}
+          sessions={shown}
           state={questions.state}
           connection={questions.connection}
           stopping={stopping}
@@ -149,9 +163,7 @@ export const SessionsScreen = ({ chat }: SessionsScreenProps): ReactNode => {
       {chat !== null ? (
         <ChatDrawer
           sessionId={chat}
-          session={
-            sessions.state.sessions.find((s: FactorySession): boolean => s.session === chat) ?? null
-          }
+          session={shown.find((s: FactorySession): boolean => s.session === chat) ?? null}
           onClose={closeChat}
         />
       ) : null}

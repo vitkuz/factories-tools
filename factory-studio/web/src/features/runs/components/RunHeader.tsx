@@ -17,7 +17,7 @@ interface RunHeaderProps {
 
 /**
  * The run's own header line, in the top bar after the screen tabs: `pipeline /` and the run id,
- * its status, then day, duration and cost, with the waiting badge and the feed group (updated, live, Refresh) at the right. The choice of run is made in the sidebar; this line only names what is on screen.
+ * its status, then day, duration and cost, with the waiting badge and the feed group (updated, live) at the right. The choice of run is made in the sidebar; this line only names what is on screen.
  */
 export const RunHeader = ({ run, feed }: RunHeaderProps): ReactNode => {
   const active: boolean = isActiveRun(run);

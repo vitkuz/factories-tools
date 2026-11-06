@@ -31,12 +31,18 @@ import {
 import type { RunServices } from '../src/features/runs/runs.types.js';
 import {
   answerQuestionFactory,
+  createQuestionLifecycle,
   createQuestionStore,
   dismissQuestionFactory,
   registerQuestionFactory,
   resolveQuestionFactory,
 } from '../src/features/questions/index.js';
-import type { QuestionStore, QuestionUsecases } from '../src/features/questions/questions.types.js';
+import type { QuestionLifecycle } from '../src/features/questions/index.js';
+import type {
+  QuestionJournal,
+  QuestionStore,
+  QuestionUsecases,
+} from '../src/features/questions/questions.types.js';
 import { readScriptFactory } from '../src/features/scripts/index.js';
 import { readMemoryFactory } from '../src/features/system/index.js';
 import type { OsProbe } from '../src/features/system/system.types.js';
@@ -44,6 +50,7 @@ import {
   listSessionsFactory,
   readSessionMetaFactory,
   replySessionFactory,
+  sendMessageFactory,
   startFactorySessionFactory,
   startSessionFactory,
   stopSessionFactory,
@@ -277,7 +284,9 @@ export interface TestAppOptions {
   /** Shared with the test, so it can broadcast to and inspect the same question store. */
   broadcast?: Broadcast;
   questionStore?: QuestionStore;
-  questionTimeoutMs?: number;
+  /** Where the questions are written; none by default (the store alone). */
+  questionJournal?: QuestionJournal;
+  questionLongPollMs?: number;
   /** Shared with the test, so it can subscribe to the same live chat. */
   onChatHub?: (hub: ChatHub) => void;
   /** Default: the real `node:os` and `/proc/meminfo`. */
@@ -342,12 +351,14 @@ export const buildTestApp = (
   options.onChatHub?.(chatHub);
   const store: QuestionStore = options.questionStore ?? createQuestionStore();
   const broadcast: Broadcast = options.broadcast ?? ((): void => {});
+  const lifecycle: QuestionLifecycle = createQuestionLifecycle({
+    store,
+    broadcast,
+    journal: options.questionJournal,
+    longPollMs: options.questionLongPollMs,
+  });
   const questions: QuestionUsecases = {
-    registerQuestion: registerQuestionFactory({
-      store,
-      broadcast,
-      timeoutMs: options.questionTimeoutMs,
-    }),
+    registerQuestion: registerQuestionFactory({ store, lifecycle }),
     answerQuestion: answerQuestionFactory({ store }),
     dismissQuestion: dismissQuestionFactory({ store }),
     resolveQuestion: resolveQuestionFactory({ store }),
@@ -420,6 +431,13 @@ export const buildTestApp = (
       listSessions,
       stopSession: stopSessionFactory({ herdr, listSessions, logger: quiet }),
       replySession: replySessionFactory({ herdr, listSessions }),
+      sendMessage: sendMessageFactory({
+        herdr,
+        listSessions,
+        hasPendingQuestion: (sessionId: string): boolean =>
+          store.list().some((question): boolean => question.sessionId === sessionId),
+        broadcast,
+      }),
     },
     questions,
     chat: {

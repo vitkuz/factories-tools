@@ -1,14 +1,18 @@
 import type { PendingEntry, PendingQuestion, QuestionStore } from '../questions.types.js';
 
 /**
- * The questions waiting for a person, in memory: a pending question is a blocked hook process,
- * and both go away with the API. A closure over one Map; nothing else holds it.
+ * The questions waiting for a person, in memory, keyed by promptId. The entries are the live
+ * side of what the journal keeps on disk: the waiting hook request, what is queued for it.
+ * A closure over one Map; entries are replaced with `set`, never edited in place.
  */
 export const createQuestionStore = (): QuestionStore => {
   const entries: Map<string, PendingEntry> = new Map();
   return {
     add: (entry: PendingEntry): void => {
       entries.set(entry.question.promptId, entry);
+    },
+    set: (entry: PendingEntry): void => {
+      if (entries.has(entry.question.promptId)) entries.set(entry.question.promptId, entry);
     },
     get: (sessionId: string, promptId: string): PendingEntry | undefined => {
       const entry: PendingEntry | undefined = entries.get(promptId);
@@ -26,5 +30,6 @@ export const createQuestionStore = (): QuestionStore => {
     },
     list: (): PendingQuestion[] =>
       [...entries.values()].map((entry: PendingEntry): PendingQuestion => entry.question),
+    entries: (): PendingEntry[] => [...entries.values()],
   };
 };

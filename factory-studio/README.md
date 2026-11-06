@@ -11,7 +11,7 @@ the knowledge files of the project's own factories (`factories.local/<id>/knowle
 starts, lists and stops a Claude harness in a herdr workspace from a prompt typed in the browser.
 
 Factory Studio never writes a pipeline (only knowledge files beside it): pipelines are edited as JSON (by Claude, or by hand), and a
-changed `pipeline.json` shows up on the next poll. The pipeline editor that used to live here was
+changed `pipeline.json` is pushed to the open pages the moment it is written (the API watches the factory folders). The pipeline editor that used to live here was
 split off into its own app, `factories-tools/factory-editor/`. Factory Studio replaces three tools
 that each needed their own dev server or process — the runs dashboard (`tools/state-dashboard`),
 the collected-runs browser (`tools/artifact-collector/front`) and the session starter
@@ -144,9 +144,9 @@ place.
 | URL | Screen |
 | --- | --- |
 | `/` | the Runs index, as `/runs` (the address stays `/`). |
-| `/runs` | **Runs index**: totals, a per-pipeline table (a row filters the run table), a per-run table (a row opens the run), and every run grouped by pipeline with status, day and cost; a run without `state.json` shows `no state`; `Live` indicator, "Updated n s ago" footer and `Refresh`; a run with an invalid `state.json` is dropped and named in the footer while the rest still show. |
-| `/runs/<pipelineId>/<runId>[#view=detailed]` | **One run**: its row marked and kept in view in the sidebar, its header line in the top bar after the tabs (`All runs`, `pipeline /` id, status, day, duration, cost, `Live`), the status-coloured graph — one column per wave, result pills, the loops, escapes and jumps the run did not take drawn quiet until a card is hovered or pinned (click a card to pin its neighbourhood; the same card again, the empty canvas or `Escape` unpins), `All routes` (`a`) to draw them all — legend, `Details`, minimap, the inspector (overview, cost breakdown with a `stale` pill, step pane with attempts, per-step cost and prompt), the collapsible log whose step chips select a node, and the document viewer; refetches every 5 s while the run is `RUNNING`/`PAUSED`, every 30 s otherwise, pauses while the tab is hidden, and keeps viewport and selection across refreshes; `Offline` with the last data when the API stops answering; a stateless run shows the definition graph with "No state.json yet". |
-| `/sessions` | **Sessions**: a prompt text area, a factory picker, `Start` (disabled until both are filled) which starts a Claude harness in herdr and shows the new row within about a second; the list of running `factory-*` sessions (session, factory, harness, started, age) refreshed every 10 s, with `Stop` on each row; every refusal (`400`, `404`, `409`, `502`) is a notice on the screen. |
+| `/runs` | **Runs index**: totals, a per-pipeline table (a row filters the run table), a per-run table (Run, Status, Time, Tokens, Cost, Started; a row opens the run; the chevron at its start expands it in place into the run's per-step breakdown — Step, Passes, Tokens, Cost, Time from the run's `cost.json` and `state.json`, an "other / не по шагам" line for the orchestrator's and unattributed usage, and a total that equals the run row; several rows may be open and they stay open across pushed updates), and every run grouped by pipeline with status, day and cost; a run without `state.json` shows `no state`; the `Live` / `Connecting` / `Offline` indicator in the top bar (no Refresh button and no "updated n s ago": the server pushes every change over the socket); a run with an invalid `state.json` is dropped and named in the footer while the rest still show. |
+| `/runs/<pipelineId>/<runId>[#view=detailed]` | **One run**: its row marked and kept in view in the sidebar, its header line in the top bar after the tabs (`All runs`, `pipeline /` id, status, day, duration, cost, `Live`), the status-coloured graph — one column per wave, result pills, the loops, escapes and jumps the run did not take drawn quiet until a card is hovered or pinned (click a card to pin its neighbourhood; the same card again, the empty canvas or `Escape` unpins), `All routes` (`a`) to draw them all — legend, `Details`, minimap, the inspector (overview, cost breakdown with a `stale` pill, step pane with attempts, per-step cost and prompt), the collapsible log whose step chips select a node, and the document viewer; every change to the run folder is pushed over the socket within a fraction of a second (no polling), and viewport and selection survive each push; `Offline` with the last data while the socket reconnects; a stateless run shows the definition graph with "No state.json yet". |
+| `/sessions` | **Sessions**: a prompt text area, a factory picker, `Start` (disabled until both are filled) which starts a Claude harness in herdr and shows the new row within about a second; the list of running `factory-*` sessions (session, factory, harness, started, age), pushed over the socket whenever it changes, with `Stop` on each row; every refusal (`400`, `404`, `409`, `502`) is a notice on the screen. |
 | anything else | the Runs index; the address is rewritten to `/runs` without a history entry, so an old `/editor` or `/editor/<id>` bookmark lands on Runs. |
 
 The document viewer opens from the run view: run documents (rendered and raw markdown, text,
@@ -164,10 +164,10 @@ keeps what it read, the next one sees the edit.
 Next to the `output` label of a step (detailed card, inspector, timeline) two icons open the step's
 output folder in a new tab as a site (`index.html` renders with its relative assets; otherwise a
 plain folder listing where every file opens with its real type) and download it as a `.zip`. They
-are muted ("no output folder yet") until the step has started. The tab runs in a sandboxed, opaque
-origin: the page can render but cannot reach the API with your access. Inside it, classic scripts,
-stylesheets, images and links work; module scripts, `@font-face` fonts from the folder, `fetch()`
-of its own files and `localStorage` do not (they need an origin).
+are muted ("no output folder yet") until the step has started. The tab is not sandboxed: the page
+runs as a normal page on the Studio origin, so its scripts, module scripts, `@font-face` fonts from
+the folder, `fetch()` of its own files and `localStorage` all work — and its scripts can also call
+the API with your access, so preview only run folders you trust.
 
 ## The API
 
@@ -179,11 +179,10 @@ route may also answer `401 { "error": "unauthorized" }`. `<path>` is one or more
 segments; a trailing `/` names a folder. There is no app-wide body parser: JSON (2 MB) is parsed
 only on E9 and E11, raw text (2 MB, any content type) only on E8 and E16. E17 and E18 are made
 for the browser's address bar: they follow the same key rule, and every answer of theirs (errors
-and redirects too) carries `Content-Security-Policy: sandbox allow-scripts allow-forms allow-popups
-allow-modals` (no `allow-same-origin`), `X-Content-Type-Options: nosniff` and
-`Referrer-Policy: no-referrer`. Keep the invariant they rely on: no POST route may parse a
-`text/plain`, form or multipart body, and no GET route may change anything — a sandboxed page can
-send those without a preflight.
+and redirects too) carries `X-Content-Type-Options: nosniff` and `Referrer-Policy: no-referrer`
+(no sandbox CSP: the page runs on the Studio origin). Keep the invariant: no POST route may parse a
+`text/plain`, form or multipart body, and no GET route may change anything — a page on another
+site can send those without a preflight.
 
 | # | Method | Path | Body | Success | Errors |
 | --- | --- | --- | --- | --- | --- |
@@ -213,7 +212,7 @@ path answers the generic `404 not found`, and `…/knowledge/{{skillPath}}/` alo
 `400 empty path`. E17/E18 also realpath the target and refuse anything that resolves outside the
 run folder (`403 outside the run folder`). The WebSocket upgrade refuses a browser `Origin` that is
 not this server (`403`; compared as host and port against the request's `Host`, which Caddy and the
-Vite dev proxy forward unchanged), so a sandboxed preview (`Origin: null`) or another site cannot
+Vite dev proxy forward unchanged), so a sandboxed or `file:` page (`Origin: null`) or another site cannot
 open it; a client that sends no `Origin` (curl, hooks) is let through as before.
 
 Examples:
@@ -242,7 +241,7 @@ with the IO clients under `api/src/clients/{fs,herdr,zip}` (`zip` wraps `yazl`) 
 document sender, error edge). `web/` is a Vite + React 19 app organised as
 `src/features/{runs,sessions}` (components, hooks, `*.schema.ts`, `*.types.ts`, `*.utils.ts`,
 and the pure libraries copied from the original tools under `lib/`), `src/shared` (shell, route,
-polling, storage, the document viewer, the stylesheets) and `src/adapters/http` (one axios instance
+the socket hook, storage, the document viewer, the stylesheets) and `src/adapters/http` (one axios instance
 with logging interceptors, one path builder per endpoint, and `studio-api.adapter.ts` with one
 function per endpoint the app calls — E2, E5–E12, E15, E16 — each answer parsed with zod; E17/E18
 are plain links built by `api-paths.ts`, not adapter calls). There are no classes on either side.
@@ -271,18 +270,21 @@ arrives in the file as literal text), and runs `herdr workspace create + pane ru
 `@factory_id`. After `START_GRACE_MS` it checks the session still exists (`502` if not) and answers
 `201`. `GET /api/v1/sessions` reads `herdr workspace list` and the labels back every time, so the list
 is the truth even after an API restart; `Stop` posts the full name and herdr closes that workspace.
-The Sessions screen shows the `201` row at once and refreshes the list every 10 s.
+The Sessions screen shows the `201` row at once; the pushed list (`sessions.changed`, see below) replaces it within about two seconds.
 
 **How a run's state reaches the screen.** A running factory writes
 `run/<pipeline>/<run-id>/state.json` (and `factories-tools/ai-usage` writes `cost.json`). Every
 `GET /api/v1/runs` walks `run/` fresh, so a file written after the previous call appears in the
-next one with no restart and no snapshot. The Runs screen polls that route every 5 s while the
-selected run is `RUNNING` or `PAUSED` and every 30 s otherwise, stops while the tab is hidden and
-fetches once when it returns; the payload is checked run by run, so one bad run is dropped and
-named in the footer; unchanged runs and pipelines keep their identity across polls so cards do not
-flicker and the viewport and selection survive a refresh. Legacy `state.json` shapes, and run snapshots
-of `pipeline.json` with string prompts, are upgraded on read (`web/src/features/runs/lib/legacy.ts`). The graph keeps no node positions: it is laid out from the pipeline alone
-(`web/src/shared/graph/`), so a pipeline edited on disk is drawn afresh on the next poll.
+next one with no restart and no snapshot. The browser, though, never polls it: the API watches
+`run/` folder by folder (`api/src/clients/watch`, see "How the server notices a write" below), folds
+the burst of events a write makes (temp file, rename) into one change per run (250 ms), re-reads that run's record and pushes
+it to the sockets subscribed to `runs` (see [The live feed](#the-live-feed)); the payload is
+checked run by run, so one bad run is dropped and named in the footer; unchanged runs and
+pipelines keep their identity across pushes so cards do not flicker and the viewport and
+selection survive one. Legacy `state.json` shapes, and run snapshots of `pipeline.json` with
+string prompts, are upgraded on read (`web/src/features/runs/lib/legacy.ts`). The graph keeps no
+node positions: it is laid out from the pipeline alone (`web/src/shared/graph/`), so a pipeline
+edited on disk is drawn afresh when the watcher on `factories*/` pushes it.
 
 The layout is by **wave**: a route with `max` is a retry loop, every other route and every
 `onMax` exit goes forward, and a step's column is its longest forward distance from START — the
@@ -308,5 +310,56 @@ blocks; the API broadcasts `session.question` on `ws://<host>/api/v1/ws` (key vi
 `permissionDecision: allow` plus `updatedInput.answers`, and Claude receives them without the
 terminal dialog. `session.dismiss` makes the hook exit silently so the normal terminal dialog opens;
 a hook timeout or crash does the same. `session.question.resolved` closes the box (answered,
-dismissed, timeout, terminal). `session.reply` types plain text plus Enter into a blocked session.
+dismissed, timeout, terminal, gone). `session.reply` types plain text plus Enter into a blocked session.
 Other messages: `hello` (pending questions on connect) and `session.status` (herdr agent status).
+
+**Durable questions.** A question is never only in memory or only on the socket. When the hook
+posts it, the API writes `<PROMPT_DIR>/questions/<promptId>.json` (the questions, options, the
+session, the run, `askedAt`, `status: pending`); every change rewrites the file (`answered` with
+the answers, `dismissed`, `terminal`, `gone`, with `resolvedAt`). At startup the API reads the
+files back, so the first `hello` and `GET /api/v1/questions` (`{ count, pending }`) list every
+open question in full after a restart, a reload or a new socket. The hook keeps the question
+alive on its side: the API holds one request for at most 10 minutes and then replies
+`{ action: "wait" }`, the hook asks again at once and gets the same promptId back; an API it
+cannot reach (restarting after a deploy) is asked again every 3 s for as long as the hook lives
+(`timeout: 604800`, seven days). An answer given while the hook is between two requests is
+queued on disk and handed over on the next one. A question whose hook has not come back for
+30 s is marked `channel: "terminal"` — Claude's own dialog is open in the pane — and the app
+shows its text with "answer it in the terminal" instead of a form; the PostToolUse hook then
+closes it (`terminal`), and a session missing from herdr for 15 s closes its questions (`gone`).
+
+## The live feed
+
+The same socket carries everything the browser used to poll, so an open page makes no periodic
+HTTP request at all. A client sends `live.subscribe { topics }` (topics: `runs`, `sessions`,
+`workspaces`, `system`) on every open — so a reconnect resubscribes and resyncs — and
+`live.unsubscribe` when a screen that needs a topic goes away. The server answers each subscribe
+with that topic's snapshot on the same socket, then pushes changes:
+
+| Topic | Snapshot | Pushed on change | Source of change |
+| --- | --- | --- | --- |
+| `runs` | `runs.snapshot` (the body of E6) | `run.changed { folder, runId, pipelineId?, paths, run?, reason? }` — `run` is the record read fresh, `null` when the folder is gone (`reason: gone`) or its `state.json` no longer parses (`unreadable`); absent when only files under the run changed (`paths` names them, so an open run document reloads); `pipelines.changed { pipelines }` when a `pipeline.json` is written under `factories/` or `factories.local/`; a pipeline folder made or removed sends a whole `runs.snapshot` again | a plain inotify watch per folder under `run/` (250 ms debounce per run, at most 1 s) and under the factory folders (500 ms), plus a 5 s mtime sweep of the active runs' record files |
+| `sessions` | `sessions.changed { sessions }` (the body of E10's list) | the same frame whenever the list differs — a session came or went, changed status or got its Claude id; ages are left out of the comparison and recomputed in the browser | the herdr poll the API already runs every 2 s |
+| `workspaces` | `workspaces.snapshot` (the body of `GET /workspaces`) | the same frame when `run/workspaces.json` changes (a write from the app, a hand edit) | the `run/` watcher |
+| `system` | `system.memory` (the body of `GET /system/memory`) | every 5 s while at least one client subscribes | a server-side ticker |
+
+Snapshots and changes travel on one socket in order, so a change can never be overwritten by an
+older snapshot. The server also sends a `live.tick` frame every 15 s to every socket; a page that
+hears nothing for 45 s closes its socket and reconnects, so `Live` is never said over a path that
+died (a laptop that slept, a NAT that forgot the connection). The top-bar indicator reads the
+socket: `Live` once the snapshot is in, `Connecting` while it opens, `Offline` while the socket
+reconnects (backing off from 1 s to 15 s, paused while the tab is hidden); the last data stays on
+screen meanwhile.
+
+**How the server notices a write.** Not with `fs.watch(dir, { recursive: true })`: on Linux that is
+a JavaScript shim in Node 20 that watches every *file* by inode and reports a known name only
+through that inode's watch, so a `state.json` replaced by rename (the recorder's temp file + rename)
+goes quiet after its second write (verified on Node 20.19 and 20.20). The API watches every folder
+under `run/` with its own plain inotify watch (`api/src/clients/watch`), adding watches as folders
+appear and dropping them as they go: a folder watch reports each child by name whatever inode it
+is, and costs one inotify slot per folder instead of one per file. Under it, as a safety net, the
+active runs' (`IDLE`/`RUNNING`/`PAUSED`) `state.json` and `cost.json` are `stat`ed every 5 s and
+a run whose mtime or size moved is re-read and pushed; the per-run debounce (250 ms) flushes at
+least every second while a folder is written to without pause. HTTP remains for one-shot reads
+(documents, a chat item, the pipeline list of the start form) and for every mutation; `GET /runs`,
+`GET /sessions`, `GET /workspaces` and `GET /system/memory` stay for curl and tests.

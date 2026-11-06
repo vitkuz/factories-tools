@@ -27,12 +27,12 @@ const isOpen = (ref: RunRef): boolean => {
 };
 
 /**
- * Remove = move to trash (E15). The row leaves the feed as soon as the API answers, then the
- * feed is fetched again so every number around it is recounted; a run open on the run page
- * sends the page back to the runs home.
+ * Remove = move to trash (E15). The row leaves the feed as soon as the API answers; the
+ * server's watcher sees the folder go and pushes the same removal to every other client. A
+ * run open on the run page sends the page back to the runs home.
  */
-export const useRemoveRun = (feed: Pick<RunsFeed, 'forget' | 'refresh'>): RunRemover => {
-  const { forget, refresh }: Pick<RunsFeed, 'forget' | 'refresh'> = feed;
+export const useRemoveRun = (feed: Pick<RunsFeed, 'forget'>): RunRemover => {
+  const { forget }: Pick<RunsFeed, 'forget'> = feed;
   const [removed, setRemoved] = useState<RemovedRun | null>(null);
 
   useEffect(() => {
@@ -46,7 +46,6 @@ export const useRemoveRun = (feed: Pick<RunsFeed, 'forget' | 'refresh'>): RunRem
       try {
         const done: RemovedRun = await removeRun(ref);
         forget(ref);
-        refresh();
         setRemoved(done);
         if (isOpen(ref)) navigate({ screen: 'runs', run: null });
         return { ok: true, removed: done };
@@ -54,7 +53,7 @@ export const useRemoveRun = (feed: Pick<RunsFeed, 'forget' | 'refresh'>): RunRem
         return removeFailureOf(error);
       }
     },
-    [forget, refresh],
+    [forget],
   );
 
   const dismiss = useCallback((): void => setRemoved(null), []);

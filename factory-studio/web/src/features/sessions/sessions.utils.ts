@@ -1,4 +1,5 @@
 import { formatIssues, type ApiError } from '../../adapters/http/api-error.utils';
+import { factorySessionSchema } from './sessions.schema';
 import type {
   Answer,
   BoardColumn,
@@ -98,7 +99,32 @@ export const describeStarted = (started: StartedSession): SessionNotice => ({
 export const sortOldestFirst = (sessions: FactorySession[]): FactorySession[] =>
   [...sessions].sort((a: FactorySession, b: FactorySession): number => b.ageSeconds - a.ageSeconds);
 
-/** What the list shows for a session just started from this screen, until the next refresh replaces it. */
+/**
+ * The session list as one `sessions.changed` frame carries it: each entry checked on its own,
+ * so one row of an unexpected shape is dropped and the rest still show; oldest first. Pure.
+ */
+export const parseSessionList = (raw: readonly unknown[]): FactorySession[] =>
+  sortOldestFirst(
+    raw.flatMap((entry: unknown): FactorySession[] => {
+      const parsed = factorySessionSchema.safeParse(entry);
+      return parsed.success ? [parsed.data] : [];
+    }),
+  );
+
+/**
+ * A pushed list arrives only when something changed, so its ages would stand still: the age
+ * is recomputed from `startedAt` at `now`. A `startedAt` that does not parse keeps the API's. Pure.
+ */
+export const withLiveAge =
+  (now: number) =>
+  (session: FactorySession): FactorySession => {
+    const started: number = Date.parse(session.startedAt);
+    if (Number.isNaN(started)) return session;
+    const ageSeconds: number = Math.max(0, Math.floor((now - started) / 1000));
+    return { ...session, ageSeconds, age: compactAge(ageSeconds) };
+  };
+
+/** What the list shows for a session just started from this screen, until the pushed list carries it. */
 export const provisionalSession = (started: StartedSession, now: number): FactorySession => ({
   session: started.session,
   factoryId: started.factoryId,
@@ -403,6 +429,8 @@ export const idleSend: SendState = { phase: 'idle', error: null };
 export const initialQuestionsState: QuestionsState = {
   pending: [],
   statuses: {},
+  sessions: [],
+  sessionsSettled: false,
   prompts: {},
   lastError: null,
 };
@@ -452,11 +480,20 @@ const applyMessage = (state: QuestionsState, message: ServerMessage): QuestionsS
         ...state,
         statuses: { ...state.statuses, [message.sessionId]: message.status },
       };
+    case 'sessions.changed':
+      return { ...state, sessions: parseSessionList(message.sessions), sessionsSettled: true };
     // The live chat's frames: `useSessionChat` reads them, the question state has no part in them.
     case 'session.chat.backlog':
     case 'session.chat.items':
     case 'session.chat.unavailable':
     case 'session.chat.ended':
+    // The other live topics: their own hooks read them off the channel.
+    case 'runs.snapshot':
+    case 'run.changed':
+    case 'pipelines.changed':
+    case 'workspaces.snapshot':
+    case 'system.memory':
+    case 'live.tick':
       return state;
     case 'error': {
       const ref: string | undefined = message.ref;
@@ -479,6 +516,8 @@ export const reduceQuestions = (state: QuestionsState, action: QuestionsAction):
     case 'disconnected':
       return {
         ...state,
+        // The last list stays on screen; the next `sessions.changed` (sent on resubscribe) is the truth.
+        sessionsSettled: false,
         // An answer in flight may or may not have landed; the next hello settles it.
         prompts: Object.fromEntries(
           Object.entries(state.prompts).map(
@@ -517,3 +556,9 @@ export const nextTabIndex = (key: string, current: number, count: number): numbe
       return null;
   }
 };
+
+/** The factory bar's note on Sessions: "3 sessions · 1 waiting for you". */
+export const sessionsLine = (total: number, waiting: number): string =>
+  [`${total} session${total === 1 ? '' : 's'}`, waiting > 0 ? `${waiting} waiting for you` : '']
+    .filter(Boolean)
+    .join(' · ');

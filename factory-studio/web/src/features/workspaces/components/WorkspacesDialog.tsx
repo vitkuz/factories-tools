@@ -182,7 +182,7 @@ export const WorkspacesDialog = ({ data, onClose }: WorkspacesDialogProps): Reac
     >
       <div className="ws-modal">
         <header className="doc-modal-head ws-modal-head">
-          <h2 id="ws-dialog-title" className="ws-modal-title">
+          <h2 id="ws-dialog-title" className="kicker ws-modal-title">
             Workspaces
           </h2>
           <span className="ws-modal-hint muted">
@@ -240,7 +240,7 @@ export const WorkspacesDialog = ({ data, onClose }: WorkspacesDialogProps): Reac
               <span className="ws-field-label">Name</span>
               <input
                 ref={nameRef}
-                className="input ws-name"
+                className="control ws-name"
                 type="text"
                 value={draft.name}
                 maxLength={80}

@@ -1,8 +1,8 @@
 import type { AxiosResponse } from 'axios';
 import { http } from './axios.adapter';
 import { toApiError, type ApiError } from './api-error.utils';
-import { chatItemResponseSchema } from '../../features/chat/chat.schema';
-import type { ChatItem } from '../../features/chat/chat.types';
+import { chatItemResponseSchema, sentMessageSchema } from '../../features/chat/chat.schema';
+import type { ChatItem, SentMessage } from '../../features/chat/chat.types';
 import {
   chatItemPath,
   knowledgeDocPath,
@@ -11,6 +11,7 @@ import {
   runPath,
   runsPath,
   scriptPath,
+  sessionMessagesPath,
   sessionsPath,
   stopSessionPath,
   systemMemoryPath,
@@ -270,6 +271,18 @@ export const stopSession = async (payload: StopSessionPayload): Promise<Stopped>
   try {
     const { data }: AxiosResponse<unknown> = await http.post(stopSessionPath(), payload);
     return stoppedSchema.parse(data);
+  } catch (error: unknown) {
+    return failWith(error);
+  }
+};
+
+/** A message to an idle session's Claude. The API refuses (409) when it is not idle. */
+export const sendSessionMessage = async (sessionId: string, text: string): Promise<SentMessage> => {
+  try {
+    const { data }: AxiosResponse<unknown> = await http.post(sessionMessagesPath(sessionId), {
+      text,
+    });
+    return sentMessageSchema.parse(data);
   } catch (error: unknown) {
     return failWith(error);
   }

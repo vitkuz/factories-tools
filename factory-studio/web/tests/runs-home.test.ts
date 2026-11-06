@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vitest';
-import type { PipelineOverview, RunOverview } from '../src/features/runs/runs.types';
+import type {
+  PipelineAverages,
+  PipelineOverview,
+  RunOverview,
+  RunScale,
+} from '../src/features/runs/runs.types';
 import {
+  barPercent,
   isAllUnpriced,
   pickPipeline,
+  pickRun,
+  pipelineAveragesOf,
+  runScaleOf,
+  statusSummary,
   pipelineSummary,
   runsOfPipeline,
   sortByLastRun,
@@ -74,5 +84,50 @@ describe('runs home', () => {
   it('treats a pipeline as unpriced only when every run is', () => {
     expect(isAllUnpriced(pipeline({ runs: 2, unpriced: 2 }))).toBe(true);
     expect(isAllUnpriced(pipeline({ runs: 2, unpriced: 1 }))).toBe(false);
+  });
+});
+
+describe('runs home cards and averages', () => {
+  const withRun = (over: Partial<RunOverview>): RunOverview => ({ ...run('p', 'r'), ...over });
+
+  it('picks the wanted run while listed, else the newest', () => {
+    const runs: RunOverview[] = [run('p', 'new'), run('p', 'old')];
+    expect(pickRun('old')(runs)?.runId).toBe('old');
+    expect(pickRun('gone')(runs)?.runId).toBe('new');
+    expect(pickRun(null)([])).toBeNull();
+  });
+
+  it('averages each figure over the runs that carry it', () => {
+    const avg: PipelineAverages = pipelineAveragesOf([
+      withRun({ costUsd: 10, totalTokens: 100, durationSeconds: 60 }),
+      withRun({ costUsd: null, priced: false, totalTokens: null, durationSeconds: 120 }),
+      withRun({ costUsd: 20, totalTokens: 300, durationSeconds: null }),
+    ]);
+    expect(avg).toEqual({ costUsd: 15, totalTokens: 200, durationSeconds: 90 });
+    expect(pipelineAveragesOf([])).toEqual({
+      costUsd: null,
+      totalTokens: null,
+      durationSeconds: null,
+    });
+  });
+
+  it('summarises the runs by status', () => {
+    expect(statusSummary([run('p', 'a'), run('p', 'b')])).toBe('all completed');
+    expect(statusSummary([run('p', 'a')])).toBe('completed');
+    expect(statusSummary([withRun({ status: 'running' }), run('p', 'a'), run('p', 'b')])).toBe(
+      '1 running · 2 completed',
+    );
+    expect(statusSummary([])).toBe('');
+  });
+
+  it('scales the bars against the longest figure, absent values empty', () => {
+    const scale: RunScale = runScaleOf([
+      withRun({ costUsd: 4, totalTokens: 50, durationSeconds: 30 }),
+      withRun({ costUsd: 9, priced: false, totalTokens: 200, durationSeconds: null }),
+    ]);
+    expect(scale).toEqual({ costUsd: 4, totalTokens: 200, durationSeconds: 30 });
+    expect(barPercent(scale.costUsd)(2)).toBe(50);
+    expect(barPercent(scale.costUsd)(null)).toBe(0);
+    expect(barPercent(0)(5)).toBe(0);
   });
 });

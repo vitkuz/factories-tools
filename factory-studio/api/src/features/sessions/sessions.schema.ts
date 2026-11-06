@@ -56,3 +56,23 @@ export const replySessionPayloadSchema = z.object({
   sessionId: z.string().trim().min(1),
   text: z.string().min(1).max(10_000),
 });
+
+/** The session a route addresses by name: `factory-<id>-<short uuid>`. */
+export const sessionIdParamsSchema = z.object({
+  sessionId: z
+    .string()
+    .trim()
+    .min(1)
+    .regex(/^[a-z0-9-]+$/, 'sessionId must be a session name'),
+});
+
+/**
+ * A message for the chat drawer: what a person types into an idle session, as a whole. A
+ * Claude prompt can be long (a pasted brief); the one limit is the body parser's.
+ */
+export const sendMessagePayloadSchema = z.object({
+  text: z
+    .string()
+    .max(50_000)
+    .refine((text: string): boolean => text.trim() !== '', 'text must not be blank'),
+});

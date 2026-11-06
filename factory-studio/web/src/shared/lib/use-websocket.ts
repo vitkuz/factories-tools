@@ -10,6 +10,11 @@ export interface UseWebSocketOptions<In, Out> {
   parse: (raw: string) => In | null;
   serialize: (message: Out) => string;
   onMessage: (message: In) => void;
+  /**
+   * Close and reconnect when no frame at all arrives for this long. The server sends a
+   * `live.tick` every 15 s, so silence means the path is dead even though the socket says open.
+   */
+  staleMs?: number;
 }
 
 export interface WebSocketHandle<Out> {
@@ -18,10 +23,13 @@ export interface WebSocketHandle<Out> {
   send: (message: Out) => boolean;
 }
 
+export const DEFAULT_STALE_MS = 45_000;
+
 /**
  * A reconnecting WebSocket: backs off between attempts, waits while the page is hidden and
- * reconnects at once when it is shown again. Callbacks may change between renders without
- * reopening the socket; only `url` does.
+ * reconnects at once when it is shown again. A socket that goes silent for `staleMs` is closed
+ * and reopened, so "open" on the page means frames can actually arrive. Callbacks may change
+ * between renders without reopening the socket; only `url` does.
  */
 export const useWebSocket = <In, Out>(
   options: UseWebSocketOptions<In, Out>,
@@ -31,12 +39,22 @@ export const useWebSocket = <In, Out>(
   const latest = useRef<UseWebSocketOptions<In, Out>>(options);
   latest.current = options;
   const { url } = options;
+  const staleMs: number = options.staleMs ?? DEFAULT_STALE_MS;
 
   useEffect((): (() => void) | void => {
     if (url === null) return;
     let disposed = false;
     let attempt = 0;
     let timer: number | undefined;
+    let staleTimer: number | undefined;
+
+    /** Every frame (and the open) pushes the deadline back; silence past it closes the socket. */
+    const heard = (ws: WebSocket): void => {
+      window.clearTimeout(staleTimer);
+      staleTimer = window.setTimeout((): void => {
+        if (socket.current === ws) ws.close();
+      }, staleMs);
+    };
 
     const connect = (): void => {
       window.clearTimeout(timer);
@@ -47,13 +65,16 @@ export const useWebSocket = <In, Out>(
       ws.onopen = (): void => {
         attempt = 0;
         setState('open');
+        heard(ws);
       };
       ws.onmessage = (event: MessageEvent): void => {
+        heard(ws);
         if (typeof event.data !== 'string') return;
         const message: In | null = latest.current.parse(event.data);
         if (message !== null) latest.current.onMessage(message);
       };
       ws.onclose = (): void => {
+        window.clearTimeout(staleTimer);
         if (disposed || socket.current !== ws) return;
         socket.current = null;
         setState('closed');
@@ -81,13 +102,14 @@ export const useWebSocket = <In, Out>(
     return (): void => {
       disposed = true;
       window.clearTimeout(timer);
+      window.clearTimeout(staleTimer);
       document.removeEventListener('visibilitychange', onVisibility);
       const ws: WebSocket | null = socket.current;
       socket.current = null;
       ws?.close();
       setState('closed');
     };
-  }, [url]);
+  }, [url, staleMs]);
 
   const send = useCallback((message: Out): boolean => {
     const ws: WebSocket | null = socket.current;

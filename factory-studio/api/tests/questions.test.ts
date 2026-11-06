@@ -1,19 +1,27 @@
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { spawn } from 'node:child_process';
+import { mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebSocket from 'ws';
+import { createFsClient } from '../src/clients/fs/fs.client.js';
 import {
+  createQuestionJournal,
+  createQuestionLifecycle,
   createQuestionStore,
   handleClientMessageFactory,
 } from '../src/features/questions/index.js';
+import type { QuestionLifecycle } from '../src/features/questions/index.js';
 import type {
   AskUserQuestionPayload,
   Broadcast,
   HookOutcome,
   PendingQuestion,
+  QuestionJournal,
+  QuestionRecord,
   QuestionStore,
   QuestionUsecases,
   ServerMessage,
@@ -21,14 +29,18 @@ import type {
 import {
   answerQuestionFactory,
   dismissQuestionFactory,
+  reconcileQuestionsFactory,
   registerQuestionFactory,
   resolveQuestionFactory,
+  restoreQuestionsFactory,
 } from '../src/features/questions/usecases/index.js';
 import { attachWebSocket, type WsHub } from '../src/shared/ws/index.js';
 import {
+  askUntilAnswered,
   buildAllowOutput,
   buildAskBody,
   buildResolvedBody,
+  decideNext,
   decideOutput,
 } from '../hooks/studio-question-hook.mjs';
 import { fakeHerdr, workspace, type FakeHerdr } from './helpers.js';
@@ -68,24 +80,39 @@ interface Harness {
   store: QuestionStore;
   sent: ServerMessage[];
   usecases: QuestionUsecases;
+  lifecycle: QuestionLifecycle;
 }
 
-const harness = (timeoutMs?: number): Harness => {
+interface HarnessOptions {
+  longPollMs?: number;
+  journal?: QuestionJournal;
+  now?: () => Date;
+}
+
+const harness = ({ longPollMs, journal, now }: HarnessOptions = {}): Harness => {
   const store: QuestionStore = createQuestionStore();
   const sent: ServerMessage[] = [];
   const broadcast: Broadcast = (message: ServerMessage): void => {
     sent.push(message);
   };
+  const lifecycle: QuestionLifecycle = createQuestionLifecycle({
+    store,
+    broadcast,
+    journal,
+    longPollMs,
+    now,
+  });
   let n = 0;
   return {
     store,
     sent,
+    lifecycle,
     usecases: {
       registerQuestion: registerQuestionFactory({
         store,
-        broadcast,
-        timeoutMs,
+        lifecycle,
         newUuid: (): string => `prompt-${++n}`,
+        now,
       }),
       answerQuestion: answerQuestionFactory({ store }),
       dismissQuestion: dismissQuestionFactory({ store }),
@@ -93,6 +120,16 @@ const harness = (timeoutMs?: number): Harness => {
       listPending: store.list,
     },
   };
+};
+
+/** A journal over a temp folder, through the real fs client. */
+const tempJournal = async (): Promise<{ dir: string; journal: QuestionJournal }> => {
+  const dir: string = await mkdtemp(path.join(os.tmpdir(), 'studio-questions-'));
+  return { dir, journal: createQuestionJournal({ fs: createFsClient({}), dir }) };
+};
+
+const settle = async (): Promise<void> => {
+  await new Promise((r): void => void setTimeout(r, 20));
 };
 
 const ANSWERS = [
@@ -153,32 +190,101 @@ describe('question usecases', () => {
     expect(h.sent[1]).toMatchObject({ reason: 'dismissed' });
   });
 
-  it('an abort (the hook went away) resolves as terminal; a second settle is a no-op', async () => {
+  it('an abort (the hook request went away) detaches the hook and keeps the question', async () => {
     const h: Harness = harness();
     const gone: AbortController = new AbortController();
     const waiting = h.usecases.registerQuestion(ASK, gone.signal);
     gone.abort();
-    expect(await waiting).toEqual({ action: 'dismiss' });
+    expect(await waiting).toEqual({ action: 'wait' });
+    expect(h.usecases.listPending()).toHaveLength(1);
+    expect(h.store.get(ASK.sessionId, 'prompt-1')?.waiter).toBeNull();
+    expect(h.store.get(ASK.sessionId, 'prompt-1')?.detachedAt).not.toBeNull();
     expect(
       h.sent.filter((m: ServerMessage): boolean => m.type === 'session.question.resolved'),
-    ).toEqual([
-      {
-        type: 'session.question.resolved',
-        sessionId: ASK.sessionId,
-        promptId: 'prompt-1',
-        reason: 'terminal',
-      },
+    ).toEqual([]);
+    // The hook asks again: the same question, the same promptId, no second broadcast.
+    const again = h.usecases.registerQuestion(ASK);
+    await settle();
+    expect(h.usecases.listPending().map((p: PendingQuestion): string => p.promptId)).toEqual([
+      'prompt-1',
     ]);
-    expect(h.usecases.dismissQuestion({ sessionId: ASK.sessionId, promptId: 'prompt-1' })).toEqual({
-      ok: false,
-      reason: 'not-found',
-    });
+    expect(
+      h.sent.filter((m: ServerMessage): boolean => m.type === 'session.question'),
+    ).toHaveLength(1);
+    h.usecases.dismissQuestion({ sessionId: ASK.sessionId, promptId: 'prompt-1' });
+    expect(await again).toEqual({ action: 'dismiss' });
+    expect(h.usecases.listPending()).toEqual([]);
   });
 
-  it('times out into the terminal dialog', async () => {
-    const h: Harness = harness(20);
-    expect(await h.usecases.registerQuestion(ASK)).toEqual({ action: 'dismiss' });
-    expect(h.sent[1]).toMatchObject({ reason: 'timeout' });
+  it('the long poll ends with wait; the question stays and is taken up again', async () => {
+    const h: Harness = harness({ longPollMs: 100 });
+    expect(await h.usecases.registerQuestion(ASK)).toEqual({ action: 'wait' });
+    expect(h.usecases.listPending()).toHaveLength(1);
+    const again = h.usecases.registerQuestion(ASK);
+    h.usecases.answerQuestion({ sessionId: ASK.sessionId, promptId: 'prompt-1', answers: ANSWERS });
+    expect(await again).toMatchObject({ action: 'answer' });
+  });
+
+  it('an answer given while the hook is away is queued and handed over on its next request', async () => {
+    const h: Harness = harness();
+    const gone: AbortController = new AbortController();
+    const cut = h.usecases.registerQuestion(ASK, gone.signal);
+    gone.abort();
+    expect(await cut).toEqual({ action: 'wait' });
+    expect(
+      h.usecases.answerQuestion({
+        sessionId: ASK.sessionId,
+        promptId: 'prompt-1',
+        answers: ANSWERS,
+      }),
+    ).toEqual({ ok: true });
+    // The clients see it resolved; a second answer finds nothing to answer.
+    expect(h.sent.at(-1)).toMatchObject({ type: 'session.question.resolved', reason: 'answered' });
+    expect(
+      h.usecases.answerQuestion({
+        sessionId: ASK.sessionId,
+        promptId: 'prompt-1',
+        answers: ANSWERS,
+      }),
+    ).toEqual({ ok: false, reason: 'not-found' });
+    expect(h.store.get(ASK.sessionId, 'prompt-1')?.queued).toMatchObject({ action: 'answer' });
+    expect(await h.usecases.registerQuestion(ASK)).toEqual({
+      action: 'answer',
+      answers: { 'Size?': 'M', 'Which toppings?': 'Ham, Olives' },
+    });
+    expect(h.store.entries()).toEqual([]);
+  });
+
+  it('a question in the terminal cannot be answered or dismissed from the app', async () => {
+    const h: Harness = harness();
+    const gone: AbortController = new AbortController();
+    void h.usecases.registerQuestion(ASK, gone.signal);
+    gone.abort();
+    await settle();
+    h.lifecycle.markTerminal('prompt-1');
+    expect(h.sent.at(-1)).toMatchObject({
+      type: 'session.question',
+      question: { promptId: 'prompt-1', channel: 'terminal' },
+    });
+    expect(
+      h.usecases.answerQuestion({
+        sessionId: ASK.sessionId,
+        promptId: 'prompt-1',
+        answers: ANSWERS,
+      }),
+    ).toMatchObject({ ok: false, reason: 'invalid' });
+    expect(
+      h.usecases.dismissQuestion({ sessionId: ASK.sessionId, promptId: 'prompt-1' }),
+    ).toMatchObject({
+      ok: false,
+      reason: 'invalid',
+    });
+    // The hook coming back after all takes it up again as its own.
+    const back = h.usecases.registerQuestion(ASK);
+    await settle();
+    expect(h.sent.at(-1)).toMatchObject({ question: { promptId: 'prompt-1', channel: 'hook' } });
+    h.usecases.resolveQuestion({ sessionId: ASK.sessionId, toolUseId: 'toolu_1' });
+    expect(await back).toEqual({ action: 'dismiss' });
   });
 
   it('PostToolUse for a still-pending question clears it as terminal', async () => {
@@ -200,9 +306,12 @@ describe('question run link', () => {
     const seen: AskUserQuestionPayload[] = [];
     const register = registerQuestionFactory({
       store,
-      broadcast: (message: ServerMessage): void => {
-        sent.push(message);
-      },
+      lifecycle: createQuestionLifecycle({
+        store,
+        broadcast: (message: ServerMessage): void => {
+          sent.push(message);
+        },
+      }),
       locateRun: async (payload: AskUserQuestionPayload) => {
         seen.push(payload);
         return { pipelineId: 'ask-factory', runId: 'r-1', match: 'session' };
@@ -226,9 +335,12 @@ describe('question run link', () => {
     const sent: ServerMessage[] = [];
     const register = registerQuestionFactory({
       store,
-      broadcast: (message: ServerMessage): void => {
-        sent.push(message);
-      },
+      lifecycle: createQuestionLifecycle({
+        store,
+        broadcast: (message: ServerMessage): void => {
+          sent.push(message);
+        },
+      }),
       locateRun: async () => {
         throw new Error('disk gone');
       },
@@ -330,17 +442,35 @@ describe('hook endpoints over HTTP', () => {
     expect(await (await poll).json()).toEqual({ action: 'dismiss' });
   });
 
-  it('a hook that disconnects clears the question as terminal', async () => {
+  it('a hook that disconnects leaves the question pending, detached; GET /questions lists it', async () => {
     const abort: AbortController = new AbortController();
     const poll: Promise<Response> = post('/hooks/ask-user-question', ASK, abort.signal);
     poll.catch((): void => {});
-    await pendingId();
+    const promptId: string = await pendingId();
     abort.abort();
-    for (let i = 0; i < 100 && store.list().length > 0; i++) {
-      await new Promise((r): void => void setTimeout(r, 10));
-    }
-    expect(store.list()).toEqual([]);
-    expect(sent.at(-1)).toMatchObject({ type: 'session.question.resolved', reason: 'terminal' });
+    await vi.waitFor((): void => {
+      expect(store.get(ASK.sessionId, promptId)?.waiter).toBeNull();
+    });
+    expect(store.list()).toHaveLength(1);
+    expect(sent.some((m: ServerMessage): boolean => m.type === 'session.question.resolved')).toBe(
+      false,
+    );
+    const listed: Response = await fetch(`${base}/questions`);
+    expect(listed.status).toBe(200);
+    expect(await listed.json()).toMatchObject({
+      count: 1,
+      pending: [{ promptId, channel: 'hook', questions: QUESTION_INPUT.questions }],
+    });
+    // The hook asks again and gets the same question; a dismiss ends it.
+    const again: Promise<Response> = post('/hooks/ask-user-question', ASK);
+    await vi.waitFor((): void => {
+      expect(store.get(ASK.sessionId, promptId)?.waiter).not.toBeNull();
+    });
+    expect((await post('/sessions/dismiss', { sessionId: ASK.sessionId, promptId })).status).toBe(
+      200,
+    );
+    expect(await (await again).json()).toEqual({ action: 'dismiss' });
+    expect(await (await fetch(`${base}/questions`)).json()).toEqual({ count: 0, pending: [] });
   });
 
   it('question-resolved settles a pending question and rejects a malformed body', async () => {
@@ -352,6 +482,178 @@ describe('hook endpoints over HTTP', () => {
     ).toBe(200);
     expect(await (await poll).json()).toEqual({ action: 'dismiss' });
     expect((await post('/hooks/ask-user-question', { sessionId: 'x' })).status).toBe(400);
+  });
+});
+
+describe('durable questions', () => {
+  let dir: string;
+  let journal: QuestionJournal;
+  beforeEach(async () => {
+    ({ dir, journal } = await tempJournal());
+  });
+  afterEach(async () => {
+    await rm(dir, { recursive: true, force: true });
+  });
+
+  const records = async (): Promise<QuestionRecord[]> => journal.list();
+
+  it('writes the question when the hook posts it and rewrites it with the answer', async () => {
+    const h: Harness = harness({ journal, now: (): Date => new Date('2026-11-02T10:00:00.000Z') });
+    const waiting = h.usecases.registerQuestion(ASK);
+    await settle();
+    expect(await readdir(dir)).toEqual(['prompt-1.json']);
+    expect((await records())[0]).toMatchObject({
+      sessionId: ASK.sessionId,
+      promptId: 'prompt-1',
+      toolUseId: 'toolu_1',
+      claudeSessionId: 'c1',
+      status: 'pending',
+      channel: 'hook',
+      askedAt: '2026-11-02T10:00:00.000Z',
+      questions: QUESTION_INPUT.questions,
+    });
+    h.usecases.answerQuestion({ sessionId: ASK.sessionId, promptId: 'prompt-1', answers: ANSWERS });
+    await waiting;
+    await settle();
+    expect((await records())[0]).toMatchObject({
+      status: 'answered',
+      delivered: true,
+      answers: { 'Size?': 'M', 'Which toppings?': 'Ham, Olives' },
+      resolvedAt: '2026-11-02T10:00:00.000Z',
+    });
+  });
+
+  it('a restart restores the pending question in full, and the hook finds it under the old promptId', async () => {
+    const first: Harness = harness({ journal });
+    const gone: AbortController = new AbortController();
+    void first.usecases.registerQuestion(ASK, gone.signal);
+    await settle();
+    gone.abort(); // the API dies: the hook request is cut
+
+    // A fresh API over the same folder.
+    const second: Harness = harness({ journal });
+    const restore = restoreQuestionsFactory({ journal, lifecycle: second.lifecycle });
+    expect(await restore()).toBe(1);
+    expect(second.usecases.listPending()).toMatchObject([
+      {
+        promptId: 'prompt-1',
+        sessionId: ASK.sessionId,
+        channel: 'hook',
+        questions: QUESTION_INPUT.questions,
+      },
+    ]);
+    // The hook asks again (its retry loop) and is attached to the restored question.
+    const again = second.usecases.registerQuestion(ASK);
+    await settle();
+    expect(
+      second.sent.filter((m: ServerMessage): boolean => m.type === 'session.question'),
+    ).toEqual([]);
+    expect(
+      second.usecases.answerQuestion({
+        sessionId: ASK.sessionId,
+        promptId: 'prompt-1',
+        answers: ANSWERS,
+      }),
+    ).toEqual({ ok: true });
+    expect(await again).toMatchObject({ action: 'answer' });
+    await settle();
+    expect((await records())[0]).toMatchObject({ status: 'answered', delivered: true });
+    // Restoring again finds nothing open.
+    expect(
+      await restoreQuestionsFactory({ journal, lifecycle: harness({ journal }).lifecycle })(),
+    ).toBe(0);
+  });
+
+  it('an answer queued before the restart is handed to the hook after it', async () => {
+    const first: Harness = harness({ journal });
+    const gone: AbortController = new AbortController();
+    void first.usecases.registerQuestion(ASK, gone.signal);
+    await settle();
+    gone.abort();
+    await settle();
+    first.usecases.answerQuestion({
+      sessionId: ASK.sessionId,
+      promptId: 'prompt-1',
+      answers: ANSWERS,
+    });
+    await settle();
+    expect((await records())[0]).toMatchObject({ status: 'answered', delivered: false });
+
+    const second: Harness = harness({ journal });
+    expect(await restoreQuestionsFactory({ journal, lifecycle: second.lifecycle })()).toBe(1);
+    expect(await second.usecases.registerQuestion(ASK)).toEqual({
+      action: 'answer',
+      answers: { 'Size?': 'M', 'Which toppings?': 'Ham, Olives' },
+    });
+    await settle();
+    expect((await records())[0]).toMatchObject({ status: 'answered', delivered: true });
+    expect(second.usecases.listPending()).toEqual([]);
+  });
+
+  it('skips a file that is not a question record and keeps the rest', async () => {
+    await writeFile(path.join(dir, 'junk.json'), '{ nope', 'utf8');
+    await writeFile(path.join(dir, 'other.json'), JSON.stringify({ hello: 1 }), 'utf8');
+    const h: Harness = harness({ journal });
+    void h.usecases.registerQuestion(ASK);
+    await settle();
+    expect((await records()).map((r: QuestionRecord): string => r.promptId)).toEqual(['prompt-1']);
+    expect(JSON.parse(await readFile(path.join(dir, 'prompt-1.json'), 'utf8')).status).toBe(
+      'pending',
+    );
+  });
+
+  it('reconcile: a session gone for the grace ends its questions, a hook away for the grace marks the terminal', async () => {
+    let at = 1_000_000;
+    const now = (): Date => new Date(at);
+    const h: Harness = harness({ journal, now });
+    const reconcile = reconcileQuestionsFactory({
+      store: h.store,
+      lifecycle: h.lifecycle,
+      detachGraceMs: 30_000,
+      goneGraceMs: 15_000,
+      now,
+    });
+    const gone: AbortController = new AbortController();
+    void h.usecases.registerQuestion(ASK, gone.signal);
+    await settle();
+    gone.abort();
+    await settle();
+    // Attached hook just left: nothing yet.
+    reconcile([ASK.sessionId]);
+    expect(h.usecases.listPending()[0]?.channel).toBe('hook');
+    at += 31_000;
+    reconcile([ASK.sessionId]);
+    expect(h.usecases.listPending()[0]?.channel).toBe('terminal');
+    expect(h.sent.at(-1)).toMatchObject({
+      type: 'session.question',
+      question: { channel: 'terminal' },
+    });
+    await settle();
+    expect((await records())[0]).toMatchObject({ status: 'pending', channel: 'terminal' });
+    // The session vanishes from herdr: one empty poll is not enough, a grace of them is.
+    reconcile([]);
+    expect(h.usecases.listPending()).toHaveLength(1);
+    at += 16_000;
+    reconcile([]);
+    expect(h.usecases.listPending()).toEqual([]);
+    expect(h.sent.at(-1)).toMatchObject({ type: 'session.question.resolved', reason: 'gone' });
+    await settle();
+    expect((await records())[0]).toMatchObject({ status: 'gone' });
+  });
+
+  it('PostToolUse on a terminal-bound question closes it as terminal', async () => {
+    const h: Harness = harness({ journal });
+    const gone: AbortController = new AbortController();
+    void h.usecases.registerQuestion(ASK, gone.signal);
+    await settle();
+    gone.abort();
+    await settle();
+    h.lifecycle.markTerminal('prompt-1');
+    h.usecases.resolveQuestion({ sessionId: ASK.sessionId, toolUseId: 'toolu_1' });
+    expect(h.usecases.listPending()).toEqual([]);
+    expect(h.sent.at(-1)).toMatchObject({ type: 'session.question.resolved', reason: 'terminal' });
+    await settle();
+    expect((await records())[0]).toMatchObject({ status: 'terminal' });
   });
 });
 
@@ -373,8 +675,12 @@ describe('WebSocket', () => {
       broadcast: (m: ServerMessage): void => broadcast(m),
     });
     server = createServer(app);
+    const lifecycle: QuestionLifecycle = createQuestionLifecycle({
+      store,
+      broadcast: (m): void => broadcast(m),
+    });
     const usecases: QuestionUsecases = {
-      registerQuestion: registerQuestionFactory({ store, broadcast: (m): void => broadcast(m) }),
+      registerQuestion: registerQuestionFactory({ store, lifecycle }),
       answerQuestion: answerQuestionFactory({ store }),
       dismissQuestion: dismissQuestionFactory({ store }),
       resolveQuestion: resolveQuestionFactory({ store }),
@@ -552,6 +858,36 @@ describe('hook script', () => {
     expect(decideOutput(QUESTION_INPUT, null)).toBeNull();
   });
 
+  it('retries an unreachable or failing API, asks again on wait, gives up on a refusal', () => {
+    expect(decideNext({ status: 0, body: null })).toBe('retry');
+    expect(decideNext({ status: 502, body: null })).toBe('retry');
+    expect(decideNext({ status: 200, body: { action: 'wait' } })).toBe('again');
+    expect(decideNext({ status: 200, body: { action: 'answer', answers: {} } })).toBe('done');
+    expect(decideNext({ status: 200, body: { action: 'dismiss' } })).toBe('done');
+    expect(decideNext({ status: 400, body: { error: 'bad' } })).toBe('give-up');
+    expect(decideNext({ status: 401, body: null })).toBe('give-up');
+  });
+
+  it('askUntilAnswered keeps asking through outages and waits until a final reply', async () => {
+    const results = [
+      { status: 0, body: null },
+      { status: 503, body: null },
+      { status: 200, body: { action: 'wait' } },
+      { status: 200, body: { action: 'answer', answers: { q: 'a' } } },
+    ];
+    const seen: unknown[] = [];
+    const post = async (body: unknown): Promise<unknown> => {
+      seen.push(body);
+      return results.shift();
+    };
+    expect(await askUntilAnswered(post, { x: 1 }, 1)).toEqual({
+      action: 'answer',
+      answers: { q: 'a' },
+    });
+    expect(seen).toHaveLength(4);
+    expect(await askUntilAnswered(async () => ({ status: 400, body: null }), {}, 1)).toBeNull();
+  });
+
   describe('as a process', () => {
     const script: string = path.join(
       path.dirname(fileURLToPath(import.meta.url)),
@@ -563,19 +899,23 @@ describe('hook script', () => {
     let origin: string;
     let received: unknown;
     let reply: unknown;
+    /** Replies given before `reply`, one per request: a `wait` first, then the answer. */
+    let replies: unknown[] = [];
+    let requests = 0;
 
     beforeAll(async () => {
       server = createServer((req, res): void => {
         const parts: Buffer[] = [];
         req.on('data', (p: Buffer): void => void parts.push(p));
         req.on('end', (): void => {
+          requests += 1;
           received = {
             url: req.url,
             key: req.headers['x-api-key'],
             body: JSON.parse(Buffer.concat(parts).toString()),
           };
           res.setHeader('content-type', 'application/json');
-          res.end(JSON.stringify(reply));
+          res.end(JSON.stringify(replies.length > 0 ? replies.shift() : reply));
         });
       });
       await new Promise<void>((resolve): void => {
@@ -589,6 +929,8 @@ describe('hook script', () => {
     });
     afterEach(() => {
       received = undefined;
+      replies = [];
+      requests = 0;
     });
 
     const run = (input: unknown, env: Record<string, string>): Promise<string> =>
@@ -620,13 +962,18 @@ describe('hook script', () => {
       });
     });
 
-    it('prints nothing on dismiss, with no studio env, or when the API is unreachable', async () => {
+    it('prints nothing on dismiss or with no studio env', async () => {
       reply = { action: 'dismiss' };
       expect(await run(event, { STUDIO_SESSION_ID: 's', STUDIO_API_URL: origin })).toBe('');
       expect(await run(event, {})).toBe('');
-      expect(
-        await run(event, { STUDIO_SESSION_ID: 's', STUDIO_API_URL: 'http://127.0.0.1:1' }),
-      ).toBe('');
+    });
+
+    it('asks again at once after a wait, and takes the answer of the second request', async () => {
+      replies = [{ action: 'wait' }, { action: 'wait' }];
+      reply = { action: 'answer', answers: { 'Size?': 'S' } };
+      const out: string = await run(event, { STUDIO_SESSION_ID: 's', STUDIO_API_URL: origin });
+      expect(JSON.parse(out).hookSpecificOutput.updatedInput.answers).toEqual({ 'Size?': 'S' });
+      expect(requests).toBe(3);
     });
 
     it('PostToolUse posts question-resolved and prints nothing', async () => {

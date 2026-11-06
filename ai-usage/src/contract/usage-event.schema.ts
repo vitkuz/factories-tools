@@ -117,6 +117,8 @@ export const actorFactSchema = z.object({
   endedAt: z.string().optional(),
   /** Path-like strings found in the actor's task prompt (run folders, output files). Used to join actors to external work units. */
   refs: z.array(z.string()).optional(),
+  /** Files the actor wrote (Write/Edit tool calls), as the harness recorded them. The output folder names the step. */
+  writes: z.array(z.string()).optional(),
 });
 
 export const runFactSchema = z.object({

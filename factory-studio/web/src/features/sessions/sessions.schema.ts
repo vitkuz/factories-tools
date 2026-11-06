@@ -7,6 +7,13 @@ import {
   chatUnavailableMessageSchema,
   chatUnsubscribeMessageSchema,
 } from '../chat/chat.schema';
+import {
+  pipelinesChangedMessageSchema,
+  runChangedMessageSchema,
+  runsSnapshotMessageSchema,
+} from '../runs/runs.schema';
+import { systemMemoryMessageSchema } from '../system/system.schema';
+import { workspacesSnapshotMessageSchema } from '../workspaces/workspaces.schema';
 
 /** A param's default or value: the runner takes text, numbers and booleans. */
 export const paramValueSchema = z.union([z.string(), z.number(), z.boolean()]);
@@ -135,12 +142,20 @@ export const sessionRunLinkSchema = z.object({
   match: z.enum(['session', 'started-after']),
 });
 
+/**
+ * Where the answer goes: `hook` — the studio's hook holds the question and takes the answer
+ * from here; `terminal` — the hook is gone and Claude's own dialog is open in the pane, so the
+ * question is shown but answered there.
+ */
+export const questionChannelSchema = z.enum(['hook', 'terminal']);
+
 export const pendingQuestionSchema = z.object({
   sessionId: z.string(),
   promptId: z.string(),
   toolUseId: z.string(),
   questions: z.array(questionSchema),
   askedAt: z.string(),
+  channel: questionChannelSchema.default('hook'),
   /** Missing when the API could not tell the run: the question then shows on Sessions only. */
   run: sessionRunLinkSchema.optional(),
 });
@@ -152,7 +167,20 @@ export const answerSchema = z.object({
   text: z.string().optional(),
 });
 
-export const resolveReasonSchema = z.enum(['answered', 'dismissed', 'timeout', 'terminal']);
+export const resolveReasonSchema = z.enum(['answered', 'dismissed', 'timeout', 'terminal', 'gone']);
+
+/**
+ * The live feed: what the app used to poll over HTTP, pushed by the server to the clients that
+ * subscribe to a topic. The snapshot is the first frame after a subscribe, on the same socket
+ * as the changes, so nothing older can land after something newer.
+ */
+export const liveTopicSchema = z.enum(['runs', 'sessions', 'workspaces', 'system']);
+
+/** The session list, whole, on subscribe and whenever it differs; each entry checked on its own. */
+export const sessionsChangedMessageSchema = z.object({
+  type: z.literal('sessions.changed'),
+  sessions: z.array(z.unknown()),
+});
 
 export const serverMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('hello'), pending: z.array(pendingQuestionSchema) }),
@@ -173,6 +201,14 @@ export const serverMessageSchema = z.discriminatedUnion('type', [
   chatItemsMessageSchema,
   chatUnavailableMessageSchema,
   chatEndedMessageSchema,
+  runsSnapshotMessageSchema,
+  runChangedMessageSchema,
+  pipelinesChangedMessageSchema,
+  sessionsChangedMessageSchema,
+  workspacesSnapshotMessageSchema,
+  systemMemoryMessageSchema,
+  /** The server's heartbeat: a frame every 15 s, so a dead socket is noticed (see `useWebSocket`). */
+  z.object({ type: z.literal('live.tick'), at: z.string() }),
 ]);
 
 export const clientMessageSchema = z.discriminatedUnion('type', [
@@ -186,4 +222,6 @@ export const clientMessageSchema = z.discriminatedUnion('type', [
   z.object({ type: z.literal('session.reply'), sessionId: z.string(), text: z.string().min(1) }),
   chatSubscribeMessageSchema,
   chatUnsubscribeMessageSchema,
+  z.object({ type: z.literal('live.subscribe'), topics: z.array(liveTopicSchema).min(1) }),
+  z.object({ type: z.literal('live.unsubscribe'), topics: z.array(liveTopicSchema).min(1) }),
 ]);

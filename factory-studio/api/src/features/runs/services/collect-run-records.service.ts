@@ -1,11 +1,11 @@
 import path from 'node:path';
 import type { ZodSafeParseResult } from 'zod';
-import type { FsClient, JsonRead } from '../../../clients/fs/fs.types.js';
+import type { FileInfo, FsClient, JsonRead } from '../../../clients/fs/fs.types.js';
 import type { AppLogger } from '../../../shared/types.js';
 import { discoveredPipelineSchema } from '../../pipelines/pipelines.schema.js';
 import type { DiscoveredPipeline } from '../../pipelines/pipelines.types.js';
 import { costFileSchema, runStateFileSchema } from '../runs.schema.js';
-import type { CostFile, RunRecord, RunStateFile } from '../runs.types.js';
+import type { CostFile, RunRecord, RunRecordRead, RunStateFile } from '../runs.types.js';
 import {
   COST_FILE,
   PIPELINE_SNAPSHOT_FILE,
@@ -127,6 +127,20 @@ const toRecord = async (
     ...(snapshot === undefined ? {} : { pipeline: snapshot }),
   };
 };
+
+/**
+ * One run folder read fresh, for the live feed: `gone` when there is no such folder, `unreadable`
+ * when its `state.json` does not parse (the list skips it too), else the record.
+ */
+export const readRunRecordFactory =
+  (settings: CollectRunRecordsSettings) =>
+  async (folderId: string, runId: string): Promise<RunRecordRead> => {
+    const runDir: string = path.join(settings.workDir, RUN_DIR, folderId, runId);
+    const info: FileInfo | null = await settings.fs.stat(runDir);
+    if (info === null || !info.isDirectory) return { kind: 'gone' };
+    const record: RunRecord | null = await toRecord(settings, folderId, runId);
+    return record === null ? { kind: 'unreadable' } : { kind: 'record', run: record };
+  };
 
 /** Every `run/<pipelineId>/<runId>` folder, read fresh, sorted newest first. */
 export const collectRunRecordsFactory =

@@ -103,7 +103,7 @@ const ParamField = ({ param, value, onChange }: ParamFieldProps): ReactNode => {
       return (
         <select
           id={id}
-          className="input select sessions-param-input sessions-param-select"
+          className="control is-mono sessions-param-input"
           value={String(value)}
           required={param.required}
           aria-describedby={describedBy}
@@ -120,7 +120,7 @@ const ParamField = ({ param, value, onChange }: ParamFieldProps): ReactNode => {
       return (
         <textarea
           id={id}
-          className="input textarea sessions-param-input sessions-param-textarea"
+          className="control sessions-param-input sessions-param-textarea"
           value={String(value)}
           rows={1}
           required={param.required}
@@ -132,7 +132,7 @@ const ParamField = ({ param, value, onChange }: ParamFieldProps): ReactNode => {
     return (
       <input
         id={id}
-        className="input sessions-param-input"
+        className="control sessions-param-input"
         type={widget === 'number' ? 'number' : 'text'}
         step={widget === 'number' && !Number.isInteger(param.default) ? 'any' : undefined}
         inputMode={widget === 'number' ? 'decimal' : undefined}
@@ -210,7 +210,7 @@ export const StartForm = ({
   const promptField = (className: string, placeholder: string): ReactNode => (
     <textarea
       id="start-prompt"
-      className={`input textarea ${className}`}
+      className={`control ${className}`}
       value={prompt}
       placeholder={placeholder}
       rows={1}
@@ -220,79 +220,90 @@ export const StartForm = ({
 
   return (
     <form
-      className="sessions-form"
+      className="panel sessions-form"
       onSubmit={submit}
       onKeyDown={onKeyDown}
       aria-label="Start a session"
     >
-      <div className="sessions-form-row">
-        <label className="visually-hidden" htmlFor="start-factory">
-          Factory (harness: claude)
-        </label>
-        <select
-          id="start-factory"
-          className="input select sessions-factory"
-          value={chosen}
-          title={entry?.description}
-          disabled={listState !== 'ready' || entries.length === 0}
-          onChange={(event: ChangeEvent<HTMLSelectElement>): void => setId(event.target.value)}
-        >
-          {listState === 'loading' ? <option value="">loading…</option> : null}
-          {listState === 'failed' ? <option value="">could not list pipelines</option> : null}
-          {listState === 'ready' && entries.length === 0 ? (
-            <option value="" disabled={outsideWorkspace}>
-              {outsideWorkspace ? 'no factories in this workspace' : 'none'}
-            </option>
-          ) : null}
-          {entries.map((item: PipelineListEntry) => (
-            <option key={item.id} value={item.id}>
-              {item.id}
-            </option>
-          ))}
-        </select>
-        {params.length === 0 ? (
-          <>
-            <label className="visually-hidden" htmlFor="start-prompt">
-              Prompt
-            </label>
-            {promptField('sessions-prompt', 'What should the factory do?')}
-          </>
-        ) : (
-          <p className="sessions-hint" title={entry?.description}>
-            {entry?.description ?? ''}
-          </p>
-        )}
-        <button
-          type="submit"
-          className="primary-button sessions-start"
-          disabled={!canStart}
-          title={blocker ?? 'Start (Ctrl+Enter)'}
-        >
-          {busy ? 'Starting…' : 'Start session'}
-        </button>
+      <div className="panel-head">
+        <h2 className="kicker">New session</h2>
+        <span className="panel-note">Ctrl+Enter starts</span>
       </div>
-      {params.length > 0 ? (
-        <div className="sessions-params">
-          {params.map((param: FactoryParam) => (
-            <ParamField
-              key={`${chosen}:${param.name}`}
-              param={param}
-              value={draft[param.name] ?? ''}
-              onChange={setParam(param.name)}
-            />
-          ))}
-          <div className="sessions-param is-wide">
-            <label className="sessions-param-label" htmlFor="start-prompt">
-              <span className="sessions-param-name">extra instructions</span>
-              <span className="sessions-param-optional">optional</span>
+      <div className="panel-body sessions-form-body">
+        <div className="sessions-form-row">
+          <span className="bar-field sessions-factory-field">
+            <span className="kicker" aria-hidden="true">
+              Pipeline
+            </span>
+            <label className="visually-hidden" htmlFor="start-factory">
+              Factory (harness: claude)
             </label>
-            {promptField(
-              'sessions-param-input sessions-param-textarea',
-              'Anything the params do not cover',
-            )}
-          </div>
+            <select
+              id="start-factory"
+              className="control is-mono sessions-factory"
+              value={chosen}
+              title={entry?.description}
+              disabled={listState !== 'ready' || entries.length === 0}
+              onChange={(event: ChangeEvent<HTMLSelectElement>): void => setId(event.target.value)}
+            >
+              {listState === 'loading' ? <option value="">loading…</option> : null}
+              {listState === 'failed' ? <option value="">could not list pipelines</option> : null}
+              {listState === 'ready' && entries.length === 0 ? (
+                <option value="" disabled={outsideWorkspace}>
+                  {outsideWorkspace ? 'no factories in this workspace' : 'none'}
+                </option>
+              ) : null}
+              {entries.map((item: PipelineListEntry) => (
+                <option key={item.id} value={item.id}>
+                  {item.id}
+                </option>
+              ))}
+            </select>
+          </span>
+          {params.length === 0 ? (
+            <>
+              <label className="visually-hidden" htmlFor="start-prompt">
+                Prompt
+              </label>
+              {promptField('sessions-prompt', 'What should the factory do?')}
+            </>
+          ) : (
+            <p className="sessions-hint" title={entry?.description}>
+              {entry?.description ?? ''}
+            </p>
+          )}
+          <button
+            type="submit"
+            className="btn btn--bar btn--primary sessions-start"
+            disabled={!canStart}
+            title={blocker ?? 'Start (Ctrl+Enter)'}
+          >
+            {busy ? 'Starting…' : 'Start session'}
+          </button>
         </div>
-      ) : null}
+        {params.length > 0 ? (
+          <div className="sessions-params">
+            {params.map((param: FactoryParam) => (
+              <ParamField
+                key={`${chosen}:${param.name}`}
+                param={param}
+                value={draft[param.name] ?? ''}
+                onChange={setParam(param.name)}
+              />
+            ))}
+            <div className="sessions-param is-wide">
+              <label className="sessions-param-label" htmlFor="start-prompt">
+                <span className="sessions-param-name">extra instructions</span>
+                <span className="sessions-param-optional">optional</span>
+              </label>
+              {promptField(
+                'sessions-param-input sessions-param-textarea',
+                'Anything the params do not cover',
+              )}
+            </div>
+          </div>
+        ) : null}
+      </div>
     </form>
   );
 };

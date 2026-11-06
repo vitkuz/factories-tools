@@ -43,7 +43,7 @@ export const LiveSessionPanel = ({ run }: LiveSessionPanelProps): ReactNode => {
         <span className="mono live-session-name" title={session.session}>
           {shortSessionName(session.session)}
         </span>
-        <button type="button" className="answer-button" onClick={(): void => setOpen(true)}>
+        <button type="button" className="btn btn--primary" onClick={(): void => setOpen(true)}>
           Open chat
         </button>
       </div>

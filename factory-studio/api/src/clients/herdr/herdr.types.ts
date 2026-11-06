@@ -40,6 +40,15 @@ export interface CreatedWorkspace {
   paneId: string;
 }
 
+/**
+ * What `agent prompt --wait --until working` came back with. `submitted` is herdr's word that
+ * the text and Enter were written; `started` that it then saw the agent working. A refusal
+ * (`agent_blocked`, `agent_not_found`…) carries herdr's own code.
+ */
+export type PromptAgentResult =
+  | { ok: true; started: boolean; status: HerdrAgentStatus }
+  | { ok: false; code: string; message: string };
+
 export interface HerdrClient {
   /** Starts the headless server of this session when none answers. Idempotent. */
   ensureServer: () => Promise<void>;
@@ -48,6 +57,12 @@ export interface HerdrClient {
   runInPane: (paneId: string, command: string) => Promise<void>;
   /** Literal text, no Enter. */
   sendText: (paneId: string, text: string) => Promise<void>;
+  /**
+   * `text` and Enter as one submission to the agent in the pane (bracketed paste when the
+   * agent has it on, so a multi-line text arrives whole), then waits up to `waitMs` for the
+   * agent to be seen working. Refused by herdr while the agent sits in a dialog.
+   */
+  promptAgent: (paneId: string, text: string, waitMs: number) => Promise<PromptAgentResult>;
   sendKeys: (paneId: string, keys: readonly string[]) => Promise<void>;
   /** No server means none. */
   listWorkspaces: () => Promise<HerdrWorkspace[]>;

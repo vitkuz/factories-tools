@@ -22,7 +22,7 @@ const SOCKET_URL: string = sessionsSocketUrl();
 /** Every frame the socket receives, for a screen that reads more than the questions (the live chat). */
 export type FrameListener = (message: ServerMessage) => void;
 
-/** The shared socket as the live chat uses it: send a frame, hear every frame. */
+/** The shared socket as the live hooks use it: send a frame, hear every frame. */
 export interface SocketChannel {
   /** `false` when the socket is not open and nothing was sent. */
   send: (message: ClientMessage) => boolean;
@@ -63,6 +63,12 @@ export const useSessionQuestions = (): SessionQuestions => {
   useEffect((): void => {
     if (socket.state === 'closed') dispatch({ kind: 'disconnected' });
   }, [socket.state]);
+
+  // The session list is read on the Sessions board and on every run page (its live session),
+  // so the one socket owner subscribes to it; every reopen sends the subscribe again (a resync).
+  useEffect((): void => {
+    if (socket.state === 'open') send({ type: 'live.subscribe', topics: ['sessions'] });
+  }, [socket.state, send]);
 
   const answer = useCallback(
     (question: PendingQuestion, answers: Answer[]): void => {

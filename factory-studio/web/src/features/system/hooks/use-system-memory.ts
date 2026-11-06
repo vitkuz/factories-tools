@@ -1,35 +1,34 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
-import { readSystemMemory } from '../../../adapters/http/studio-api.adapter';
-import { usePolling } from '../../../shared/lib/polling';
+import { useEffect, useState } from 'react';
+import { useLiveTopics } from '../../sessions/hooks/use-live-topics';
+import { useQuestions } from '../../sessions/hooks/use-questions';
+import type { SessionQuestions } from '../../sessions/hooks/use-session-questions';
+import type { ServerMessage } from '../../sessions/sessions.types';
 import type { SystemMemory } from '../system.types';
 
-const POLL_MS = 5000;
-
 /**
- * The memory reading, refreshed every 5 s while the page is visible. `null` until the first
- * answer, and again whenever a request fails: the meter then says "—" rather than a stale
- * number. A slow answer never overwrites a newer one (the previous request is aborted).
+ * The memory reading as the server pushes it (`system.memory`, every few seconds while this
+ * hook is mounted). `null` until the first frame and whenever the socket is down: the meter
+ * then says "—" rather than a stale number.
  */
 export const useSystemMemory = (): SystemMemory | null => {
+  const { channel, connection }: SessionQuestions = useQuestions();
   const [memory, setMemory] = useState<SystemMemory | null>(null);
-  const inFlight = useRef<AbortController | null>(null);
+  useLiveTopics(['system']);
 
-  const tick = useCallback((): void => {
-    inFlight.current?.abort();
-    const controller: AbortController = new AbortController();
-    inFlight.current = controller;
-    readSystemMemory(controller.signal).then(
-      (next: SystemMemory): void => setMemory(next),
-      (): void => {
-        if (!controller.signal.aborted) setMemory(null);
-      },
-    );
-  }, []);
+  useEffect(
+    (): (() => void) =>
+      channel.listen((message: ServerMessage): void => {
+        if (message.type !== 'system.memory') return;
+        const { type: _type, ...reading }: Extract<ServerMessage, { type: 'system.memory' }> =
+          message;
+        setMemory(reading);
+      }),
+    [channel],
+  );
 
-  useEffect(() => {
-    tick();
-    return () => inFlight.current?.abort();
-  }, [tick]);
-  usePolling(tick, POLL_MS);
+  useEffect((): void => {
+    if (connection !== 'open') setMemory(null);
+  }, [connection]);
+
   return memory;
 };

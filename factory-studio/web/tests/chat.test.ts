@@ -4,9 +4,13 @@ import type { ChatItem, ChatRow, ChatState } from '../src/features/chat/chat.typ
 import {
   MAX_ITEMS,
   buildRows,
+  composerGate,
   findRunSession,
   initialChatState,
   isNearBottom,
+  isPending,
+  isSendKey,
+  pendingItem,
   reduceChat,
   runClaudeSessionId,
   sameRow,
@@ -191,5 +195,109 @@ describe('chat route and scrolling', () => {
   it('follows only near the bottom', () => {
     expect(isNearBottom({ scrollHeight: 1000, scrollTop: 560, clientHeight: 400 })).toBe(true);
     expect(isNearBottom({ scrollHeight: 1000, scrollTop: 300, clientHeight: 400 })).toBe(false);
+  });
+});
+
+describe('message box', () => {
+  const base = {
+    status: 'idle' as const,
+    phase: 'live' as const,
+    asked: false,
+    connected: true,
+    sending: false,
+  };
+
+  it('opens only for an idle or done session on a live socket with no question waiting', () => {
+    expect(composerGate(base)).toEqual({ enabled: true, reason: null });
+    expect(composerGate({ ...base, status: 'done' })).toEqual({ enabled: true, reason: null });
+    expect(composerGate({ ...base, status: 'working' }).enabled).toBe(false);
+    expect(composerGate({ ...base, status: 'blocked' }).reason).toMatch(/terminal/);
+    expect(composerGate({ ...base, status: 'unknown' }).enabled).toBe(false);
+    expect(composerGate({ ...base, status: null }).enabled).toBe(false);
+  });
+
+  it('says the most important reason first: ended, then no socket, then a question, then sending', () => {
+    expect(composerGate({ ...base, phase: 'ended', connected: false }).reason).toMatch(/ended/);
+    expect(composerGate({ ...base, connected: false, asked: true }).reason).toMatch(/connection/);
+    expect(composerGate({ ...base, asked: true, sending: true }).reason).toMatch(/question card/);
+    expect(composerGate({ ...base, sending: true })).toEqual({
+      enabled: false,
+      reason: 'Sending…',
+    });
+    // No transcript yet is not a reason to refuse: the session may still be idle.
+    expect(composerGate({ ...base, phase: 'unavailable' }).enabled).toBe(true);
+  });
+
+  it('Enter sends; Shift/Ctrl/Alt/Meta+Enter, a composing Enter and other keys do not', () => {
+    const enter = {
+      key: 'Enter',
+      shiftKey: false,
+      ctrlKey: false,
+      altKey: false,
+      metaKey: false,
+      isComposing: false,
+    };
+    expect(isSendKey(enter)).toBe(true);
+    expect(isSendKey({ ...enter, shiftKey: true })).toBe(false);
+    expect(isSendKey({ ...enter, ctrlKey: true })).toBe(false);
+    expect(isSendKey({ ...enter, altKey: true })).toBe(false);
+    expect(isSendKey({ ...enter, metaKey: true })).toBe(false);
+    expect(isSendKey({ ...enter, isComposing: true })).toBe(false);
+    expect(isSendKey({ ...enter, key: 'a' })).toBe(false);
+  });
+
+  it('a pending bubble shows at once and is replaced by the transcript copy of the same words', () => {
+    const at: Date = new Date('2026-11-02T10:00:00.000Z');
+    const mine: ChatItem = pendingItem('p1', 'Строка один\r\nLine two  ', at);
+    expect(isPending(mine)).toBe(true);
+    expect(mine).toMatchObject({ kind: 'user', text: 'Строка один\r\nLine two  ' });
+    const live: ChatState = reduceChat(
+      reduceChat(initialChatState, {
+        kind: 'backlog',
+        items: [item('a', 'assistant')],
+        dropped: 0,
+      }),
+      { kind: 'pending', item: mine },
+    );
+    expect(live.items.map((i: ChatItem): string => i.id)).toEqual(['a', 'pending:p1']);
+    // Claude Code writes the message down: same words, its own id and newline style.
+    const echoed: ChatState = reduceChat(live, {
+      kind: 'items',
+      items: [item('u1', 'user', { text: 'Строка один\nLine two' })],
+    });
+    expect(echoed.items.map((i: ChatItem): string => i.id)).toEqual(['a', 'u1']);
+  });
+
+  it('other words keep the bubble, after the live rows; a refusal removes it', () => {
+    const mine: ChatItem = pendingItem('p2', 'one', new Date());
+    const held: ChatState = reduceChat(initialChatState, { kind: 'pending', item: mine });
+    const later: ChatState = reduceChat(held, {
+      kind: 'items',
+      items: [item('u2', 'user', { text: 'something else' }), item('b', 'assistant')],
+    });
+    expect(later.items.map((i: ChatItem): string => i.id)).toEqual(['u2', 'b', 'pending:p2']);
+    expect(reduceChat(later, { kind: 'unsent', id: 'pending:p2' }).items.map((i) => i.id)).toEqual([
+      'u2',
+      'b',
+    ]);
+  });
+
+  it('a reconnect backlog keeps an unechoed bubble and settles an echoed one', () => {
+    const held: ChatState = reduceChat(initialChatState, {
+      kind: 'pending',
+      item: pendingItem('p3', 'go on', new Date()),
+    });
+    const kept: ChatState = reduceChat(held, {
+      kind: 'backlog',
+      items: [item('a', 'assistant')],
+      dropped: 0,
+    });
+    expect(kept.items.map((i: ChatItem): string => i.id)).toEqual(['a', 'pending:p3']);
+    const settled: ChatState = reduceChat(held, {
+      kind: 'backlog',
+      items: [item('u3', 'user', { text: 'go on\n' })],
+      dropped: 0,
+    });
+    expect(settled.items.map((i: ChatItem): string => i.id)).toEqual(['u3']);
   });
 });

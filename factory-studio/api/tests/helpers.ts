@@ -5,6 +5,7 @@ import type {
   HerdrClient,
   HerdrPane,
   HerdrWorkspace,
+  PromptAgentResult,
 } from '../src/clients/herdr/herdr.types.js';
 
 export interface FakeWorkspace {
@@ -18,6 +19,8 @@ export interface FakeWorkspace {
   /** Plain text sent with `sendText`, and the key lists sent with `sendKeys`. */
   texts: string[];
   keys: string[][];
+  /** What `promptAgent` submitted to the pane's agent. */
+  prompts: string[];
   status: HerdrAgentStatus;
   /** What herdr's Claude integration would report as the pane's agent session. */
   agentSessionId?: string;
@@ -29,6 +32,8 @@ export interface FakeHerdr {
   closed: string[];
   /** Labels whose workspace is gone the moment its command runs — a harness not on PATH. */
   dieOnRun: Set<string>;
+  /** What the next `promptAgent` answers instead of "working"; `null` for the default. */
+  promptOutcome: { value: PromptAgentResult | null };
 }
 
 /** An in-memory herdr server. Workspaces are records; nothing is executed. */
@@ -36,6 +41,7 @@ export const fakeHerdr = (initial: FakeWorkspace[] = []): FakeHerdr => {
   const workspaces: FakeWorkspace[] = [...initial];
   const closed: string[] = [];
   const dieOnRun: Set<string> = new Set();
+  const promptOutcome: { value: PromptAgentResult | null } = { value: null };
   const remove = (workspaceId: string): void => {
     const index: number = workspaces.findIndex(
       (workspace: FakeWorkspace): boolean => workspace.workspaceId === workspaceId,
@@ -62,6 +68,7 @@ export const fakeHerdr = (initial: FakeWorkspace[] = []): FakeHerdr => {
         commands: [],
         texts: [],
         keys: [],
+        prompts: [],
         status: 'unknown',
       };
       workspaces.push(created);
@@ -78,6 +85,16 @@ export const fakeHerdr = (initial: FakeWorkspace[] = []): FakeHerdr => {
     },
     sendKeys: async (paneId: string, keys: readonly string[]): Promise<void> => {
       byPane(paneId)?.keys.push([...keys]);
+    },
+    promptAgent: async (paneId: string, text: string): Promise<PromptAgentResult> => {
+      const target: FakeWorkspace | undefined = byPane(paneId);
+      if (!target) {
+        return { ok: false, code: 'agent_not_found', message: `agent target ${paneId} not found` };
+      }
+      if (promptOutcome.value !== null) return promptOutcome.value;
+      target.prompts.push(text);
+      target.status = 'working';
+      return { ok: true, started: true, status: 'working' };
     },
     listWorkspaces: async (): Promise<HerdrWorkspace[]> =>
       workspaces.map((workspace: FakeWorkspace): HerdrWorkspace => ({
@@ -108,7 +125,7 @@ export const fakeHerdr = (initial: FakeWorkspace[] = []): FakeHerdr => {
     readPane: async (): Promise<string> => '',
   };
 
-  return { client, workspaces, closed, dieOnRun };
+  return { client, workspaces, closed, dieOnRun, promptOutcome };
 };
 
 /** A workspace that is already running, as `fakeHerdr([...])` takes it. */
@@ -125,5 +142,6 @@ export const workspace = (
   commands: [],
   texts: [],
   keys: [],
+  prompts: [],
   status,
 });

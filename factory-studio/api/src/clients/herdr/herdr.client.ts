@@ -8,6 +8,7 @@ import type {
   HerdrClientSettings,
   HerdrPane,
   HerdrWorkspace,
+  PromptAgentResult,
 } from './herdr.types.js';
 import {
   cleanEnv,
@@ -16,6 +17,7 @@ import {
   parseResult,
   toCreatedWorkspace,
   toPanes,
+  toStatus,
   toWorkspaces,
 } from './herdr.utils.js';
 
@@ -149,6 +151,48 @@ const sendKeysFactory =
     await callFactory(settings)(['pane', 'send-keys', paneId, ...keys]);
   };
 
+/** herdr says the text went in but it saw no activity after: the agent may still pick it up. */
+const STALLED_CODES: readonly string[] = ['agent_prompt_stalled', 'timeout'];
+
+/**
+ * `agent prompt <pane> <text> --wait --until working`: the text is one argv entry, so a
+ * newline, a quote, `$` or Cyrillic reach herdr as they are. A stall is not a refusal: the
+ * submission happened, only the `working` state was not observed in time.
+ */
+const promptAgentFactory =
+  (settings: HerdrClientSettings) =>
+  async (paneId: string, text: string, waitMs: number): Promise<PromptAgentResult> => {
+    try {
+      const stdout: string = await callFactory(settings)([
+        'agent',
+        'prompt',
+        paneId,
+        text,
+        '--wait',
+        '--until',
+        'working',
+        '--timeout',
+        String(waitMs),
+      ]);
+      const agent: unknown = parseResult(stdout).agent;
+      const status: unknown =
+        typeof agent === 'object' && agent !== null
+          ? (agent as { agent_status?: unknown }).agent_status
+          : undefined;
+      return { ok: true, started: true, status: toStatus(status) };
+    } catch (error: unknown) {
+      const failure: HerdrFailure = failureOf(error);
+      if (STALLED_CODES.includes(failure.code)) {
+        settings.logger?.warn('herdr prompt submitted but no activity seen', {
+          paneId,
+          code: failure.code,
+        });
+        return { ok: true, started: false, status: 'unknown' };
+      }
+      return { ok: false, code: failure.code, message: failure.message };
+    }
+  };
+
 /** Listing never starts a server: no server is an empty list, not a reason to spawn one. */
 const listFactory =
   <T>(
@@ -194,6 +238,7 @@ export const createHerdrClient = (settings: HerdrClientSettings): HerdrClient =>
   createWorkspace: createWorkspaceFactory(settings),
   runInPane: runInPaneFactory(settings),
   sendText: sendTextFactory(settings),
+  promptAgent: promptAgentFactory(settings),
   sendKeys: sendKeysFactory(settings),
   listWorkspaces: listFactory<HerdrWorkspace>(settings, ['workspace', 'list'], toWorkspaces),
   listPanes: listFactory<HerdrPane>(settings, ['pane', 'list'], toPanes),

@@ -14,14 +14,44 @@ export const questionSchema = z.object({
   options: z.array(questionOptionSchema).default([]),
 });
 
+/**
+ * Where the answer can go. `hook`: the studio's hook holds the question and takes the answer
+ * from the app. `terminal`: the hook is gone (timed out, cancelled, killed) and Claude's own
+ * dialog is open in the pane; the app shows the question but it is answered there.
+ */
+export const questionChannelSchema = z.enum(['hook', 'terminal']);
+
 export const pendingQuestionSchema = z.object({
   sessionId: z.string().min(1),
   promptId: z.string().min(1),
   toolUseId: z.string(),
   questions: z.array(questionSchema),
   askedAt: z.string(),
+  channel: questionChannelSchema.default('hook'),
   /** The run the asking session is running, when it can be told; the run page shows the box. */
   run: sessionRunLinkSchema.optional(),
+});
+
+export const resolveReasonSchema = z.enum(['answered', 'dismissed', 'timeout', 'terminal', 'gone']);
+
+export const questionStatusSchema = z.enum(['pending', ...resolveReasonSchema.options]);
+
+/**
+ * One question as it is kept on disk (`<PROMPT_DIR>/questions/<promptId>.json`): the pending
+ * question as the app sees it, where it came from, and how it ended. Written when the hook
+ * posts it, again on every change, so the list of what waits for a person can be rebuilt
+ * after a restart from the files alone.
+ */
+export const questionRecordSchema = pendingQuestionSchema.extend({
+  status: questionStatusSchema,
+  claudeSessionId: z.string().optional(),
+  transcriptPath: z.string().optional(),
+  /** The answers as the hook hands them to Claude (question text → value), once given. */
+  answers: z.record(z.string(), z.string()).optional(),
+  /** When the question stopped being pending. */
+  resolvedAt: z.string().optional(),
+  /** An answer or a dismissal taken while the hook was away is `false` until the hook collects it. */
+  delivered: z.boolean().optional(),
 });
 
 /** One answer per question: option labels, and/or the text typed under "Type something". */
@@ -61,8 +91,6 @@ export const dismissQuestionPayloadSchema = z.object({
   sessionId: z.string().min(1),
   promptId: z.string().min(1),
 });
-
-export const resolveReasonSchema = z.enum(['answered', 'dismissed', 'timeout', 'terminal']);
 
 /** The WebSocket protocol, server -> client. */
 export const serverMessageSchema = z.discriminatedUnion('type', [

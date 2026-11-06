@@ -7,7 +7,11 @@
 // added to Claude's context.
 // PreToolUse: posts the question to the studio API and blocks until a person answers it in the
 // app. The answers go back to Claude as `updatedInput.answers`, so Claude's own dialog never
-// opens. Any failure, a dismissal or no studio around prints nothing and exits 0, which makes
+// opens. The API holds one request for a while and then says `wait`: the hook posts the same
+// question again at once and gets the same pending question back. An API that cannot be
+// reached (restarting after a deploy, not up yet) is asked again every few seconds for as
+// long as the hook lives: the question is on the API's disk, so nothing is lost meanwhile.
+// A dismissal, or an API that refuses the request, prints nothing and exits 0, which makes
 // Claude open its normal dialog in the terminal.
 // PostToolUse: tells the API the question is over, however it was answered.
 //
@@ -16,6 +20,9 @@
 import http from 'node:http';
 import https from 'node:https';
 import { pathToFileURL } from 'node:url';
+
+/** How long to wait before asking an unreachable API again. */
+export const RETRY_MS = 3000;
 
 /** The PreToolUse stdout that makes Claude take `answers` and skip its dialog. */
 export const buildAllowOutput = (toolInput, answers) => ({
@@ -55,13 +62,28 @@ export const decideOutput = (toolInput, reply) =>
     ? buildAllowOutput(toolInput, reply.answers)
     : null;
 
+/**
+ * What to do after one ask request. `done`: the reply is final (an answer, a dismissal).
+ * `again`: the API cut the long poll (`wait`), ask again at once. `retry`: the API could not
+ * be reached or failed (no response, a 5xx), ask again after `RETRY_MS`. `give-up`: the API
+ * refused the request (a 4xx: a bad body, a wrong key) and would again.
+ */
+export const decideNext = (result) => {
+  if (result.status === 0 || result.status >= 500) return 'retry';
+  if (result.status !== 200) return 'give-up';
+  return result.body && result.body.action === 'wait' ? 'again' : 'done';
+};
+
 const readStdin = async () => {
   const chunks = [];
   for await (const chunk of process.stdin) chunks.push(chunk);
   return Buffer.concat(chunks).toString('utf8');
 };
 
-/** POST JSON, wait as long as it takes. Resolves with the parsed body, or `null` on any error. */
+/**
+ * POST JSON, wait as long as it takes. Resolves with `{ status, body }`: `status` 0 when the
+ * request never got a response, `body` the parsed JSON or `null`.
+ */
 export const postJson = (baseUrl, path, body, apiKey) =>
   new Promise((resolve) => {
     try {
@@ -82,22 +104,37 @@ export const postJson = (baseUrl, path, body, apiKey) =>
           const parts = [];
           res.on('data', (part) => parts.push(part));
           res.on('end', () => {
-            if (res.statusCode !== 200) return resolve(null);
             try {
-              resolve(JSON.parse(Buffer.concat(parts).toString('utf8')));
+              resolve({
+                status: res.statusCode ?? 0,
+                body: JSON.parse(Buffer.concat(parts).toString('utf8')),
+              });
             } catch {
-              resolve(null);
+              resolve({ status: res.statusCode ?? 0, body: null });
             }
           });
-          res.on('error', () => resolve(null));
+          res.on('error', () => resolve({ status: 0, body: null }));
         },
       );
-      req.on('error', () => resolve(null));
+      req.on('error', () => resolve({ status: 0, body: null }));
       req.end(payload);
     } catch {
-      resolve(null);
+      resolve({ status: 0, body: null });
     }
   });
+
+const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Asks until the API gives a final reply or refuses; `null` when the dialog should open. */
+export const askUntilAnswered = async (post, body, retryMs = RETRY_MS) => {
+  for (;;) {
+    const result = await post(body);
+    const next = decideNext(result);
+    if (next === 'done') return result.body;
+    if (next === 'give-up') return null;
+    if (next === 'retry') await sleep(retryMs);
+  }
+};
 
 const main = async () => {
   const sessionId = process.env.STUDIO_SESSION_ID;
@@ -116,11 +153,9 @@ const main = async () => {
     return;
   }
   if (event.hook_event_name === 'PreToolUse') {
-    const reply = await postJson(
-      baseUrl,
-      '/api/v1/hooks/ask-user-question',
+    const reply = await askUntilAnswered(
+      (body) => postJson(baseUrl, '/api/v1/hooks/ask-user-question', body, apiKey),
       buildAskBody(event, sessionId),
-      apiKey,
     );
     const output = decideOutput(event.tool_input ?? {}, reply);
     if (output) process.stdout.write(`${JSON.stringify(output)}\n`);

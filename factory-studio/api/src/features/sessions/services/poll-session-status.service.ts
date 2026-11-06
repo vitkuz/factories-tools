@@ -1,4 +1,5 @@
 import type { AppLogger } from '../../../shared/types.js';
+import { sessionsFingerprint } from '../../live/live.utils.js';
 import type { Broadcast } from '../../questions/questions.types.js';
 import type { FactorySession, SessionStatus } from '../sessions.types.js';
 
@@ -8,6 +9,11 @@ export interface PollSessionStatusSettings {
   intervalMs?: number;
   /** Every successful poll, with the whole list: the live chat ends tails of gone sessions. */
   onSessions?: (sessions: readonly FactorySession[]) => Promise<void> | void;
+  /**
+   * Only the polls whose list differs from the last one (ages aside, see `sessionsFingerprint`):
+   * a session came, went, changed status or got its Claude id. The live feed pushes this list.
+   */
+  onChanged?: (sessions: readonly FactorySession[]) => Promise<void> | void;
   logger?: AppLogger;
 }
 
@@ -37,9 +43,11 @@ export const pollSessionStatusFactory = ({
   broadcast,
   intervalMs = 2000,
   onSessions,
+  onChanged,
   logger,
 }: PollSessionStatusSettings): SessionStatusPoller => {
   let last: ReadonlyMap<string, SessionStatus> = new Map();
+  let fingerprint: string | null = null;
   let timer: NodeJS.Timeout | undefined;
 
   const tick = async (): Promise<void> => {
@@ -58,7 +66,11 @@ export const pollSessionStatusFactory = ({
           session.status ?? 'unknown',
         ]),
       );
+      const next: string = sessionsFingerprint(sessions);
+      const changed: boolean = next !== fingerprint;
+      fingerprint = next;
       await onSessions?.(sessions);
+      if (changed) await onChanged?.(sessions);
     } catch (error: unknown) {
       logger?.warn('status poll failed', {
         message: error instanceof Error ? error.message : String(error),

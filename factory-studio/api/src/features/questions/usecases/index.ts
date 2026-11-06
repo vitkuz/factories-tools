@@ -1,9 +1,12 @@
 export {
   registerQuestionFactory,
-  DEFAULT_QUESTION_TIMEOUT_MS,
   type RegisterQuestionSettings,
 } from './register-question.usecase.js';
-export { answerQuestionFactory, type AnswerQuestionSettings } from './answer-question.usecase.js';
+export {
+  answerQuestionFactory,
+  TERMINAL_ONLY,
+  type AnswerQuestionSettings,
+} from './answer-question.usecase.js';
 export {
   dismissQuestionFactory,
   type DismissQuestionSettings,
@@ -16,3 +19,13 @@ export {
   locateQuestionRunFactory,
   type LocateQuestionRunSettings,
 } from './locate-question-run.usecase.js';
+export {
+  restoreQuestionsFactory,
+  type RestoreQuestionsSettings,
+} from './restore-questions.usecase.js';
+export {
+  reconcileQuestionsFactory,
+  DEFAULT_DETACH_GRACE_MS,
+  DEFAULT_GONE_GRACE_MS,
+  type ReconcileQuestionsSettings,
+} from './reconcile-questions.usecase.js';

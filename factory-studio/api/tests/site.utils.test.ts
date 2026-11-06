@@ -34,9 +34,8 @@ describe('siteContentTypeFor', () => {
 });
 
 describe('SITE_HEADERS', () => {
-  it('sandboxes without allow-same-origin and forbids sniffing', () => {
-    expect(SITE_HEADERS['Content-Security-Policy']).toMatch(/^sandbox /);
-    expect(SITE_HEADERS['Content-Security-Policy']).not.toContain('allow-same-origin');
+  it('sends no sandbox CSP and forbids sniffing', () => {
+    expect(SITE_HEADERS['Content-Security-Policy']).toBeUndefined();
     expect(SITE_HEADERS['X-Content-Type-Options']).toBe('nosniff');
     expect(SITE_HEADERS['Referrer-Policy']).toBe('no-referrer');
   });

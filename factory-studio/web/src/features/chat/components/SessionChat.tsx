@@ -12,9 +12,10 @@ import {
   shortSessionName,
   waitedFor,
 } from '../../sessions/sessions.utils';
-import type { ChatRow, ChatState } from '../chat.types';
-import { PAGE_ROWS, buildRows, isNearBottom } from '../chat.utils';
+import type { ChatRow, ChatState, ComposerGate } from '../chat.types';
+import { PAGE_ROWS, buildRows, composerGate, isNearBottom } from '../chat.utils';
 import { useSessionChat, type SessionChat as Chat } from '../hooks/use-session-chat';
+import { ChatComposer } from './ChatComposer';
 import { Rows } from './ChatRows';
 
 interface SessionChatProps {
@@ -73,6 +74,13 @@ export const SessionChat = ({ sessionId, session, onClose }: SessionChatProps): 
     questions.state.statuses[sessionId] ?? session?.status ?? null;
   const visible: ChatRow[] = rows.slice(Math.max(0, rows.length - shown));
   const hidden: number = rows.length - visible.length;
+  const gate: ComposerGate = composerGate({
+    status,
+    phase: state.phase,
+    asked: asked.length > 0,
+    connected,
+    sending: chat.send.sending,
+  });
 
   // New rows (or a new question) keep the view at the bottom while the reader follows.
   useLayoutEffect((): void => {
@@ -108,55 +116,63 @@ export const SessionChat = ({ sessionId, session, onClose }: SessionChatProps): 
           <span className={`chat-status-dot${status === 'working' ? ' is-pulsing' : ''}`} />
           {state.phase === 'ended' ? 'ended' : STATUS_META[status ?? 'unknown'].label}
         </span>
-        <button type="button" className="ghost-button chat-close" onClick={onClose}>
+        <button type="button" className="btn chat-close" onClick={onClose}>
           Close
         </button>
       </header>
       {!connected ? <Notice tone="plain">Live connection is down. Reconnecting…</Notice> : null}
-      <div className="chat-scroll" ref={scroller} onScroll={onScroll}>
-        {state.dropped > 0 || hidden > 0 ? (
-          <div className="chat-earlier">
-            {hidden > 0 ? (
-              <button
-                type="button"
-                className="ghost-button"
-                onClick={(): void => setShown((n: number): number => n + PAGE_ROWS)}
-              >
-                Show earlier ({hidden})
-              </button>
-            ) : null}
-            {state.dropped > 0 ? (
-              <span className="chat-dropped">
-                {state.dropped.toLocaleString('en-US')} older items are not loaded
-              </span>
-            ) : null}
+      <div className="chat-body">
+        <div className="chat-scroll" ref={scroller} onScroll={onScroll}>
+          {state.dropped > 0 || hidden > 0 ? (
+            <div className="chat-earlier">
+              {hidden > 0 ? (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={(): void => setShown((n: number): number => n + PAGE_ROWS)}
+                >
+                  Show earlier ({hidden})
+                </button>
+              ) : null}
+              {state.dropped > 0 ? (
+                <span className="chat-dropped">
+                  {state.dropped.toLocaleString('en-US')} older items are not loaded
+                </span>
+              ) : null}
+            </div>
+          ) : null}
+          <div className="chat-rows">
+            <Rows rows={visible} onExpand={chat.expand} />
           </div>
-        ) : null}
-        <div className="chat-rows">
-          <Rows rows={visible} onExpand={chat.expand} />
+          {phaseNotice(state)}
+          {asked.map((question: PendingQuestion) => (
+            <div className="chat-ask" key={question.promptId}>
+              <QuestionCard
+                question={question}
+                send={questions.state.prompts[question.promptId] ?? idleSend}
+                factoryId={session?.factoryId ?? null}
+                wait={waitedFor(question.askedAt, now)}
+                connected={connected}
+                open={open === question.promptId}
+                onOpen={(): void => setChosen(question.promptId)}
+                onLater={(): void => setChosen(null)}
+                onAnswer={questions.answer}
+              />
+            </div>
+          ))}
         </div>
-        {phaseNotice(state)}
-        {asked.map((question: PendingQuestion) => (
-          <div className="chat-ask" key={question.promptId}>
-            <QuestionCard
-              question={question}
-              send={questions.state.prompts[question.promptId] ?? idleSend}
-              factoryId={session?.factoryId ?? null}
-              wait={waitedFor(question.askedAt, now)}
-              connected={connected}
-              open={open === question.promptId}
-              onOpen={(): void => setChosen(question.promptId)}
-              onLater={(): void => setChosen(null)}
-              onAnswer={questions.answer}
-            />
-          </div>
-        ))}
+        {!follow ? (
+          <button type="button" className="chat-jump" onClick={jump}>
+            Jump to latest ↓
+          </button>
+        ) : null}
       </div>
-      {!follow ? (
-        <button type="button" className="chat-jump" onClick={jump}>
-          Jump to latest ↓
-        </button>
-      ) : null}
+      <ChatComposer
+        gate={gate}
+        send={chat.send}
+        onSend={chat.sendMessage}
+        onClearError={chat.clearSendError}
+      />
     </section>
   );
 };
